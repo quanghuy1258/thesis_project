@@ -6,7 +6,6 @@ namespace thesis {
 class Tfhe;
 class Tlwe;
 class Trlwe;
-class Tgsw;
 class Trgsw;
 
 } // namespace thesis
