@@ -6,7 +6,23 @@
 
 namespace thesis {
 
-class Trgsw {};
+class Trgsw {
+private:
+  static int _N;
+  static int _k;
+
+public:
+  // Constructors
+  Trgsw();
+  Trgsw(const Trgsw &obj);
+
+  // Destructor
+  ~Trgsw();
+
+  // Get params
+  static int get_N();
+  static int get_k();
+};
 
 } // namespace thesis
 

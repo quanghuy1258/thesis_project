@@ -6,7 +6,23 @@
 
 namespace thesis {
 
-class Trlwe {};
+class Trlwe {
+private:
+  static int _N;
+  static int _k;
+
+public:
+  // Constructors
+  Trlwe();
+  Trlwe(const Trlwe &obj);
+
+  // Destructor
+  ~Trlwe();
+
+  // Get params
+  static int get_N();
+  static int get_k();
+};
 
 } // namespace thesis
 

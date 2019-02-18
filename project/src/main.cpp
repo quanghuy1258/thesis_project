@@ -3,7 +3,6 @@
 #include "thesis/tfhe.h"
 #include "thesis/tlwe.h"
 #include "thesis/trlwe.h"
-#include "thesis/tgsw.h"
 #include "thesis/trgsw.h"
 
 int main(int argc, char *argv[]) {

@@ -8,8 +8,6 @@ namespace thesis {
 
 class Tlwe {
 private:
-  static int _N;
-  static int _k;
 public:
   // Constructors
   Tlwe();
@@ -17,6 +15,8 @@ public:
 
   // Destructor
   ~Tlwe();
+
+  // Get params
 };
 
 }; // namespace thesis
