@@ -12,7 +12,7 @@ public:
   Tfhe();
   Tfhe(const Tfhe &);
 
-  // Destructors
+  // Destructor
   ~Tfhe();
 };
 

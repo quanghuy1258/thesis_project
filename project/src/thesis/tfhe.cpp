@@ -10,7 +10,7 @@ Tfhe::Tfhe(const Tfhe &) {
   std::cout << "TODO: Tfhe::Tfhe(const Tfhe &)" << std::endl;
 }
 
-// Destructors
+// Destructor
 Tfhe::~Tfhe() {
   std::cout << "TODO: Tfhe::~Tfhe()" << std::endl;
 }

@@ -6,7 +6,16 @@
 
 namespace thesis {
 
-class Tlwe {};
+class Tlwe {
+private:
+public:
+  // Constructors
+  Tlwe();
+  Tlwe(const Tlwe &obj);
+
+  // Destructor
+  ~Tlwe();
+};
 
 }; // namespace thesis
 
