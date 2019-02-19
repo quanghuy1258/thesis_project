@@ -1,4 +1,3 @@
-
 #
 # googletest
 #
@@ -9,3 +8,9 @@ add_subdirectory(googletest EXCLUDE_FROM_ALL)
 #
 set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Message: Disable BENCHMARK_GTEST_TESTS")
 add_subdirectory(benchmark EXCLUDE_FROM_ALL)
+
+#
+# OpenBLAS
+#
+set(NO_AFFINITY 1 CACHE BOOL "Message: NO_AFFINITY")
+add_subdirectory(OpenBLAS EXCLUDE_FROM_ALL)

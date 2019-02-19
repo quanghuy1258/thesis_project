@@ -4,3 +4,6 @@
 [submodule "project/thirdparty/benchmark"]
 	path = project/thirdparty/benchmark
 	url = https://github.com/google/benchmark
+[submodule "project/thirdparty/OpenBLAS"]
+	path = project/thirdparty/OpenBLAS
+	url = https://github.com/xianyi/OpenBLAS
