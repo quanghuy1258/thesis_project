@@ -15,6 +15,12 @@ FUNCTION (print_all_variables)
 		MESSAGE (STATUS "${_variableName}=${${_variableName}}")
 	endforeach()
 ENDFUNCTION (print_all_variables)
+FUNCTION (print_all_include_directories)
+	GET_PROPERTY (dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+	foreach(dir ${dirs})
+		MESSAGE (STATUS "include_directory='${dir}'")
+	endforeach()
+ENDFUNCTION (print_all_include_directories)
 
 #
 # Project Properties
@@ -87,3 +93,4 @@ endif()
 MESSAGE ("===== DEBUG MODE =====")
 MESSAGE ("===== PRINT ALL VARIABLES =====")
 print_all_variables()
+print_all_include_directories()
