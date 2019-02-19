@@ -2,7 +2,10 @@
 
 static void BM_Example(benchmark::State &state) {
   for (auto _ : state) {
-    int x = 1 + 1;
+    int i = 0;
+    while (i < 10) {
+      i++;
+    }
   }
 }
 BENCHMARK(BM_Example);

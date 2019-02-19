@@ -1,6 +1,8 @@
 #ifndef THESIS_LOAD_LIB_H
 #define THESIS_LOAD_LIB_H
 
+#include <cmath>
+
 #include <algorithm>
 #include <atomic>
 #include <complex>

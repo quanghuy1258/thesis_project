@@ -9,6 +9,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Hello World!" << std::endl;
   for (int i = 0; i < argc; i++)
     std::cout << argv[i] << std::endl;
-  thesis::Tfhe temp;
+  thesis::Tfhe temp_tfhe;
+  thesis::Tlwe temp_tlwe;
   return 0;
 }
