@@ -1,0 +1,3 @@
+# Ignore cblas.h + openblas_config.h because they will be created automatically
+cblas.h
+openblas_config.h

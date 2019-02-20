@@ -1,10 +1,11 @@
+#include <cstdlib>
+#include <ctime>
 #include <memory>
 
 #include <benchmark/benchmark.h>
-//#include <cblas.h>
+#include <cblas.h>
 
 static void BM_OpenBLAS_Matmul(benchmark::State &state) {
-  /*
   std::srand(std::time(0));
   int M = state.range(0);
   int K = state.range(1);
@@ -22,8 +23,5 @@ static void BM_OpenBLAS_Matmul(benchmark::State &state) {
     cblas_dgemm(CblasColMajor, CblasNoTrans, CblasNoTrans, M, N, K, 1.0,
                 A.get(), M, B.get(), K, 0.0, C.get(), M);
   }
-  */
 }
-BENCHMARK(BM_OpenBLAS_Matmul)
-    ->Args({100, 150, 200})
-    ->Args({1000, 1500, 2000});
+BENCHMARK(BM_OpenBLAS_Matmul)->Args({100, 150, 200})->Args({1000, 1500, 2000});

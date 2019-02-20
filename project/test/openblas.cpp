@@ -1,10 +1,9 @@
 #include <memory>
 
 #include "gtest/gtest.h"
-//#include <cblas.h>
+#include <cblas.h>
 
 TEST(OpenBLAS, ExampleTest) {
-  /*
   std::srand(std::time(0));
   int M = std::rand() % 20 + 1;
   int K = std::rand() % 20 + 1;
@@ -28,6 +27,5 @@ TEST(OpenBLAS, ExampleTest) {
     }
     EXPECT_TRUE(std::abs(C[i] - val) < 1e-10);
   }
-  */
 }
 
