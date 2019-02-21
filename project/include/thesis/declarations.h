@@ -5,24 +5,23 @@
 
 namespace thesis {
 
+#ifdef USING_64BIT
+typedef int64_t INTEGER;
+typedef double REAL;
+const int NUMBER_BIT_SIZE = 64;
+#else
+typedef int32_t INTEGER;
+typedef float REAL;
+const int NUMBER_BIT_SIZE = 32;
+#endif
+
+const REAL CONST_PI = 4. * std::atan(1.);
+
 class Tfhe;
 class Tlwe;
 class Trlwe;
 class Trgsw;
-
-const double CONST_PI = 4. * std::atan(1.);
-
-#ifdef USING_INTEGER_64BITS
-typedef int64_t INTEGER;
-#else
-typedef int32_t INTEGER;
-#endif
-
-#ifdef USING_REAL_64BITS
-typedef double REAL;
-#else
-typedef float REAL;
-#endif
+class Torus;
 
 } // namespace thesis
 

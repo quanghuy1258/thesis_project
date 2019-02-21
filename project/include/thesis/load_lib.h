@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <bitset>
 #include <complex>
 #include <condition_variable>
 #include <deque>
