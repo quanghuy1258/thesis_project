@@ -4,3 +4,6 @@
 [submodule "project/thirdparty/benchmark"]
 	path = project/thirdparty/benchmark
 	url = https://github.com/google/benchmark
+[submodule "project/thirdparty/eigen-git-mirror"]
+	path = project/thirdparty/eigen-git-mirror
+	url = https://github.com/eigenteam/eigen-git-mirror.git
