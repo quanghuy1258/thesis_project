@@ -26,7 +26,7 @@ ENDFUNCTION (print_all_include_directories)
 # Project Properties
 #
 CMAKE_MINIMUM_REQUIRED (VERSION 3.5)
-PROJECT (thesis_project C CXX Fortran)
+PROJECT (thesis_project C CXX)
 if(NOT CMAKE_BUILD_TYPE)
 	MESSAGE (STATUS "No build type selected, default to Release")
 	SET (CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build, options are: Debug Release" FORCE)
@@ -45,13 +45,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	endif()
 else()
 	MESSAGE (FATAL_ERROR "Require C++ compiler (gcc and g++)")
-endif()
-if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
-	if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5.1")
-		MESSAGE (FATAL_ERROR "Insufficient gfortran version")
-	endif()
-else()
-	MESSAGE (FATAL_ERROR "Require Fortran compiler (gfortran)")
 endif()
 
 #
