@@ -2,5 +2,5 @@
 # Add Executable
 #
 AUX_SOURCE_DIRECTORY ("${CMAKE_CURRENT_SOURCE_DIR}/thesis" THESIS)
-add_executable(main main.cpp ${THESIS})
-
+ADD_EXECUTABLE (main main.cpp ${THESIS})
+TARGET_LINK_LIBRARIES (main eigen pthread)

@@ -1,5 +1,7 @@
 #
 # Add Executable
 #
-ADD_EXECUTABLE (mainTest main.cpp example.cpp threadpool_eigen.cpp)
+AUX_SOURCE_DIRECTORY ("${CMAKE_SOURCE_DIR}/src/thesis" THESIS)
+AUX_SOURCE_DIRECTORY ("${CMAKE_SOURCE_DIR}/test" TESTS)
+ADD_EXECUTABLE (mainTest ${THESIS} ${TESTS})
 TARGET_LINK_LIBRARIES (mainTest gtest eigen)

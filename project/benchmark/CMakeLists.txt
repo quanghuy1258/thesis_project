@@ -1,5 +1,7 @@
 #
 # Add Executable
 #
-ADD_EXECUTABLE (mainBenchmark main.cpp example.cpp)
-TARGET_LINK_LIBRARIES (mainBenchmark benchmark)
+AUX_SOURCE_DIRECTORY ("${CMAKE_SOURCE_DIR}/src/thesis" THESIS)
+AUX_SOURCE_DIRECTORY ("${CMAKE_SOURCE_DIR}/benchmark" BENCHMARKS)
+ADD_EXECUTABLE (mainBenchmark ${THESIS} ${BENCHMARKS})
+TARGET_LINK_LIBRARIES (mainBenchmark benchmark eigen)

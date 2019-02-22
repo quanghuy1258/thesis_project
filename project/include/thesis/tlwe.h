@@ -8,12 +8,11 @@ namespace thesis {
 
 class Tlwe {
 private:
-  static INTEGER _n;
-  static REAL _sdError;
-  static REAL _sdMaximumError;
+  static int _n;
+  static double _stddevError;
 
-  std::vector<INTEGER> _s;
-  std::vector<std::vector<INTEGER>> _ciphertexts;
+  std::vector<Integer> _s;
+  std::vector<std::vector<Torus>> _ciphertexts;
   std::vector<bool> _plaintexts;
 
 public:
@@ -28,26 +27,26 @@ public:
   Tlwe &operator=(const Tlwe &obj) = delete;
 
   // Get params
-  static INTEGER get_n();
-  static REAL get_sdError();
-  static REAL get_sdMaximumError();
+  static int get_n();
+  static double get_stddevError();
 
   // Set attributes
   void clear_s();
   void clear_ciphertexts();
   void clear_plaintexts();
-  bool set_s(const std::vector<INTEGER> &s);
-  bool addCiphertext(const std::vector<INTEGER> &cipher);
+  bool set_s(const std::vector<Integer> &s);
+  void generate_s();
+  bool addCiphertext(const std::vector<Torus> &cipher);
   void addPlaintext(const bool &bit);
 
   // Get attributes
-  bool get_s(std::vector<INTEGER> &s) const;
-  void get_ciphertexts(std::vector<std::vector<INTEGER>> &ciphertexts) const;
+  bool get_s(std::vector<Integer> &s) const;
+  void get_ciphertexts(std::vector<std::vector<Torus>> &ciphertexts) const;
   void get_plaintexts(std::vector<bool> &plaintexts) const;
 
   // Utilities
-  void encryptAll();
-  void decryptAll();
+  bool encryptAll();
+  bool decryptAll();
 };
 
 }; // namespace thesis
