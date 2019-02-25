@@ -51,9 +51,8 @@ void Tlwe::addPlaintext(const bool &bit) { _plaintexts.push_back(bit); }
 
 // Get attributes
 bool Tlwe::get_s(std::vector<Integer> &s) const {
-  if ((signed)_s.size() == 0) {
+  if (_s.empty())
     return false;
-  }
 
   s.resize(_n);
   for (int i = 0; i < _n; i++) {
@@ -72,8 +71,9 @@ void Tlwe::get_plaintexts(std::vector<bool> &plaintexts) const {
 bool Tlwe::encryptAll() {
   if (_s.empty())
     return false;
-  if ((signed)_plaintexts.size() == 0) {
+  if (_plaintexts.empty()) {
     _ciphertexts.clear();
+    return true;
   } else {
     _ciphertexts.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
@@ -94,24 +94,15 @@ bool Tlwe::encryptAll() {
     ThreadPool::get_threadPool().Schedule([&, i]() {
       int s = (_plaintexts.size() * i) / numberThreads,
           e = (_plaintexts.size() * (i + 1)) / numberThreads;
-      Eigen::Matrix<Torus, Eigen::Dynamic, Eigen::Dynamic> matrix_ciphertexts(
-          e - s, _n);
-      Eigen::Matrix<Integer, Eigen::Dynamic, 1> vector_key(_n);
-      for (int j = 0; j < _n; j++) {
-        for (int k = s; k < e; k++) {
-          matrix_ciphertexts(k - s, j) = _ciphertexts[k][j];
+      for (int j = s; j < e; j++) {
+        for (int k = 0; k < _n; k++) {
+          _ciphertexts[j][_n] += _ciphertexts[j][k] * _s[k];
         }
-        vector_key(j) = _s[j];
-      }
-      Eigen::Matrix<Torus, 1, Eigen::Dynamic> rowvector_encrypts =
-          matrix_ciphertexts * vector_key;
-      for (int k = s; k < e; k++) {
         int shift = (signed)sizeof(Torus) * 8 - 1;
         shift = (shift < 0) ? 0 : shift;
         Torus bit = 1;
         bit = bit << (unsigned)shift;
-        _ciphertexts[k][_n] +=
-            rowvector_encrypts(k - s) + ((_plaintexts[k]) ? bit : 0);
+        _ciphertexts[j][_n] += ((_plaintexts[j]) ? bit : 0);
       }
       barrier.Notify();
     });
@@ -123,43 +114,36 @@ bool Tlwe::encryptAll() {
 bool Tlwe::decryptAll() {
   if (_s.empty())
     return false;
-  if ((signed)_ciphertexts.size() == 0) {
+  if (_ciphertexts.empty()) {
     _plaintexts.clear();
+    return true;
   } else {
     _plaintexts.resize(_ciphertexts.size());
   }
 #ifdef USING_GPU
 #else
-  std::vector<unsigned char> temporaryResult(_ciphertexts.size());
+  std::vector<Torus> rowvector_decrypts(_ciphertexts.size());
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
       int s = (_ciphertexts.size() * i) / numberThreads,
           e = (_ciphertexts.size() * (i + 1)) / numberThreads;
-      Eigen::Matrix<Torus, Eigen::Dynamic, Eigen::Dynamic> matrix_ciphertexts(
-          e - s, _n + 1);
-      Eigen::Matrix<Integer, Eigen::Dynamic, 1> vector_key(_n + 1);
-      for (int j = 0; j <= _n; j++) {
-        for (int k = s; k < e; k++) {
-          matrix_ciphertexts(k - s, j) = _ciphertexts[k][j];
+      for (int j = s; j < e; j++) {
+        rowvector_decrypts[j] = _ciphertexts[j][_n];
+        for (int k = 0; k < _n; k++) {
+          rowvector_decrypts[j] -= _ciphertexts[j][k] * _s[k];
         }
-        vector_key(j) = (j < _n) ? (-_s[j]) : 1;
-      }
-      Eigen::Matrix<Torus, 1, Eigen::Dynamic> rowvector_decrypts =
-          matrix_ciphertexts * vector_key;
-      for (int k = s; k < e; k++) {
-        int shift = (signed)sizeof(Torus) * 8 - 2;
-        shift = (shift < 0) ? 0 : shift;
-        Torus code = (rowvector_decrypts(k - s) >> (unsigned)shift) & 3;
-        temporaryResult[k] = (code == 1 || code == 2) ? 1 : 0;
       }
       barrier.Notify();
     });
   }
   barrier.Wait();
   for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
-    _plaintexts[i] = (temporaryResult[i] == 1);
+    int shift = (signed)sizeof(Torus) * 8 - 2;
+    shift = (shift < 0) ? 0 : shift;
+    Torus code = (rowvector_decrypts[i] >> (unsigned)shift) & 3;
+    _plaintexts[i] = (code == 1 || code == 2);
   }
 #endif
   return true;

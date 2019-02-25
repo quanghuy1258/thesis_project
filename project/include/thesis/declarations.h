@@ -18,6 +18,8 @@ typedef int16_t Integer;
 typedef int8_t Torus;
 typedef int8_t Integer;
 #endif
+typedef std::vector<bool> PolynomialBinary;
+typedef std::vector<Torus> PolynomialTorus;
 
 const double CONST_PI = 4. * std::atan(1.);
 
