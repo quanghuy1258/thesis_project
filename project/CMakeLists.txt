@@ -71,6 +71,11 @@ ADD_SUBDIRECTORY(thirdparty)
 INCLUDE_DIRECTORIES("${MAINFOLDER}/include")
 
 #
+# Add packages
+#
+FIND_PACKAGE(Threads)
+
+#
 # Add Build Targets
 #
 ADD_SUBDIRECTORY(src)

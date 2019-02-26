@@ -13,3 +13,8 @@ ADD_SUBDIRECTORY (benchmark EXCLUDE_FROM_ALL)
 # eigen
 #
 ADD_SUBDIRECTORY (eigen-git-mirror EXCLUDE_FROM_ALL)
+
+#
+# fftw
+#
+INCLUDE (fftw/external_fftw.cmake)

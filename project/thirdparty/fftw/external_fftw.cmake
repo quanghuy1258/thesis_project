@@ -1,0 +1,14 @@
+SET (FFTW_VERSION 3.3.8)
+SET (FFTW_MD5 "8aac833c943d8e90d51b697b27d4384d")
+SET (FFTW_INSTALL_DIR "${CMAKE_CURRENT_SOURCE_DIR}/fftw")
+SET (FFTW_INCULDE_DIR "${FFTW_INSTALL_DIR}/include" PARENT_SCOPE)
+SET (FFTW_LIB "${FFTW_INSTALL_DIR}/lib/libfftw3.a" PARENT_SCOPE)
+
+INCLUDE(ExternalProject)
+ExternalProject_Add(fftw
+		PREFIX fftw
+		URL "ftp://ftp.fftw.org/pub/fftw/fftw-${FFTW_VERSION}.tar.gz"
+		URL_MD5 ${FFTW_MD5}
+		INSTALL_DIR ${FFTW_INSTALL_DIR}
+		CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=<INSTALL_DIR>
+		)
