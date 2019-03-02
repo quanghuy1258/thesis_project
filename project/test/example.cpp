@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
 
-TEST(Example, ExampleTest) {
+TEST(Thesis, Example) {
   EXPECT_TRUE(1+1 == 2);
 }

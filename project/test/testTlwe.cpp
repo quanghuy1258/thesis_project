@@ -3,7 +3,7 @@
 #include "thesis/load_lib.h"
 #include "thesis/tlwe.h"
 
-TEST(Tlwe, EncryptDecrypt) {
+TEST(Thesis, TlweEncryptDecrypt) {
   std::srand(std::time(nullptr));
   thesis::Tlwe tlweObj;
 

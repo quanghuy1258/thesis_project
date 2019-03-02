@@ -3,12 +3,11 @@
 
 #include "thesis/load_lib.h"
 
+#define USING_32BIT
+
 namespace thesis {
 
-#if defined(USING_64BIT)
-typedef int64_t Torus;
-typedef int64_t Integer;
-#elif defined(USING_32BIT)
+#if defined(USING_32BIT)
 typedef int32_t Torus;
 typedef int32_t Integer;
 #elif defined(USING_16BIT)
@@ -27,6 +26,8 @@ class Tfhe;
 class Tlwe;
 class Trlwe;
 class Trgsw;
+
+class FFT;
 
 } // namespace thesis
 
