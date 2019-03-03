@@ -19,7 +19,7 @@ void FFT::renewVectorFFT(void *&pointer, int n) {
     return;
   FFT_Data *obj = new FFT_Data;
   obj->_normalForm = fftw_alloc_real(n << 3);
-  obj->_fftForm = fftw_alloc_complex(n << 3);
+  obj->_fftForm = fftw_alloc_complex((n << 2) + 1);
   obj->_normal2fft = fftw_plan_dft_r2c_1d(n << 3, obj->_normalForm,
                                           obj->_fftForm, FFTW_ESTIMATE);
   obj->_fft2normal = fftw_plan_dft_c2r_1d(n << 3, obj->_fftForm,
@@ -70,8 +70,10 @@ void FFT::torusPolynomialFromFFT(std::vector<Torus> &out, void *inp) {
   FFT_Data *obj = (FFT_Data *)inp;
   fftw_execute(obj->_fft2normal);
   for (int i = 0; i < _N; i++) {
-    uint32_t temp_0 = (unsigned)std::llround(obj->_normalForm[(i << 2)] / (_N << 3));
-    uint32_t temp_1 = (unsigned)std::llround(obj->_normalForm[(i << 2) + 1] / (_N << 3));
+    uint32_t temp_0 =
+        (unsigned)std::llround(obj->_normalForm[(i << 2)] / (_N << 3));
+    uint32_t temp_1 =
+        (unsigned)std::llround(obj->_normalForm[(i << 2) + 1] / (_N << 3));
     out[i] = temp_0 + (temp_1 << 16);
   }
 }
@@ -79,7 +81,7 @@ void FFT::fftMultiplication(void *result, void *a, void *b) {
   FFT_Data *temp_a = (FFT_Data *)a;
   FFT_Data *temp_b = (FFT_Data *)b;
   FFT_Data *temp_result = (FFT_Data *)result;
-  for (int i = 0; i < (_N << 3); i++) {
+  for (int i = 0; i <= (_N << 2); i++) {
     temp_result->_fftForm[i][0] =
         temp_a->_fftForm[i][0] * temp_b->_fftForm[i][0] -
         temp_a->_fftForm[i][1] * temp_b->_fftForm[i][1];
