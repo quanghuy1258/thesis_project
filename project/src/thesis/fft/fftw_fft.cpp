@@ -38,7 +38,7 @@ void FFT::deleteVectorFFT(void *&pointer) {
   }
 }
 
-void FFT::torusPolynomialToFFT(void *out, const std::vector<Torus> &inp) {
+void FFT::torusPolynomialToFFT(void *out, const PolynomialTorus &inp) {
   FFT_Data *obj = (FFT_Data *)out;
   for (int i = 0; i < _N; i++) {
     uint32_t temp = (unsigned)inp[i];
@@ -52,7 +52,7 @@ void FFT::torusPolynomialToFFT(void *out, const std::vector<Torus> &inp) {
   }
   fftw_execute(obj->_normal2fft);
 }
-void FFT::integerPolynomialToFFT(void *out, const std::vector<Integer> &inp) {
+void FFT::integerPolynomialToFFT(void *out, const PolynomialInteger &inp) {
   FFT_Data *obj = (FFT_Data *)out;
   for (int i = 0; i < _N; i++) {
     uint32_t temp = (unsigned)((int32_t)inp[i]);
@@ -66,7 +66,20 @@ void FFT::integerPolynomialToFFT(void *out, const std::vector<Integer> &inp) {
   }
   fftw_execute(obj->_normal2fft);
 }
-void FFT::torusPolynomialFromFFT(std::vector<Torus> &out, void *inp) {
+void FFT::binaryPolynomialToFFT(void *out, const PolynomialBinary &inp) {
+  FFT_Data *obj = (FFT_Data *)out;
+  for (int i = 0; i < _N; i++) {
+    obj->_normalForm[(i << 2)] = (inp[i]) ? 1 : 0;
+    obj->_normalForm[(i << 2) + 1] = obj->_normalForm[(i << 2) + 2] =
+        obj->_normalForm[(i << 2) + 3] =
+            obj->_normalForm[(_N << 2) + (i << 2)] =
+                obj->_normalForm[(_N << 2) + (i << 2) + 1] =
+                    obj->_normalForm[(_N << 2) + (i << 2) + 2] =
+                        obj->_normalForm[(_N << 2) + (i << 2) + 3] = 0;
+  }
+  fftw_execute(obj->_normal2fft);
+}
+void FFT::torusPolynomialFromFFT(PolynomialTorus &out, void *inp) {
   FFT_Data *obj = (FFT_Data *)inp;
   fftw_execute(obj->_fft2normal);
   for (int i = 0; i < _N; i++) {

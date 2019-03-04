@@ -1,8 +1,6 @@
-#include <Eigen/Core>
-
+#include "thesis/tlwe.h"
 #include "thesis/random.h"
 #include "thesis/threadpool.h"
-#include "thesis/tlwe.h"
 
 namespace thesis {
 
@@ -78,30 +76,28 @@ bool Tlwe::encryptAll() {
     _ciphertexts.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
       _ciphertexts[i].resize(_n + 1);
+      for (int j = 0; j < _n; j++) {
+        _ciphertexts[i][j] = Random::getUniformTorus();
+      }
+      _ciphertexts[i][_n] = Random::getNormalTorus(0, _stddevError);
     }
   }
 #ifdef USING_GPU
 #else
-  for (int i = 0; i < (signed)_plaintexts.size(); i++) {
-    for (int j = 0; j < _n; j++) {
-      _ciphertexts[i][j] = Random::getUniformTorus();
-    }
-    _ciphertexts[i][_n] = Random::getNormalTorus(0, _stddevError);
-  }
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
       int s = (_plaintexts.size() * i) / numberThreads,
           e = (_plaintexts.size() * (i + 1)) / numberThreads;
+      int shift = (signed)sizeof(Torus) * 8 - 1;
+      shift = (shift < 0) ? 0 : shift;
+      Torus bit = 1;
+      bit = bit << (unsigned)shift;
       for (int j = s; j < e; j++) {
         for (int k = 0; k < _n; k++) {
           _ciphertexts[j][_n] += _ciphertexts[j][k] * _s[k];
         }
-        int shift = (signed)sizeof(Torus) * 8 - 1;
-        shift = (shift < 0) ? 0 : shift;
-        Torus bit = 1;
-        bit = bit << (unsigned)shift;
         _ciphertexts[j][_n] += ((_plaintexts[j]) ? bit : 0);
       }
       barrier.Notify();

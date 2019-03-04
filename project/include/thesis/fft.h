@@ -19,9 +19,10 @@ private:
   void renewVectorFFT(void *&pointer, int n);
   void deleteVectorFFT(void *&pointer);
 
-  void torusPolynomialToFFT(void *out, const std::vector<Torus> &inp);
-  void integerPolynomialToFFT(void *out, const std::vector<Integer> &inp);
-  void torusPolynomialFromFFT(std::vector<Torus> &out, void *inp);
+  void torusPolynomialToFFT(void *out, const PolynomialTorus &inp);
+  void integerPolynomialToFFT(void *out, const PolynomialInteger &inp);
+  void binaryPolynomialToFFT(void *out, const PolynomialBinary &inp);
+  void torusPolynomialFromFFT(PolynomialTorus &out, void *inp);
   void fftMultiplication(void *result, void *a, void *b);
 
 public:
@@ -70,12 +71,25 @@ public:
   }
 
   // Utilities
-  bool torusPolynomialMultiplication(std::vector<Torus> &result,
-                                     const std::vector<Integer> &a,
-                                     const std::vector<Torus> &b) {
+  bool torusPolynomialMultiplication(PolynomialTorus &result,
+                                     const PolynomialInteger &a,
+                                     const PolynomialTorus &b) {
     if (_N == 0 || (signed)a.size() != _N || (signed)b.size() != _N)
       return false;
+    result.resize(_N);
     integerPolynomialToFFT(_a, a);
+    torusPolynomialToFFT(_b, b);
+    fftMultiplication(_result, _a, _b);
+    torusPolynomialFromFFT(result, _result);
+    return true;
+  }
+  bool torusPolynomialMultiplication(PolynomialTorus &result,
+                                     const PolynomialBinary &a,
+                                     const PolynomialTorus &b) {
+    if (_N == 0 || (signed)a.size() != _N || (signed)b.size() != _N)
+      return false;
+    result.resize(_N);
+    binaryPolynomialToFFT(_a, a);
     torusPolynomialToFFT(_b, b);
     fftMultiplication(_result, _a, _b);
     torusPolynomialFromFFT(result, _result);
