@@ -8,8 +8,8 @@ namespace thesis {
 
 class Tlwe {
 private:
-  static int _n;
-  static double _stddevError;
+  int _n;
+  double _stddevError;
 
   std::vector<Integer> _s;
   std::vector<std::vector<Torus>> _ciphertexts;
@@ -27,8 +27,11 @@ public:
   Tlwe &operator=(const Tlwe &obj) = delete;
 
   // Get params
-  static int get_n();
-  static double get_stddevError();
+  int get_n();
+  double get_stddevError();
+
+  // Set params
+  bool set_n(int n, bool isForcedClear = false);
 
   // Set attributes
   void clear_s();

@@ -4,11 +4,11 @@
 
 namespace thesis {
 
-int Tlwe::_n = 500;
-double Tlwe::_stddevError = std::sqrt(2. / CONST_PI) * pow(2., -15);
-
 // Constructors
-Tlwe::Tlwe() {}
+Tlwe::Tlwe() {
+  _n = 500;
+  _stddevError = std::sqrt(2. / CONST_PI) * pow(2., -15);
+}
 
 // Destructor
 Tlwe::~Tlwe() {}
@@ -16,6 +16,19 @@ Tlwe::~Tlwe() {}
 // Get params
 int Tlwe::get_n() { return _n; }
 double Tlwe::get_stddevError() { return _stddevError; }
+
+// Set params
+bool Tlwe::set_n(int n, bool isForcedClear) {
+  if (n < 1)
+    return false;
+  if (n != _n || isForcedClear) {
+    clear_s();
+    clear_ciphertexts();
+    clear_plaintexts();
+  }
+  _n = n;
+  return true;
+}
 
 // Set attributes
 void Tlwe::clear_s() { _s.clear(); }

@@ -5,12 +5,12 @@
 
 namespace thesis {
 
-int Trlwe::_N = 1024; // pow(2, 10)
-int Trlwe::_k = 1;
-double Trlwe::_alpha = std::sqrt(2. / CONST_PI) * pow(2., -15);
-
 // Constructors
-Trlwe::Trlwe() {}
+Trlwe::Trlwe() {
+  _N = 1024; // pow(2, 10)
+  _k = 1;
+  _alpha = std::sqrt(2. / CONST_PI) * pow(2., -15);
+}
 
 // Destructor
 Trlwe::~Trlwe() {}
@@ -182,6 +182,34 @@ bool Trlwe::decryptAll() {
   }
   barrier.Wait();
 #endif
+  return true;
+}
+bool Trlwe::tlweExtractAll(Tlwe &out) const {
+  if (out.get_n() != (_N * _k))
+    return false;
+  for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
+    for (int j = 0; j < _N; j++) {
+      std::vector<Torus> cipher(_N * _k + 1);
+      for (int k = 0; k < _N * _k; k++) {
+        cipher[k] = (j >= k % _N) ? (_ciphertexts[i][k / _N][j - k % _N]) : 0;
+      }
+      cipher[_N * _k] = _ciphertexts[i][_k][j];
+      out.addCiphertext(cipher);
+    }
+  }
+  return true;
+}
+bool Trlwe::tlweExtractOne(Tlwe &out, int p, int cipherID) {
+  if (out.get_n() != (_N * _k) || p < 0 || p >= _N || cipherID < 0 ||
+      cipherID >= (signed)_ciphertexts.size())
+    return false;
+  std::vector<Torus> cipher(_N * _k + 1);
+  for (int i = 0; i < _N * _k; i++) {
+    cipher[i] =
+        (p >= i % _N) ? (_ciphertexts[cipherID][i / _N][p - i % _N]) : 0;
+  }
+  cipher[_N * _k] = _ciphertexts[cipherID][_k][p];
+  out.addCiphertext(cipher);
   return true;
 }
 

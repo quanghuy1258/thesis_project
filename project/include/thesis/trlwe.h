@@ -3,14 +3,15 @@
 
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
+#include "thesis/tlwe.h"
 
 namespace thesis {
 
 class Trlwe {
 private:
-  static int _N;
-  static int _k;
-  static double _alpha;
+  int _N;
+  int _k;
+  double _alpha;
 
   std::vector<PolynomialBinary> _s;
   std::vector<std::vector<PolynomialTorus>> _ciphertexts;
@@ -28,9 +29,9 @@ public:
   Trlwe &operator=(const Trlwe &obj) = delete;
 
   // Get params
-  static int get_N();
-  static int get_k();
-  static double get_alpha();
+  int get_N();
+  int get_k();
+  double get_alpha();
 
   // Set attributes
   void clear_s();
@@ -50,6 +51,8 @@ public:
   // Utilities
   bool encryptAll();
   bool decryptAll();
+  bool tlweExtractAll(Tlwe &out) const;
+  bool tlweExtractOne(Tlwe &out, int p, int cipherID);
 };
 
 } // namespace thesis
