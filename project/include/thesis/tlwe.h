@@ -27,8 +27,8 @@ public:
   Tlwe &operator=(const Tlwe &obj) = delete;
 
   // Get params
-  int get_n();
-  double get_stddevError();
+  int get_n() const;
+  double get_stddevError() const;
 
   // Set params
   bool set_n(int n, bool isForcedClear = false);

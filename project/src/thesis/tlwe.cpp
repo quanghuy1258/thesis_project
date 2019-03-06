@@ -14,8 +14,8 @@ Tlwe::Tlwe() {
 Tlwe::~Tlwe() {}
 
 // Get params
-int Tlwe::get_n() { return _n; }
-double Tlwe::get_stddevError() { return _stddevError; }
+int Tlwe::get_n() const { return _n; }
+double Tlwe::get_stddevError() const { return _stddevError; }
 
 // Set params
 bool Tlwe::set_n(int n, bool isForcedClear) {

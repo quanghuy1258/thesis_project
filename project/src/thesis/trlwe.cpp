@@ -16,9 +16,9 @@ Trlwe::Trlwe() {
 Trlwe::~Trlwe() {}
 
 // Get params
-int Trlwe::get_N() { return _N; }
-int Trlwe::get_k() { return _k; }
-double Trlwe::get_alpha() { return _alpha; }
+int Trlwe::get_N() const { return _N; }
+int Trlwe::get_k() const { return _k; }
+double Trlwe::get_alpha() const { return _alpha; }
 
 // Set attributes
 void Trlwe::clear_s() { _s.clear(); }

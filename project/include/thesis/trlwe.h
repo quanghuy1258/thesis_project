@@ -29,9 +29,9 @@ public:
   Trlwe &operator=(const Trlwe &obj) = delete;
 
   // Get params
-  int get_N();
-  int get_k();
-  double get_alpha();
+  int get_N() const;
+  int get_k() const;
+  double get_alpha() const;
 
   // Set attributes
   void clear_s();

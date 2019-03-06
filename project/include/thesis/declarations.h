@@ -10,12 +10,9 @@ namespace thesis {
 #if defined(USING_32BIT)
 typedef int32_t Torus;
 typedef int32_t Integer;
-#elif defined(USING_16BIT)
+#else
 typedef int16_t Torus;
 typedef int16_t Integer;
-#else
-typedef int8_t Torus;
-typedef int8_t Integer;
 #endif
 typedef std::vector<bool> PolynomialBinary;
 typedef std::vector<Integer> PolynomialInteger;
