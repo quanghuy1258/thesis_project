@@ -7,13 +7,10 @@
 
 namespace thesis {
 
-#if defined(USING_32BIT)
+// TODO: 32 bit first. If possible, add 16 bit and 64 bit later
 typedef int32_t Torus;
 typedef int32_t Integer;
-#else
-typedef int16_t Torus;
-typedef int16_t Integer;
-#endif
+
 typedef std::vector<bool> PolynomialBinary;
 typedef std::vector<Integer> PolynomialInteger;
 typedef std::vector<Torus> PolynomialTorus;
