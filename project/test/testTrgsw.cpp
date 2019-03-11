@@ -37,7 +37,7 @@ TEST(Thesis, TrgswEncryptDecrypt) {
   trgswObj.get_plaintexts(y);
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trgswObj.get_N(); j++) {
-      EXPECT_TRUE(x[i][j] == y[i][j]);
+      ASSERT_TRUE(x[i][j] == y[i][j]);
     }
   }
 }

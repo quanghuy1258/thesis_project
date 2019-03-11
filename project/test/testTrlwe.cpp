@@ -31,7 +31,7 @@ TEST(Thesis, TrlweEncryptDecrypt) {
   trlweObj.get_plaintexts(y);
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trlweObj.get_N(); j++) {
-      EXPECT_TRUE(x[i][j] == y[i][j]);
+      ASSERT_TRUE(x[i][j] == y[i][j]);
     }
   }
 }
@@ -75,7 +75,7 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
   std::cout << "Number of plaintexts: " << y.size() << std::endl;
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trlweObj.get_N(); j++) {
-      EXPECT_TRUE(x[i][j] == y[i * trlweObj.get_N() + j]);
+      ASSERT_TRUE(x[i][j] == y[i * trlweObj.get_N() + j]);
     }
   }
 }
@@ -121,6 +121,6 @@ TEST(Thesis, TrlweExtractOneToTlwe) {
   tlweObj.get_plaintexts(y);
   std::cout << "Number of plaintexts: " << y.size() << std::endl;
   for (int i = 0; i < numberTests; i++) {
-    EXPECT_TRUE(x[i][p] == y[i]);
+    ASSERT_TRUE(x[i][p] == y[i]);
   }
 }

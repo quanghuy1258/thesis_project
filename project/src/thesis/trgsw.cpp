@@ -194,10 +194,18 @@ bool Trgsw::decryptAll() {
               decrypts[k][l] -= _plaintexts[j][l] << bits;
             else
               decrypts[k][l] -= _plaintexts[j][l] >> (-bits);
-            double decrypt_real = (unsigned)decrypts[k][l];
-            decrypt_real /= std::pow(2, sizeof(Integer) * 8 - _Bgbit);
-            uint64_t decrypt_integer = std::llround(decrypt_real);
-            uint64_t mask = 1;
+            int shift = sizeof(Integer) * 8 - _Bgbit - 1;
+            shift = (shift < 0) ? 0 : shift;
+#if defined(USING_32BIT)
+            uint32_t decrypt_integer = decrypts[k][l], mask = 1;
+            decrypt_integer = (decrypt_integer >> shift);
+#else
+            uint64_t decrypt_integer = decrypts[k][l], mask = 1;
+            decrypt_integer = (decrypt_integer >> shift);
+#endif
+            double decrypt_real = decrypt_integer;
+            decrypt_real /= 2;
+            decrypt_integer = std::llround(decrypt_real);
             mask = mask << _Bgbit;
             mask = mask - 1;
             decrypt_integer = decrypt_integer & mask;

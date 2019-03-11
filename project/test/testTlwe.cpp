@@ -27,6 +27,6 @@ TEST(Thesis, TlweEncryptDecrypt) {
       temp = temp << i;
       y = y | temp;
     }
-    EXPECT_TRUE(x == y);
+    ASSERT_TRUE(x == y);
   }
 }
