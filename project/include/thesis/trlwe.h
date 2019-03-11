@@ -52,7 +52,7 @@ public:
   bool encryptAll();
   bool decryptAll();
   bool tlweExtractAll(Tlwe &out) const;
-  bool tlweExtractOne(Tlwe &out, int p, int cipherID);
+  bool tlweExtractOne(Tlwe &out, int p, int cipherID) const;
 };
 
 } // namespace thesis

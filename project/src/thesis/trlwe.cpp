@@ -199,7 +199,7 @@ bool Trlwe::tlweExtractAll(Tlwe &out) const {
   }
   return true;
 }
-bool Trlwe::tlweExtractOne(Tlwe &out, int p, int cipherID) {
+bool Trlwe::tlweExtractOne(Tlwe &out, int p, int cipherID) const {
   if (out.get_n() != (_N * _k) || p < 0 || p >= _N || cipherID < 0 ||
       cipherID >= (signed)_ciphertexts.size())
     return false;
