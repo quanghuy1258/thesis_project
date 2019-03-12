@@ -2,6 +2,7 @@
 #include "thesis/fft.h"
 #include "thesis/random.h"
 #include "thesis/threadpool.h"
+#include "thesis/trlwe.h"
 
 namespace thesis {
 
@@ -172,6 +173,15 @@ bool Trgsw::decryptAll() {
     fftCalculators[i].set_N(_N);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
+      int shift = sizeof(Integer) * 8 - _Bgbit - 1;
+      shift = (shift < 0) ? 0 : shift;
+#if defined(USING_32BIT)
+      uint32_t decrypt_integer, mask = 1;
+#else
+      uint64_t decrypt_integer, mask = 1;
+#endif
+      mask = mask << _Bgbit;
+      mask = mask - 1;
       PolynomialTorus productTorusPolynomial;
       std::vector<PolynomialTorus> decrypts;
       decrypts.resize(_l);
@@ -194,23 +204,74 @@ bool Trgsw::decryptAll() {
               decrypts[k][l] -= _plaintexts[j][l] << bits;
             else
               decrypts[k][l] -= _plaintexts[j][l] >> (-bits);
-            int shift = sizeof(Integer) * 8 - _Bgbit - 1;
-            shift = (shift < 0) ? 0 : shift;
-#if defined(USING_32BIT)
-            uint32_t decrypt_integer = decrypts[k][l], mask = 1;
+            decrypt_integer = decrypts[k][l];
             decrypt_integer = (decrypt_integer >> shift);
-#else
-            uint64_t decrypt_integer = decrypts[k][l], mask = 1;
-            decrypt_integer = (decrypt_integer >> shift);
-#endif
             double decrypt_real = decrypt_integer;
             decrypt_real /= 2;
             decrypt_integer = std::llround(decrypt_real);
-            mask = mask << _Bgbit;
-            mask = mask - 1;
             decrypt_integer = decrypt_integer & mask;
             _plaintexts[j][l] += (decrypt_integer << (_Bgbit * k));
           }
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
+#endif
+  return true;
+}
+bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
+                           const Trlwe &inp) const {
+  if (_N != inp._N || _k != inp._k)
+    return false;
+  if (inp._ciphertexts.empty()) {
+    out.clear();
+    return true;
+  } else {
+    out.resize(inp._ciphertexts.size());
+    for (int i = 0; i < (signed)inp._ciphertexts.size(); i++) {
+      out[i].resize((_k + 1) * _l);
+      for (int j = 0; j < (_k + 1) * _l; j++) {
+        out[i][j].resize(_N);
+      }
+    }
+  }
+#ifdef USING_GPU
+#else
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  for (int it = 0; it < numberThreads; it++) {
+    ThreadPool::get_threadPool().Schedule([&, it]() {
+      int s = (inp._ciphertexts.size() * (_k + 1) * _N * it) / numberThreads,
+          e = (inp._ciphertexts.size() * (_k + 1) * _N * (it + 1)) /
+              numberThreads;
+      for (int newIt = s; newIt < e; newIt++) {
+        int j = newIt % _N;
+        int i = (newIt / _N) % (_k + 1);
+        int cipherId = newIt / ((_k + 1) * _N);
+        Torus value = inp._ciphertexts[cipherId][i][j], mask = 1;
+        if ((signed)sizeof(Torus) * 8 > _Bgbit * _l) {
+          mask <<= ((signed)sizeof(Torus) * 8 - _Bgbit * _l - 1);
+          value += mask;
+          mask = ~((mask << 1) - 1);
+          value &= mask;
+        }
+        mask = 1;
+        mask <<= _Bgbit;
+        for (int p = _l - 1; p >= 0; p--) {
+          Torus value_temp = value;
+          int shift = sizeof(Torus) * 8 - _Bgbit * (p + 1);
+          unsigned ushift = (shift < 0) ? (-shift) : shift;
+          value_temp =
+              (shift < 0) ? (value_temp << ushift) : (value_temp >> ushift);
+          out[cipherId][i * _l + p][j] = value_temp % mask;
+          if (out[cipherId][i * _l + p][j] < -mask / 2)
+            out[cipherId][i * _l + p][j] += mask;
+          if (out[cipherId][i * _l + p][j] >= mask / 2)
+            out[cipherId][i * _l + p][j] -= mask;
+          value -= (shift < 0) ? (out[cipherId][i * _l + p][j] >> ushift)
+                               : (out[cipherId][i * _l + p][j] << ushift);
         }
       }
       barrier.Notify();

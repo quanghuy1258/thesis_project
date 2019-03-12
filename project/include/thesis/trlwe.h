@@ -17,6 +17,8 @@ private:
   std::vector<std::vector<PolynomialTorus>> _ciphertexts;
   std::vector<PolynomialBinary> _plaintexts;
 
+  friend class Trgsw;
+
 public:
   // Constructors
   Trlwe();

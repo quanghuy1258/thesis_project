@@ -54,6 +54,8 @@ public:
   // Utilities
   bool encryptAll();
   bool decryptAll();
+  bool decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
+                      const Trlwe &inp) const;
 };
 
 } // namespace thesis
