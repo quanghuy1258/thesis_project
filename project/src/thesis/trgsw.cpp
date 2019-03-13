@@ -10,10 +10,10 @@ namespace thesis {
 Trgsw::Trgsw() {
   _l = 2;
   _Bgbit = 10; // Bg = 1024
+  _alpha = std::sqrt(2. / CONST_PI) * pow(2., -27);
   // Similar to TRLWE
   _N = 1024;
   _k = 1;
-  _alpha = std::sqrt(2. / CONST_PI) * pow(2., -15);
 }
 
 // Destructor
@@ -272,6 +272,79 @@ bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
             out[cipherId][i * _l + p][j] -= mask;
           value -= (shift < 0) ? (out[cipherId][i * _l + p][j] >> ushift)
                                : (out[cipherId][i * _l + p][j] << ushift);
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
+#endif
+  return true;
+}
+void Trgsw::setParamTo(Trlwe &obj) const {
+  obj._N = _N;
+  obj._k = _k;
+  obj._s = _s;
+  obj._ciphertexts.clear();
+  obj._plaintexts.clear();
+}
+bool Trgsw::externalProductAll(Trlwe &out, const Trlwe &inp,
+                               int trgswCipherId) const {
+  if (_N != inp._N || _k != inp._k || trgswCipherId < 0 ||
+      trgswCipherId >= (signed)_ciphertexts.size())
+    return false;
+  if (!_s.empty() && !inp._s.empty()) {
+    for (int i = 0; i < _k; i++) {
+      for (int j = 0; j < _N; j++) {
+        if (_s[i][j] != inp._s[i][j])
+          return false;
+      }
+    }
+  }
+  out._N = _N;
+  out._k = _k;
+  if (!_s.empty())
+    out._s = _s;
+  else if (!inp._s.empty())
+    out._s = inp._s;
+  if (inp._ciphertexts.empty()) {
+    out._ciphertexts.clear();
+    return true;
+  } else {
+    out._ciphertexts.resize(inp._ciphertexts.size());
+    for (int i = 0; i < (signed)inp._ciphertexts.size(); i++) {
+      out._ciphertexts[i].resize(_k + 1);
+      for (int j = 0; j <= _k; j++) {
+        out._ciphertexts[i][j].resize(_N);
+        std::fill(out._ciphertexts[i][j].begin(), out._ciphertexts[i][j].end(),
+                  0);
+      }
+    }
+  }
+  std::vector<std::vector<PolynomialInteger>> decVecs;
+  decompositeAll(decVecs, inp);
+#ifdef USING_GPU
+#else
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
+  for (int i = 0; i < numberThreads; i++)
+    fftCalculators[i].set_N(_N);
+  for (int it = 0; it < numberThreads; it++) {
+    ThreadPool::get_threadPool().Schedule([&, it]() {
+      PolynomialTorus productTorusPolynomial;
+      int s = (inp._ciphertexts.size() * (_k + 1) * it) / numberThreads,
+          e = (inp._ciphertexts.size() * (_k + 1) * (it + 1)) / numberThreads;
+      for (int newIt = s; newIt < e; newIt++) {
+        int i = newIt % (_k + 1);
+        int trlweCipherId = newIt / (_k + 1);
+        for (int j = 0; j < (_k + 1) * _l; j++) {
+          fftCalculators[it].torusPolynomialMultiplication(
+              productTorusPolynomial, decVecs[trlweCipherId][j],
+              _ciphertexts[trgswCipherId][j * (_k + 1) + i]);
+          for (int k = 0; k < _N; k++) {
+            out._ciphertexts[trlweCipherId][i][k] += productTorusPolynomial[k];
+          }
         }
       }
       barrier.Notify();

@@ -56,6 +56,9 @@ public:
   bool decryptAll();
   bool decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
                       const Trlwe &inp) const;
+  void setParamTo(Trlwe &obj) const;
+  bool externalProductAll(Trlwe &out, const Trlwe &inp,
+                          int trgswCipherId) const;
 };
 
 } // namespace thesis

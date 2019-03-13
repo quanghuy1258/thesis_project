@@ -70,7 +70,7 @@ TEST(Thesis, Decomposition) {
   trlweObj.clear_plaintexts();
   ASSERT_TRUE(trgswObj.decompositeAll(y, trlweObj));
   trlweObj.get_ciphertexts(z);
-  for (int cipherID = 0; cipherID < (signed)z.size(); cipherID++) {
+  for (int cipherID = 0; cipherID < numberTests; cipherID++) {
     for (int i = 0; i <= trgswObj.get_k(); i++) {
       for (int j = 0; j < trgswObj.get_N(); j++) {
         thesis::Torus value = 0;
@@ -94,6 +94,57 @@ TEST(Thesis, Decomposition) {
         }
         ASSERT_TRUE(comp_value <= mask);
       }
+    }
+  }
+}
+
+TEST(Thesis, ExternalProduct) {
+  std::srand(std::time(nullptr));
+  thesis::Trgsw trgswObj;
+  thesis::Trlwe trlweObj[2];
+
+  trgswObj.clear_s();
+  trgswObj.clear_ciphertexts();
+  trgswObj.clear_plaintexts();
+  trgswObj.generate_s();
+  trgswObj.setParamTo(trlweObj[0]);
+
+  std::vector<thesis::PolynomialBinary> x, z;
+  thesis::PolynomialInteger y;
+
+  int numberTests = 100;
+  x.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    x[i].resize(trlweObj[0].get_N());
+    for (int j = 0; j < trlweObj[0].get_N(); j++) {
+      x[i][j] = (std::rand() % 2 == 1);
+    }
+    trlweObj[0].addPlaintext(x[i]);
+  }
+  trlweObj[0].encryptAll();
+  trlweObj[0].clear_plaintexts();
+
+  y.resize(trgswObj.get_N());
+  for (int i = 0; i < trgswObj.get_N(); i++) {
+    y[i] = std::rand() & 1; // TRGSW Message Space: Z_N[X] -> B_N[X]
+  }
+  trgswObj.addPlaintext(y);
+  trgswObj.encryptAll();
+  trgswObj.clear_plaintexts();
+  ASSERT_TRUE(trgswObj.externalProductAll(trlweObj[1], trlweObj[0], 0));
+  trlweObj[1].decryptAll();
+  trlweObj[1].get_plaintexts(z);
+
+  for (int i = 0; i < numberTests; i++) {
+    for (int j = 0; j < trgswObj.get_N(); j++) {
+      int res = 0, a, b;
+      for (int k = 0; k <= j; k++) {
+        a = (x[i][k]) ? 1 : 0;
+        b = y[j - k] & 1;
+        res ^= a & b;
+      }
+      int ori_res = (z[i][j]) ? 1 : 0;
+      ASSERT_TRUE(res == ori_res);
     }
   }
 }
