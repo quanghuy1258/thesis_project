@@ -8,9 +8,9 @@ namespace thesis {
 
 // Constructors
 Trgsw::Trgsw() {
-  _l = 2;
+  _l = 3;
   _Bgbit = 10; // Bg = 1024
-  _alpha = std::sqrt(2. / CONST_PI) * pow(2., -27);
+  _alpha = std::sqrt(2. / CONST_PI) * pow(2., -30);
   // Similar to TRLWE
   _N = 1024;
   _k = 1;
@@ -352,6 +352,40 @@ bool Trgsw::externalProductAll(Trlwe &out, const Trlwe &inp,
   }
   barrier.Wait();
 #endif
+  return true;
+}
+bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
+  if (cipherIdA < 0 || cipherIdA >= (signed)_ciphertexts.size() ||
+      cipherIdB < 0 || cipherIdB >= (signed)_ciphertexts.size())
+    return false;
+  if (false) { // TODO: Choose smaller error
+    std::swap(cipherIdA, cipherIdB);
+  }
+  Trlwe inp, out;
+  setParamTo(inp);
+  inp._ciphertexts.resize((_k + 1) * _l);
+  for (int i = 0; i < (_k + 1) * _l; i++) {
+    inp._ciphertexts[i].resize(_k + 1);
+    for (int j = 0; j <= _k; j++) {
+      inp._ciphertexts[i][j].resize(_N);
+      for (int k = 0; k < _N; k++) {
+        inp._ciphertexts[i][j][k] =
+            _ciphertexts[cipherIdB][i * (_k + 1) + j][k];
+      }
+    }
+  }
+  externalProductAll(out, inp, cipherIdA);
+  cipherIdResult = _ciphertexts.size();
+  _ciphertexts.resize(cipherIdResult + 1);
+  _ciphertexts[cipherIdResult].resize((_k + 1) * _l * (_k + 1));
+  for (int i = 0; i < (_k + 1) * _l * (_k + 1); i++) {
+    _ciphertexts[cipherIdResult][i].resize(_N);
+    int c = i % (_k + 1);
+    int r = i / (_k + 1);
+    for (int j = 0; j < _N; j++) {
+      _ciphertexts[cipherIdResult][i][j] = out._ciphertexts[r][c][j];
+    }
+  }
   return true;
 }
 

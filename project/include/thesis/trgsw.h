@@ -59,6 +59,7 @@ public:
   void setParamTo(Trlwe &obj) const;
   bool externalProductAll(Trlwe &out, const Trlwe &inp,
                           int trgswCipherId) const;
+  bool internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB);
 };
 
 } // namespace thesis
