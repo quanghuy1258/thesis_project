@@ -354,6 +354,7 @@ bool Trgsw::externalProductAll(Trlwe &out, const Trlwe &inp,
 #endif
   return true;
 }
+#ifdef ENABLE_TRGSW_INTERNAL_PRODUCT
 bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   if (cipherIdA < 0 || cipherIdA >= (signed)_ciphertexts.size() ||
       cipherIdB < 0 || cipherIdB >= (signed)_ciphertexts.size())
@@ -388,5 +389,6 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   }
   return true;
 }
+#endif
 
 } // namespace thesis

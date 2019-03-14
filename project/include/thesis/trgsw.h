@@ -59,7 +59,9 @@ public:
   void setParamTo(Trlwe &obj) const;
   bool externalProductAll(Trlwe &out, const Trlwe &inp,
                           int trgswCipherId) const;
+#ifdef ENABLE_TRGSW_INTERNAL_PRODUCT
   bool internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB);
+#endif
 };
 
 } // namespace thesis

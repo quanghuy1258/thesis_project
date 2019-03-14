@@ -148,6 +148,7 @@ TEST(Thesis, ExternalProduct) {
     }
   }
 }
+#ifdef ENABLE_TRGSW_INTERNAL_PRODUCT
 TEST(Thesis, InternalProduct) {
   std::srand(std::time(nullptr));
   thesis::Trgsw trgswObj;
@@ -187,3 +188,4 @@ TEST(Thesis, InternalProduct) {
     }
   }
 }
+#endif
