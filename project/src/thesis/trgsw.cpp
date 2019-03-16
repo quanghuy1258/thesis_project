@@ -288,11 +288,20 @@ void Trgsw::setParamTo(Trlwe &obj) const {
   obj._ciphertexts.clear();
   obj._plaintexts.clear();
 }
-bool Trgsw::externalProductAll(Trlwe &out, const Trlwe &inp,
-                               int trgswCipherId) const {
-  if (_N != inp._N || _k != inp._k || trgswCipherId < 0 ||
-      trgswCipherId >= (signed)_ciphertexts.size())
+bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
+                            const std::vector<int> &trlweCipherIds,
+                            const std::vector<int> &trgswCipherIds) const {
+  if (_N != inp._N || _k != inp._k ||
+      trlweCipherIds.size() != trgswCipherIds.size())
     return false;
+  int numberOfProducts = trgswCipherIds.size();
+  for (int i = 0; i < numberOfProducts; i++) {
+    if (trlweCipherIds[i] < 0 ||
+        trlweCipherIds[i] >= (signed)inp._ciphertexts.size() ||
+        trgswCipherIds[i] < 0 ||
+        trgswCipherIds[i] >= (signed)_ciphertexts.size())
+      return false;
+  }
   if (!_s.empty() && !inp._s.empty()) {
     for (int i = 0; i < _k; i++) {
       for (int j = 0; j < _N; j++) {
@@ -307,12 +316,9 @@ bool Trgsw::externalProductAll(Trlwe &out, const Trlwe &inp,
     out._s = _s;
   else if (!inp._s.empty())
     out._s = inp._s;
-  if (inp._ciphertexts.empty()) {
-    out._ciphertexts.clear();
-    return true;
-  } else {
-    out._ciphertexts.resize(inp._ciphertexts.size());
-    for (int i = 0; i < (signed)inp._ciphertexts.size(); i++) {
+  if (numberOfProducts) {
+    out._ciphertexts.resize(numberOfProducts);
+    for (int i = 0; i < numberOfProducts; i++) {
       out._ciphertexts[i].resize(_k + 1);
       for (int j = 0; j <= _k; j++) {
         out._ciphertexts[i][j].resize(_N);
@@ -320,6 +326,9 @@ bool Trgsw::externalProductAll(Trlwe &out, const Trlwe &inp,
                   0);
       }
     }
+  } else {
+    out._ciphertexts.clear();
+    return true;
   }
   std::vector<std::vector<PolynomialInteger>> decVecs;
   decompositeAll(decVecs, inp);
@@ -333,11 +342,12 @@ bool Trgsw::externalProductAll(Trlwe &out, const Trlwe &inp,
   for (int it = 0; it < numberThreads; it++) {
     ThreadPool::get_threadPool().Schedule([&, it]() {
       PolynomialTorus productTorusPolynomial;
-      int s = (inp._ciphertexts.size() * (_k + 1) * it) / numberThreads,
-          e = (inp._ciphertexts.size() * (_k + 1) * (it + 1)) / numberThreads;
+      int s = (numberOfProducts * (_k + 1) * it) / numberThreads,
+          e = (numberOfProducts * (_k + 1) * (it + 1)) / numberThreads;
       for (int newIt = s; newIt < e; newIt++) {
         int i = newIt % (_k + 1);
-        int trlweCipherId = newIt / (_k + 1);
+        int trlweCipherId = trlweCipherIds[newIt / (_k + 1)];
+        int trgswCipherId = trgswCipherIds[newIt / (_k + 1)];
         for (int j = 0; j < (_k + 1) * _l; j++) {
           fftCalculators[it].torusPolynomialMultiplication(
               productTorusPolynomial, decVecs[trlweCipherId][j],
@@ -365,6 +375,7 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   Trlwe inp, out;
   setParamTo(inp);
   inp._ciphertexts.resize((_k + 1) * _l);
+  std::vector<int> trlweCipherIds((_k + 1) * _l), trgswCipherIds((_k + 1) * _l);
   for (int i = 0; i < (_k + 1) * _l; i++) {
     inp._ciphertexts[i].resize(_k + 1);
     for (int j = 0; j <= _k; j++) {
@@ -374,8 +385,10 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
             _ciphertexts[cipherIdB][i * (_k + 1) + j][k];
       }
     }
+    trlweCipherIds[i] = i;
+    trgswCipherIds[i] = cipherIdA;
   }
-  externalProductAll(out, inp, cipherIdA);
+  externalProduct(out, inp, trlweCipherIds, trgswCipherIds);
   cipherIdResult = _ciphertexts.size();
   _ciphertexts.resize(cipherIdResult + 1);
   _ciphertexts[cipherIdResult].resize((_k + 1) * _l * (_k + 1));
@@ -390,5 +403,96 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   return true;
 }
 #endif
+bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
+                 const std::vector<int> &trlweCipherTrueIds,
+                 const std::vector<int> &trlweCipherFalseIds,
+                 const std::vector<int> &trgswCipherIds) const {
+  if (_N != inp._N || _k != inp._k ||
+      trgswCipherIds.size() != trlweCipherTrueIds.size() ||
+      trgswCipherIds.size() != trlweCipherFalseIds.size())
+    return false;
+  int numberOfCMux = trgswCipherIds.size();
+  for (int i = 0; i < numberOfCMux; i++) {
+    if (trlweCipherTrueIds[i] < 0 ||
+        trlweCipherTrueIds[i] >= (signed)inp._ciphertexts.size() ||
+        trlweCipherFalseIds[i] < 0 ||
+        trlweCipherFalseIds[i] >= (signed)inp._ciphertexts.size() ||
+        trgswCipherIds[i] < 0 ||
+        trgswCipherIds[i] >= (signed)_ciphertexts.size())
+      return false;
+  }
+  if (!_s.empty() && !inp._s.empty()) {
+    for (int i = 0; i < _k; i++) {
+      for (int j = 0; j < _N; j++) {
+        if (_s[i][j] != inp._s[i][j])
+          return false;
+      }
+    }
+  }
+  out._N = _N;
+  out._k = _k;
+  if (!_s.empty())
+    out._s = _s;
+  else if (!inp._s.empty())
+    out._s = inp._s;
+  std::vector<int> trlweCipherIds(numberOfCMux);
+  Trlwe temp;
+  setParamTo(temp);
+  temp._ciphertexts.resize(numberOfCMux);
+  for (int i = 0; i < numberOfCMux; i++) {
+    temp._ciphertexts[i].resize(_k + 1);
+    for (int j = 0; j <= _k; j++) {
+      temp._ciphertexts[i][j].resize(_N);
+    }
+    trlweCipherIds[i] = i;
+  }
+#ifdef USING_GPU
+#else
+  {
+    int numberThreads = ThreadPool::get_numberThreads();
+    Eigen::Barrier barrier(numberThreads);
+    for (int it = 0; it < numberThreads; it++) {
+      ThreadPool::get_threadPool().Schedule([&, it]() {
+        int s = (numberOfCMux * (_k + 1) * _N * it) / numberThreads,
+            e = (numberOfCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
+        for (int newIt = s; newIt < e; newIt++) {
+          int k = newIt % _N;
+          int j = (newIt / _N) % (_k + 1);
+          int i = newIt / ((_k + 1) * _N);
+          temp._ciphertexts[i][j][k] =
+              inp._ciphertexts[trlweCipherTrueIds[i]][j][k] -
+              inp._ciphertexts[trlweCipherFalseIds[i]][j][k];
+        }
+        barrier.Notify();
+      });
+    }
+    barrier.Wait();
+  }
+#endif
+  externalProduct(out, temp, trlweCipherIds, trgswCipherIds);
+#ifdef USING_GPU
+#else
+  {
+    int numberThreads = ThreadPool::get_numberThreads();
+    Eigen::Barrier barrier(numberThreads);
+    for (int it = 0; it < numberThreads; it++) {
+      ThreadPool::get_threadPool().Schedule([&, it]() {
+        int s = (numberOfCMux * (_k + 1) * _N * it) / numberThreads,
+            e = (numberOfCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
+        for (int newIt = s; newIt < e; newIt++) {
+          int k = newIt % _N;
+          int j = (newIt / _N) % (_k + 1);
+          int i = newIt / ((_k + 1) * _N);
+          out._ciphertexts[i][j][k] +=
+              inp._ciphertexts[trlweCipherFalseIds[i]][j][k];
+        }
+        barrier.Notify();
+      });
+    }
+    barrier.Wait();
+  }
+#endif
+  return true;
+}
 
 } // namespace thesis

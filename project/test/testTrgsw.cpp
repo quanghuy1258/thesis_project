@@ -60,8 +60,8 @@ TEST(Thesis, Decomposition) {
   int numberTests = 100;
   x.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
-    x[i].resize(trlweObj.get_N());
-    for (int j = 0; j < trlweObj.get_N(); j++) {
+    x[i].resize(trgswObj.get_N());
+    for (int j = 0; j < trgswObj.get_N(); j++) {
       x[i][j] = (std::rand() % 2 == 1);
     }
     trlweObj.addPlaintext(x[i]);
@@ -115,8 +115,8 @@ TEST(Thesis, ExternalProduct) {
   int numberTests = 100;
   x.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
-    x[i].resize(trlweObj[0].get_N());
-    for (int j = 0; j < trlweObj[0].get_N(); j++) {
+    x[i].resize(trgswObj.get_N());
+    for (int j = 0; j < trgswObj.get_N(); j++) {
       x[i][j] = (std::rand() % 2 == 1);
     }
     trlweObj[0].addPlaintext(x[i]);
@@ -131,7 +131,13 @@ TEST(Thesis, ExternalProduct) {
   trgswObj.addPlaintext(y);
   trgswObj.encryptAll();
   trgswObj.clear_plaintexts();
-  ASSERT_TRUE(trgswObj.externalProductAll(trlweObj[1], trlweObj[0], 0));
+  std::vector<int> trlweCipherIds(numberTests), trgswCipherIds(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    trlweCipherIds[i] = i;
+    trgswCipherIds[i] = 0;
+  }
+  ASSERT_TRUE(trgswObj.externalProduct(trlweObj[1], trlweObj[0], trlweCipherIds,
+                                       trgswCipherIds));
   trlweObj[1].decryptAll();
   trlweObj[1].get_plaintexts(z);
 
@@ -148,6 +154,7 @@ TEST(Thesis, ExternalProduct) {
     }
   }
 }
+
 #ifdef ENABLE_TRGSW_INTERNAL_PRODUCT
 TEST(Thesis, InternalProduct) {
   std::srand(std::time(nullptr));
@@ -189,3 +196,60 @@ TEST(Thesis, InternalProduct) {
   }
 }
 #endif
+
+TEST(Thesis, CMux) {
+  std::srand(std::time(nullptr));
+  thesis::Trgsw trgswObj;
+  thesis::Trlwe trlweObj[2];
+
+  trgswObj.clear_s();
+  trgswObj.clear_ciphertexts();
+  trgswObj.clear_plaintexts();
+  trgswObj.generate_s();
+  trgswObj.setParamTo(trlweObj[0]);
+
+  std::vector<thesis::PolynomialBinary> x, z;
+  std::vector<thesis::PolynomialInteger> y;
+  std::vector<int> trlweCipherTrueIds, trlweCipherFalseIds, trgswCipherIds;
+
+  int numberTests = 100;
+  x.resize(numberTests << 1);
+  for (int i = 0; i < (numberTests << 1); i++) {
+    x[i].resize(trgswObj.get_N());
+    for (int j = 0; j < trgswObj.get_N(); j++) {
+      x[i][j] = (std::rand() % 2 == 1);
+    }
+    trlweObj[0].addPlaintext(x[i]);
+  }
+  trlweObj[0].encryptAll();
+  trlweObj[0].clear_plaintexts();
+  y.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    y[i].resize(trgswObj.get_N());
+    std::fill(y[i].begin(), y[i].end(), 0);
+    y[i][0] = std::rand() & 1;
+    trgswObj.addPlaintext(y[i]);
+  }
+  trgswObj.encryptAll();
+  trgswObj.clear_plaintexts();
+  trlweCipherTrueIds.resize(numberTests);
+  trlweCipherFalseIds.resize(numberTests);
+  trgswCipherIds.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    trlweCipherTrueIds[i] = (i << 1);
+    trlweCipherFalseIds[i] = (i << 1) + 1;
+    trgswCipherIds[i] = i;
+  }
+  ASSERT_TRUE(trgswObj.cMux(trlweObj[1], trlweObj[0], trlweCipherTrueIds,
+                            trlweCipherFalseIds, trgswCipherIds));
+  trlweObj[1].decryptAll();
+  trlweObj[1].get_plaintexts(z);
+
+  for (int i = 0; i < numberTests; i++) {
+    bool check = (y[i][0] == 1);
+    for (int j = 0; j < trgswObj.get_N(); j++) {
+      ASSERT_TRUE(z[i][j] == ((check) ? x[trlweCipherTrueIds[i]][j]
+                                      : x[trlweCipherFalseIds[i]][j]));
+    }
+  }
+}
