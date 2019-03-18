@@ -4,18 +4,16 @@
 
 namespace thesis {
 
+static const double STDDEV_ERROR = std::sqrt(2. / CONST_PI) * pow(2., -15);
+
 // Constructors
-Tlwe::Tlwe() {
-  _n = 500;
-  _stddevError = std::sqrt(2. / CONST_PI) * pow(2., -15);
-}
+Tlwe::Tlwe() { _n = 500; }
 
 // Destructor
 Tlwe::~Tlwe() {}
 
 // Get params
 int Tlwe::get_n() const { return _n; }
-double Tlwe::get_stddevError() const { return _stddevError; }
 
 // Set params
 bool Tlwe::set_n(int n, bool isForcedClear) {
@@ -32,17 +30,15 @@ bool Tlwe::set_n(int n, bool isForcedClear) {
 
 // Set attributes
 void Tlwe::clear_s() { _s.clear(); }
-void Tlwe::clear_ciphertexts() { _ciphertexts.clear(); }
+void Tlwe::clear_ciphertexts() {
+  _ciphertexts.clear();
+  _stddevErrors.clear();
+}
 void Tlwe::clear_plaintexts() { _plaintexts.clear(); }
 bool Tlwe::set_s(const std::vector<Integer> &s) {
   if ((signed)s.size() != _n)
     return false;
-
-  _s.resize(_n);
-  for (int i = 0; i < _n; i++) {
-    _s[i] = s[i];
-  }
-
+  _s = s;
   return true;
 }
 void Tlwe::generate_s() {
@@ -51,32 +47,24 @@ void Tlwe::generate_s() {
     _s[i] = Random::getUniformInteger();
   }
 }
-bool Tlwe::addCiphertext(const std::vector<Torus> &cipher) {
+bool Tlwe::addCiphertext(const std::vector<Torus> &cipher, double stddevError) {
   if ((signed)cipher.size() != _n + 1)
     return false;
-
   _ciphertexts.push_back(cipher);
+  _stddevErrors.push_back(stddevError);
   return true;
 };
-void Tlwe::addPlaintext(const bool &bit) { _plaintexts.push_back(bit); }
+void Tlwe::addPlaintext(bool bit) { _plaintexts.push_back(bit); }
 
 // Get attributes
-bool Tlwe::get_s(std::vector<Integer> &s) const {
-  if (_s.empty())
-    return false;
-
-  s.resize(_n);
-  for (int i = 0; i < _n; i++) {
-    s[i] = _s[i];
-  }
-  return true;
+const std::vector<Integer> &Tlwe::get_s() const { return _s; }
+const std::vector<std::vector<Torus>> &Tlwe::get_ciphertexts() const {
+  return _ciphertexts;
 }
-void Tlwe::get_ciphertexts(std::vector<std::vector<Torus>> &ciphertexts) const {
-  ciphertexts = _ciphertexts;
+const std::vector<double> &Tlwe::get_stddevErrors() const {
+  return _stddevErrors;
 }
-void Tlwe::get_plaintexts(std::vector<bool> &plaintexts) const {
-  plaintexts = _plaintexts;
-}
+const std::vector<bool> &Tlwe::get_plaintexts() const { return _plaintexts; }
 
 // Utilities
 bool Tlwe::encryptAll() {
@@ -87,12 +75,14 @@ bool Tlwe::encryptAll() {
     return true;
   } else {
     _ciphertexts.resize(_plaintexts.size());
+    _stddevErrors.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
       _ciphertexts[i].resize(_n + 1);
+      _stddevErrors[i] = STDDEV_ERROR;
       for (int j = 0; j < _n; j++) {
         _ciphertexts[i][j] = Random::getUniformTorus();
       }
-      _ciphertexts[i][_n] = Random::getNormalTorus(0, _stddevError);
+      _ciphertexts[i][_n] = Random::getNormalTorus(0, _stddevErrors[i]);
     }
   }
 #ifdef USING_GPU

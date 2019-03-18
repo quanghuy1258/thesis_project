@@ -9,10 +9,10 @@ namespace thesis {
 class Tlwe {
 private:
   int _n;
-  double _stddevError;
 
   std::vector<Integer> _s;
   std::vector<std::vector<Torus>> _ciphertexts;
+  std::vector<double> _stddevErrors;
   std::vector<bool> _plaintexts;
 
 public:
@@ -28,7 +28,6 @@ public:
 
   // Get params
   int get_n() const;
-  double get_stddevError() const;
 
   // Set params
   bool set_n(int n, bool isForcedClear = false);
@@ -39,13 +38,14 @@ public:
   void clear_plaintexts();
   bool set_s(const std::vector<Integer> &s);
   void generate_s();
-  bool addCiphertext(const std::vector<Torus> &cipher);
-  void addPlaintext(const bool &bit);
+  bool addCiphertext(const std::vector<Torus> &cipher, double stddevError);
+  void addPlaintext(bool bit);
 
   // Get attributes
-  bool get_s(std::vector<Integer> &s) const;
-  void get_ciphertexts(std::vector<std::vector<Torus>> &ciphertexts) const;
-  void get_plaintexts(std::vector<bool> &plaintexts) const;
+  const std::vector<Integer> &get_s() const;
+  const std::vector<std::vector<Torus>> &get_ciphertexts() const;
+  const std::vector<double> &get_stddevErrors() const;
+  const std::vector<bool> &get_plaintexts() const;
 
   // Utilities
   bool encryptAll();

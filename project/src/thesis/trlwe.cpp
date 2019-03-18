@@ -5,11 +5,12 @@
 
 namespace thesis {
 
+static const double STDDEV_ERROR = std::sqrt(2. / CONST_PI) * pow(2., -15);
+
 // Constructors
 Trlwe::Trlwe() {
   _N = 1024; // pow(2, 10)
   _k = 1;
-  _alpha = std::sqrt(2. / CONST_PI) * pow(2., -15);
 }
 
 // Destructor
@@ -18,11 +19,13 @@ Trlwe::~Trlwe() {}
 // Get params
 int Trlwe::get_N() const { return _N; }
 int Trlwe::get_k() const { return _k; }
-double Trlwe::get_alpha() const { return _alpha; }
 
 // Set attributes
 void Trlwe::clear_s() { _s.clear(); }
-void Trlwe::clear_ciphertexts() { _ciphertexts.clear(); }
+void Trlwe::clear_ciphertexts() {
+  _ciphertexts.clear();
+  _stddevErrors.clear();
+}
 void Trlwe::clear_plaintexts() { _plaintexts.clear(); }
 bool Trlwe::set_s(const std::vector<PolynomialBinary> &s) {
   if ((signed)s.size() != _k)
@@ -43,7 +46,8 @@ void Trlwe::generate_s() {
     }
   }
 }
-bool Trlwe::addCiphertext(const std::vector<PolynomialTorus> &cipher) {
+bool Trlwe::addCiphertext(const std::vector<PolynomialTorus> &cipher,
+                          double stddevError) {
   if ((signed)cipher.size() != _k + 1)
     return false;
   for (int i = 0; i <= _k; i++) {
@@ -51,6 +55,7 @@ bool Trlwe::addCiphertext(const std::vector<PolynomialTorus> &cipher) {
       return false;
   }
   _ciphertexts.push_back(cipher);
+  _stddevErrors.push_back(stddevError);
   return true;
 }
 bool Trlwe::addPlaintext(const PolynomialBinary &plain) {
@@ -61,18 +66,16 @@ bool Trlwe::addPlaintext(const PolynomialBinary &plain) {
 }
 
 // Get attributes
-bool Trlwe::get_s(std::vector<PolynomialBinary> &s) const {
-  if ((signed)_s.size() == 0)
-    return false;
-  s = _s;
-  return true;
+const std::vector<PolynomialBinary> &Trlwe::get_s() const { return _s; }
+const std::vector<std::vector<PolynomialTorus>> &
+Trlwe::get_ciphertexts() const {
+  return _ciphertexts;
 }
-void Trlwe::get_ciphertexts(
-    std::vector<std::vector<PolynomialTorus>> &ciphertexts) const {
-  ciphertexts = _ciphertexts;
+const std::vector<double> &Trlwe::get_stddevErrors() const {
+  return _stddevErrors;
 }
-void Trlwe::get_plaintexts(std::vector<PolynomialBinary> &plaintexts) const {
-  plaintexts = _plaintexts;
+const std::vector<PolynomialBinary> &Trlwe::get_plaintexts() const {
+  return _plaintexts;
 }
 
 // Utilities
@@ -84,8 +87,10 @@ bool Trlwe::encryptAll() {
     return true;
   } else {
     _ciphertexts.resize(_plaintexts.size());
+    _stddevErrors.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
       _ciphertexts[i].resize(_k + 1);
+      _stddevErrors[i] = STDDEV_ERROR;
       for (int j = 0; j <= _k; j++) {
         _ciphertexts[i][j].resize(_N);
         if (j != _k) {
@@ -96,7 +101,8 @@ bool Trlwe::encryptAll() {
         } else {
           // _ciphertexts[i][_k] Gaussian polynomial
           for (int k = 0; k < _N; k++) {
-            _ciphertexts[i][_k][k] = Random::getNormalTorus(0, _alpha);
+            _ciphertexts[i][_k][k] =
+                Random::getNormalTorus(0, _stddevErrors[i]);
           }
         }
       }
@@ -194,7 +200,7 @@ bool Trlwe::tlweExtractAll(Tlwe &out) const {
         cipher[k] = (j >= k % _N) ? (_ciphertexts[i][k / _N][j - k % _N]) : 0;
       }
       cipher[_N * _k] = _ciphertexts[i][_k][j];
-      out.addCiphertext(cipher);
+      out.addCiphertext(cipher, _stddevErrors[i]);
     }
   }
   return true;
@@ -209,7 +215,7 @@ bool Trlwe::tlweExtractOne(Tlwe &out, int p, int cipherID) const {
         (p >= i % _N) ? (_ciphertexts[cipherID][i / _N][p - i % _N]) : 0;
   }
   cipher[_N * _k] = _ciphertexts[cipherID][_k][p];
-  out.addCiphertext(cipher);
+  out.addCiphertext(cipher, _stddevErrors[cipherID]);
   return true;
 }
 

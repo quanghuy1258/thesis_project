@@ -11,10 +11,10 @@ class Trlwe {
 private:
   int _N;
   int _k;
-  double _alpha;
 
   std::vector<PolynomialBinary> _s;
   std::vector<std::vector<PolynomialTorus>> _ciphertexts;
+  std::vector<double> _stddevErrors;
   std::vector<PolynomialBinary> _plaintexts;
 
   friend class Trgsw;
@@ -33,7 +33,6 @@ public:
   // Get params
   int get_N() const;
   int get_k() const;
-  double get_alpha() const;
 
   // Set attributes
   void clear_s();
@@ -41,14 +40,14 @@ public:
   void clear_plaintexts();
   bool set_s(const std::vector<PolynomialBinary> &s);
   void generate_s();
-  bool addCiphertext(const std::vector<PolynomialTorus> &cipher);
+  bool addCiphertext(const std::vector<PolynomialTorus> &cipher, double stddevError);
   bool addPlaintext(const PolynomialBinary &plain);
 
   // Get attributes
-  bool get_s(std::vector<PolynomialBinary> &s) const;
-  void
-  get_ciphertexts(std::vector<std::vector<PolynomialTorus>> &ciphertexts) const;
-  void get_plaintexts(std::vector<PolynomialBinary> &plaintexts) const;
+  const std::vector<PolynomialBinary> &get_s() const;
+  const std::vector<std::vector<PolynomialTorus>> &get_ciphertexts() const;
+  const std::vector<double> &get_stddevErrors() const;
+  const std::vector<PolynomialBinary> &get_plaintexts() const;
 
   // Utilities
   bool encryptAll();

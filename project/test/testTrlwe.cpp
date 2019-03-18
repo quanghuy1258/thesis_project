@@ -14,7 +14,7 @@ TEST(Thesis, TrlweEncryptDecrypt) {
   trlweObj.clear_plaintexts();
   trlweObj.generate_s();
 
-  std::vector<thesis::PolynomialBinary> x, y;
+  std::vector<thesis::PolynomialBinary> x;
 
   int numberTests = 100;
   x.resize(numberTests);
@@ -28,10 +28,9 @@ TEST(Thesis, TrlweEncryptDecrypt) {
   trlweObj.encryptAll();
   trlweObj.clear_plaintexts();
   trlweObj.decryptAll();
-  trlweObj.get_plaintexts(y);
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trlweObj.get_N(); j++) {
-      ASSERT_TRUE(x[i][j] == y[i][j]);
+      ASSERT_TRUE(x[i][j] == trlweObj.get_plaintexts()[i][j]);
     }
   }
 }
@@ -47,16 +46,14 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
 
   trlweObj.generate_s();
   tlweObj.set_n(trlweObj.get_N() * trlweObj.get_k(), true);
-  std::vector<thesis::PolynomialBinary> sTrlwe;
   std::vector<thesis::Integer> sTlwe(trlweObj.get_N() * trlweObj.get_k());
-  trlweObj.get_s(sTrlwe);
   for (int i = 0; i < trlweObj.get_N() * trlweObj.get_k(); i++) {
-    sTlwe[i] = (sTrlwe[i / trlweObj.get_N()][i % trlweObj.get_N()]) ? 1 : 0;
+    sTlwe[i] =
+        (trlweObj.get_s()[i / trlweObj.get_N()][i % trlweObj.get_N()]) ? 1 : 0;
   }
   tlweObj.set_s(sTlwe);
 
   std::vector<thesis::PolynomialBinary> x;
-  std::vector<bool> y;
   int numberTests = 100;
   x.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
@@ -71,11 +68,12 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
   trlweObj.clear_plaintexts();
   trlweObj.tlweExtractAll(tlweObj);
   tlweObj.decryptAll();
-  tlweObj.get_plaintexts(y);
-  std::cout << "Number of plaintexts: " << y.size() << std::endl;
+  std::cout << "Number of plaintexts: " << tlweObj.get_plaintexts().size()
+            << std::endl;
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trlweObj.get_N(); j++) {
-      ASSERT_TRUE(x[i][j] == y[i * trlweObj.get_N() + j]);
+      ASSERT_TRUE(x[i][j] ==
+                  tlweObj.get_plaintexts()[i * trlweObj.get_N() + j]);
     }
   }
 }
@@ -91,16 +89,14 @@ TEST(Thesis, TrlweExtractOneToTlwe) {
 
   trlweObj.generate_s();
   tlweObj.set_n(trlweObj.get_N() * trlweObj.get_k(), true);
-  std::vector<thesis::PolynomialBinary> sTrlwe;
   std::vector<thesis::Integer> sTlwe(trlweObj.get_N() * trlweObj.get_k());
-  trlweObj.get_s(sTrlwe);
   for (int i = 0; i < trlweObj.get_N() * trlweObj.get_k(); i++) {
-    sTlwe[i] = (sTrlwe[i / trlweObj.get_N()][i % trlweObj.get_N()]) ? 1 : 0;
+    sTlwe[i] =
+        (trlweObj.get_s()[i / trlweObj.get_N()][i % trlweObj.get_N()]) ? 1 : 0;
   }
   tlweObj.set_s(sTlwe);
 
   std::vector<thesis::PolynomialBinary> x;
-  std::vector<bool> y;
   int numberTests = 100;
   x.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
@@ -118,9 +114,9 @@ TEST(Thesis, TrlweExtractOneToTlwe) {
     trlweObj.tlweExtractOne(tlweObj, p, i);
   }
   tlweObj.decryptAll();
-  tlweObj.get_plaintexts(y);
-  std::cout << "Number of plaintexts: " << y.size() << std::endl;
+  std::cout << "Number of plaintexts: " << tlweObj.get_plaintexts().size()
+            << std::endl;
   for (int i = 0; i < numberTests; i++) {
-    ASSERT_TRUE(x[i][p] == y[i]);
+    ASSERT_TRUE(x[i][p] == tlweObj.get_plaintexts()[i]);
   }
 }

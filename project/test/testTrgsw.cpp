@@ -55,7 +55,6 @@ TEST(Thesis, Decomposition) {
 
   std::vector<thesis::PolynomialBinary> x;
   std::vector<std::vector<thesis::PolynomialInteger>> y;
-  std::vector<std::vector<thesis::PolynomialTorus>> z;
 
   int numberTests = 100;
   x.resize(numberTests);
@@ -69,7 +68,6 @@ TEST(Thesis, Decomposition) {
   trlweObj.encryptAll();
   trlweObj.clear_plaintexts();
   ASSERT_TRUE(trgswObj.decompositeAll(y, trlweObj));
-  trlweObj.get_ciphertexts(z);
   for (int cipherID = 0; cipherID < numberTests; cipherID++) {
     for (int i = 0; i <= trgswObj.get_k(); i++) {
       for (int j = 0; j < trgswObj.get_N(); j++) {
@@ -82,7 +80,7 @@ TEST(Thesis, Decomposition) {
                        ? (y[cipherID][i * trgswObj.get_l() + k][j] >> ushift)
                        : (y[cipherID][i * trgswObj.get_l() + k][j] << ushift);
         }
-        thesis::Torus ori_value = z[cipherID][i][j];
+        thesis::Torus ori_value = trlweObj.get_ciphertexts()[cipherID][i][j];
         thesis::Torus comp_value =
             (ori_value > value) ? (ori_value - value) : (value - ori_value);
         thesis::Torus mask = 0;
@@ -109,7 +107,7 @@ TEST(Thesis, ExternalProduct) {
   trgswObj.generate_s();
   trgswObj.setParamTo(trlweObj[0]);
 
-  std::vector<thesis::PolynomialBinary> x, z;
+  std::vector<thesis::PolynomialBinary> x;
   thesis::PolynomialInteger y;
 
   int numberTests = 100;
@@ -139,7 +137,6 @@ TEST(Thesis, ExternalProduct) {
   ASSERT_TRUE(trgswObj.externalProduct(trlweObj[1], trlweObj[0], trlweCipherIds,
                                        trgswCipherIds));
   trlweObj[1].decryptAll();
-  trlweObj[1].get_plaintexts(z);
 
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trgswObj.get_N(); j++) {
@@ -149,7 +146,7 @@ TEST(Thesis, ExternalProduct) {
         b = y[j - k] & 1;
         res ^= a & b;
       }
-      int ori_res = (z[i][j]) ? 1 : 0;
+      int ori_res = (trlweObj[1].get_plaintexts()[i][j]) ? 1 : 0;
       ASSERT_TRUE(res == ori_res);
     }
   }
@@ -208,7 +205,7 @@ TEST(Thesis, CMux) {
   trgswObj.generate_s();
   trgswObj.setParamTo(trlweObj[0]);
 
-  std::vector<thesis::PolynomialBinary> x, z;
+  std::vector<thesis::PolynomialBinary> x;
   std::vector<thesis::PolynomialInteger> y;
   std::vector<int> trlweCipherTrueIds, trlweCipherFalseIds, trgswCipherIds;
 
@@ -243,13 +240,13 @@ TEST(Thesis, CMux) {
   ASSERT_TRUE(trgswObj.cMux(trlweObj[1], trlweObj[0], trlweCipherTrueIds,
                             trlweCipherFalseIds, trgswCipherIds));
   trlweObj[1].decryptAll();
-  trlweObj[1].get_plaintexts(z);
 
   for (int i = 0; i < numberTests; i++) {
     bool check = (y[i][0] == 1);
     for (int j = 0; j < trgswObj.get_N(); j++) {
-      ASSERT_TRUE(z[i][j] == ((check) ? x[trlweCipherTrueIds[i]][j]
-                                      : x[trlweCipherFalseIds[i]][j]));
+      ASSERT_TRUE(trlweObj[1].get_plaintexts()[i][j] ==
+                  ((check) ? x[trlweCipherTrueIds[i]][j]
+                           : x[trlweCipherFalseIds[i]][j]));
     }
   }
 }
