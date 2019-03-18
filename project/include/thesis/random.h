@@ -15,9 +15,10 @@ private:
   static void initSeeds();
 
 public:
-  static void addSeed(const uint32_t &seed);
+  static void addSeed(uint32_t seed);
   static Torus getUniformTorus();
-  static Torus getNormalTorus(const double &mean, const double &stddev);
+  static Torus getNormalTorus(double mean, double stddev);
+  static double getErrorProbability(double stddev, double boundary);
   static Integer getUniformInteger();
 };
 

@@ -12,7 +12,7 @@ void Random::initSeeds() {
   std::seed_seq seed(_seeds.begin(), _seeds.end());
   _generator.seed(seed);
 }
-void Random::addSeed(const uint32_t &seed) {
+void Random::addSeed(uint32_t seed) {
   _isInitSeeds = false;
   _seeds.push_back(seed);
 }
@@ -25,7 +25,7 @@ Torus Random::getUniformTorus() {
       std::numeric_limits<Torus>::min(), std::numeric_limits<Torus>::max());
   return distribution(_generator);
 }
-Torus Random::getNormalTorus(const double &mean, const double &stddev) {
+Torus Random::getNormalTorus(double mean, double stddev) {
   if (!_isInitSeeds) {
     initSeeds();
   }
@@ -34,6 +34,11 @@ Torus Random::getNormalTorus(const double &mean, const double &stddev) {
   randomNumber = (randomNumber - std::round(randomNumber)) *
                  std::pow(2, sizeof(Torus) * 8);
   return (Torus)randomNumber;
+}
+double getErrorProbability(double stddev, double boundary) {
+  if (stddev <= 0 || boundary <= 0)
+    return -1;
+  return std::erfc(boundary / (std::sqrt(2) * stddev));
 }
 Integer Random::getUniformInteger() {
   if (!_isInitSeeds) {

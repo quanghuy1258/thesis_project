@@ -54,11 +54,12 @@ void FFT::torusPolynomialToFFT(void *out, const PolynomialTorus &inp) {
     obj->_normalForm[i] = 0;
   }
   for (int i = 0; i < _N; i++) {
-    uint64_t temp = inp[i];
 #if defined(USING_32BIT)
+    uint32_t temp = inp[i];
     obj->_normalForm[(i << 2)] = (temp & 0xFFFF);
     obj->_normalForm[(i << 2) + 1] = ((temp >> 16) & 0xFFFF);
 #else
+    uint64_t temp = inp[i];
     obj->_normalForm[(i << 3)] = (temp & 0xFFFF);
     obj->_normalForm[(i << 3) + 1] = ((temp >> 16) & 0xFFFF);
     obj->_normalForm[(i << 3) + 2] = ((temp >> 32) & 0xFFFF);
@@ -78,11 +79,12 @@ void FFT::integerPolynomialToFFT(void *out, const PolynomialInteger &inp) {
     obj->_normalForm[i] = 0;
   }
   for (int i = 0; i < _N; i++) {
-    uint64_t temp = inp[i];
 #if defined(USING_32BIT)
+    uint32_t temp = inp[i];
     obj->_normalForm[(i << 2)] = (temp & 0xFFFF);
     obj->_normalForm[(i << 2) + 1] = ((temp >> 16) & 0xFFFF);
 #else
+    uint64_t temp = inp[i];
     obj->_normalForm[(i << 3)] = (temp & 0xFFFF);
     obj->_normalForm[(i << 3) + 1] = ((temp >> 16) & 0xFFFF);
     obj->_normalForm[(i << 3) + 2] = ((temp >> 32) & 0xFFFF);

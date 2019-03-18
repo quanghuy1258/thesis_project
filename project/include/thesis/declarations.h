@@ -24,6 +24,8 @@ class Trlwe;
 class Trgsw;
 
 class FFT;
+class Random;
+class ThreadPool;
 
 } // namespace thesis
 
