@@ -71,7 +71,7 @@ bool Tlwe::encryptAll() {
   if (_s.empty())
     return false;
   if (_plaintexts.empty()) {
-    _ciphertexts.clear();
+    clear_ciphertexts();
     return true;
   } else {
     _ciphertexts.resize(_plaintexts.size());
@@ -114,7 +114,7 @@ bool Tlwe::decryptAll() {
   if (_s.empty())
     return false;
   if (_ciphertexts.empty()) {
-    _plaintexts.clear();
+    clear_plaintexts();
     return true;
   } else {
     _plaintexts.resize(_ciphertexts.size());
