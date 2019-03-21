@@ -12,11 +12,11 @@ private:
   int _Bgbit;
   int _N;
   int _k;
-  double _alpha;
 
   std::vector<PolynomialBinary> _s;
   std::vector<std::vector<PolynomialTorus>> _ciphertexts;
-  std::vector<PolynomialInteger> _plaintexts;
+  std::vector<double> _stddevErrors;
+  std::vector<bool> _plaintexts;
 
 public:
   // Constructors
@@ -34,7 +34,6 @@ public:
   int get_Bgbit() const;
   int get_N() const;
   int get_k() const;
-  int get_alpha() const;
 
   // Set attributes
   void clear_s();
@@ -42,14 +41,15 @@ public:
   void clear_plaintexts();
   bool set_s(const std::vector<PolynomialBinary> &s);
   void generate_s();
-  bool addCiphertext(const std::vector<PolynomialTorus> &cipher);
-  bool addPlaintext(const PolynomialInteger &plain);
+  bool addCiphertext(const std::vector<PolynomialTorus> &cipher,
+                     double stddevError);
+  void addPlaintext(bool plain);
 
   // Get attributes
-  bool get_s(std::vector<PolynomialBinary> &s) const;
-  void
-  get_ciphertexts(std::vector<std::vector<PolynomialTorus>> &ciphertexts) const;
-  void get_plaintexts(std::vector<PolynomialInteger> &plaintexts) const;
+  const std::vector<PolynomialBinary> &get_s() const;
+  const std::vector<std::vector<PolynomialTorus>> &get_ciphertexts() const;
+  const std::vector<double> &get_stddevErrors() const;
+  const std::vector<bool> &get_plaintexts() const;
 
   // Utilities
   bool encryptAll();

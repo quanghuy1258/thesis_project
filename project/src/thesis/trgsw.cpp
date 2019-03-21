@@ -6,11 +6,12 @@
 
 namespace thesis {
 
+static const double STDDEV_ERROR = std::sqrt(2. / CONST_PI) * pow(2., -30);
+
 // Constructors
 Trgsw::Trgsw() {
   _l = 3;
   _Bgbit = 10; // Bg = 1024
-  _alpha = std::sqrt(2. / CONST_PI) * pow(2., -30);
   // Similar to TRLWE
   _N = 1024;
   _k = 1;
@@ -24,11 +25,13 @@ int Trgsw::get_l() const { return _l; }
 int Trgsw::get_Bgbit() const { return _Bgbit; }
 int Trgsw::get_N() const { return _N; }
 int Trgsw::get_k() const { return _k; }
-int Trgsw::get_alpha() const { return _alpha; }
 
 // Set attributes
 void Trgsw::clear_s() { _s.clear(); }
-void Trgsw::clear_ciphertexts() { _ciphertexts.clear(); }
+void Trgsw::clear_ciphertexts() {
+  _ciphertexts.clear();
+  _stddevErrors.clear();
+}
 void Trgsw::clear_plaintexts() { _plaintexts.clear(); }
 bool Trgsw::set_s(const std::vector<PolynomialBinary> &s) {
   if ((signed)s.size() != _k)
@@ -49,7 +52,8 @@ void Trgsw::generate_s() {
     }
   }
 }
-bool Trgsw::addCiphertext(const std::vector<PolynomialTorus> &cipher) {
+bool Trgsw::addCiphertext(const std::vector<PolynomialTorus> &cipher,
+                          double stddevError) {
   if ((signed)cipher.size() != (_k + 1) * _l * (_k + 1))
     return false;
   for (int i = 0; i < (_k + 1) * _l * (_k + 1); i++) {
@@ -57,41 +61,35 @@ bool Trgsw::addCiphertext(const std::vector<PolynomialTorus> &cipher) {
       return false;
   }
   _ciphertexts.push_back(cipher);
+  _stddevErrors.push_back(stddevError);
   return true;
 }
-bool Trgsw::addPlaintext(const PolynomialInteger &plain) {
-  if ((signed)plain.size() != _N)
-    return false;
-  _plaintexts.push_back(plain);
-  return true;
-}
+void Trgsw::addPlaintext(bool plain) { _plaintexts.push_back(plain); }
 
 // Get attributes
-bool Trgsw::get_s(std::vector<PolynomialBinary> &s) const {
-  if ((signed)_s.size() == 0)
-    return false;
-  s = _s;
-  return true;
+const std::vector<PolynomialBinary> &Trgsw::get_s() const { return _s; }
+const std::vector<std::vector<PolynomialTorus>> &
+Trgsw::get_ciphertexts() const {
+  return _ciphertexts;
 }
-void Trgsw::get_ciphertexts(
-    std::vector<std::vector<PolynomialTorus>> &ciphertexts) const {
-  ciphertexts = _ciphertexts;
+const std::vector<double> &Trgsw::get_stddevErrors() const {
+  return _stddevErrors;
 }
-void Trgsw::get_plaintexts(std::vector<PolynomialInteger> &plaintexts) const {
-  plaintexts = _plaintexts;
-}
+const std::vector<bool> &Trgsw::get_plaintexts() const { return _plaintexts; }
 
 // Utilities
 bool Trgsw::encryptAll() {
   if (_s.empty())
     return false;
   if (_plaintexts.empty()) {
-    _ciphertexts.clear();
+    clear_ciphertexts();
     return true;
   } else {
     _ciphertexts.resize(_plaintexts.size());
+    _stddevErrors.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
       _ciphertexts[i].resize((_k + 1) * _l * (_k + 1));
+      _stddevErrors[i] = STDDEV_ERROR;
       for (int j = 0; j < (_k + 1) * _l * (_k + 1); j++) {
         _ciphertexts[i][j].resize(_N);
         if (j % (_k + 1) != _k) {
@@ -102,7 +100,7 @@ bool Trgsw::encryptAll() {
         } else {
           // _ciphertexts[i][_k (mod _k+1)] Gaussian polynomial
           for (int k = 0; k < _N; k++) {
-            _ciphertexts[i][j][k] = Random::getNormalTorus(0, _alpha);
+            _ciphertexts[i][j][k] = Random::getNormalTorus(0, _stddevErrors[i]);
           }
         }
       }
@@ -118,6 +116,9 @@ bool Trgsw::encryptAll() {
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
       PolynomialTorus productTorusPolynomial;
+      int bits = sizeof(Torus) * 8 - _Bgbit;
+      Torus one_Bgbit = 1;
+      one_Bgbit <<= bits;
       int s = (_plaintexts.size() * (_k + 1) * _l * i) / numberThreads,
           e = (_plaintexts.size() * (_k + 1) * _l * (i + 1)) / numberThreads;
       for (int j = s; j < e; j++) {
@@ -134,14 +135,8 @@ bool Trgsw::encryptAll() {
                 productTorusPolynomial[l];
           }
         }
-        for (int l = 0; l < _N; l++) {
-          int bits = sizeof(Integer) * 8 - _Bgbit * (rowIdInBlock + 1);
-          if (bits >= 0)
-            _ciphertexts[plainID][rowID * (_k + 1) + blockID][l] +=
-                _plaintexts[plainID][l] << bits;
-          else
-            _ciphertexts[plainID][rowID * (_k + 1) + blockID][l] +=
-                _plaintexts[plainID][l] >> bits;
+        if ((rowIdInBlock == 0) && _plaintexts[plainID]) {
+          _ciphertexts[plainID][rowID * (_k + 1) + blockID][0] += one_Bgbit;
         }
       }
       barrier.Notify();
@@ -155,17 +150,14 @@ bool Trgsw::decryptAll() {
   if (_s.empty())
     return false;
   if (_ciphertexts.empty()) {
-    _plaintexts.clear();
+    clear_plaintexts();
     return true;
   } else {
     _plaintexts.resize(_ciphertexts.size());
-    for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
-      _plaintexts[i].resize(_N);
-      std::fill(_plaintexts[i].begin(), _plaintexts[i].end(), 0);
-    }
   }
 #ifdef USING_GPU
 #else
+  std::vector<Torus> decrypts(_ciphertexts.size());
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
@@ -173,51 +165,24 @@ bool Trgsw::decryptAll() {
     fftCalculators[i].set_N(_N);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
-      int shift = sizeof(Integer) * 8 - _Bgbit - 1;
-      shift = (shift < 0) ? 0 : shift;
-#if defined(USING_32BIT)
-      uint32_t decrypt_integer, mask = 1;
-#else
-      uint64_t decrypt_integer, mask = 1;
-#endif
-      mask = mask << _Bgbit;
-      mask = mask - 1;
       PolynomialTorus productTorusPolynomial;
-      std::vector<PolynomialTorus> decrypts;
-      decrypts.resize(_l);
       int s = (_ciphertexts.size() * i) / numberThreads,
           e = (_ciphertexts.size() * (i + 1)) / numberThreads;
       for (int j = s; j < e; j++) {
-        for (int k = 0; k < _l; k++) {
-          decrypts[k] = _ciphertexts[j][(_k * _l + k) * (_k + 1) + _k];
-          for (int l = 0; l < _k; l++) {
-            fftCalculators[i].torusPolynomialMultiplication(
-                productTorusPolynomial, _s[l],
-                _ciphertexts[j][(_k * _l + k) * (_k + 1) + l]);
-            for (int m = 0; m < _N; m++) {
-              decrypts[k][m] -= productTorusPolynomial[m];
-            }
-          }
-          int bits = sizeof(Integer) * 8 - _Bgbit * (k + 1);
-          for (int l = 0; l < _N; l++) {
-            if (bits >= 0)
-              decrypts[k][l] -= _plaintexts[j][l] << bits;
-            else
-              decrypts[k][l] -= _plaintexts[j][l] >> (-bits);
-            decrypt_integer = decrypts[k][l];
-            decrypt_integer = (decrypt_integer >> shift);
-            double decrypt_real = decrypt_integer;
-            decrypt_real /= 2;
-            decrypt_integer = std::llround(decrypt_real);
-            decrypt_integer = decrypt_integer & mask;
-            _plaintexts[j][l] += (decrypt_integer << (_Bgbit * k));
-          }
+        decrypts[j] = _ciphertexts[j][_k * _l * (_k + 1) + _k][0];
+        for (int k = 0; k < _k; k++) {
+          decrypts[j] -= _ciphertexts[j][_k * _l * (_k + 1) + k][0] * _s[k][0];
         }
       }
       barrier.Notify();
     });
   }
   barrier.Wait();
+  for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
+    int bits = sizeof(Torus) * 8 - _Bgbit - 1;
+    decrypts[i] = ((decrypts[i] >> bits) & 3);
+    _plaintexts[i] = ((decrypts[i] == 1) || (decrypts[i] == 2));
+  }
 #endif
   return true;
 }
@@ -285,9 +250,10 @@ void Trgsw::setParamTo(Trlwe &obj) const {
   obj._N = _N;
   obj._k = _k;
   obj._s = _s;
-  obj._ciphertexts.clear();
-  obj._plaintexts.clear();
+  obj.clear_ciphertexts();
+  obj.clear_plaintexts();
 }
+// TODO: Add error
 bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
                             const std::vector<int> &trlweCipherIds,
                             const std::vector<int> &trgswCipherIds) const {
@@ -318,6 +284,7 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
     out._s = inp._s;
   if (numberOfProducts) {
     out._ciphertexts.resize(numberOfProducts);
+    out._stddevErrors.resize(numberOfProducts);
     for (int i = 0; i < numberOfProducts; i++) {
       out._ciphertexts[i].resize(_k + 1);
       for (int j = 0; j <= _k; j++) {
@@ -327,7 +294,7 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
       }
     }
   } else {
-    out._ciphertexts.clear();
+    out.clear_ciphertexts();
     return true;
   }
   std::vector<std::vector<PolynomialInteger>> decVecs;

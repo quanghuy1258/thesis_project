@@ -120,10 +120,9 @@ bool Trlwe::encryptAll() {
       PolynomialTorus productTorusPolynomial;
       int s = (_plaintexts.size() * i) / numberThreads,
           e = (_plaintexts.size() * (i + 1)) / numberThreads;
-      int shift = (signed)sizeof(Torus) * 8 - 1;
-      shift = (shift < 0) ? 0 : shift;
+      int shift = sizeof(Torus) * 8 - 1;
       Torus bit = 1;
-      bit = bit << (unsigned)shift;
+      bit <<= shift;
       for (int j = s; j < e; j++) {
         for (int k = 0; k < _k; k++) {
           fftCalculators[i].torusPolynomialMultiplication(
@@ -167,8 +166,7 @@ bool Trlwe::decryptAll() {
       PolynomialTorus productTorusPolynomial, decryptTorusPolynomial;
       int s = (_ciphertexts.size() * i) / numberThreads,
           e = (_ciphertexts.size() * (i + 1)) / numberThreads;
-      int shift = (signed)sizeof(Torus) * 8 - 2;
-      shift = (shift < 0) ? 0 : shift;
+      int bits = sizeof(Torus) * 8 - 2;
       for (int j = s; j < e; j++) {
         decryptTorusPolynomial = _ciphertexts[j][_k];
         for (int k = 0; k < _k; k++) {
@@ -179,7 +177,7 @@ bool Trlwe::decryptAll() {
           }
         }
         for (int l = 0; l < _N; l++) {
-          Torus code = (decryptTorusPolynomial[l] >> (unsigned)shift) & 3;
+          Torus code = (decryptTorusPolynomial[l] >> bits) & 3;
           _plaintexts[j][l] = (code == 1 || code == 2);
         }
       }

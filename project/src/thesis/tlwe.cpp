@@ -93,10 +93,9 @@ bool Tlwe::encryptAll() {
     ThreadPool::get_threadPool().Schedule([&, i]() {
       int s = (_plaintexts.size() * i) / numberThreads,
           e = (_plaintexts.size() * (i + 1)) / numberThreads;
-      int shift = (signed)sizeof(Torus) * 8 - 1;
-      shift = (shift < 0) ? 0 : shift;
+      int shift = sizeof(Torus) * 8 - 1;
       Torus bit = 1;
-      bit = bit << (unsigned)shift;
+      bit <<= shift;
       for (int j = s; j < e; j++) {
         for (int k = 0; k < _n; k++) {
           _ciphertexts[j][_n] += _ciphertexts[j][k] * _s[k];
@@ -121,7 +120,7 @@ bool Tlwe::decryptAll() {
   }
 #ifdef USING_GPU
 #else
-  std::vector<Torus> rowvector_decrypts(_ciphertexts.size());
+  std::vector<Torus> decrypts(_ciphertexts.size());
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
@@ -129,9 +128,9 @@ bool Tlwe::decryptAll() {
       int s = (_ciphertexts.size() * i) / numberThreads,
           e = (_ciphertexts.size() * (i + 1)) / numberThreads;
       for (int j = s; j < e; j++) {
-        rowvector_decrypts[j] = _ciphertexts[j][_n];
+        decrypts[j] = _ciphertexts[j][_n];
         for (int k = 0; k < _n; k++) {
-          rowvector_decrypts[j] -= _ciphertexts[j][k] * _s[k];
+          decrypts[j] -= _ciphertexts[j][k] * _s[k];
         }
       }
       barrier.Notify();
@@ -139,10 +138,9 @@ bool Tlwe::decryptAll() {
   }
   barrier.Wait();
   for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
-    int shift = (signed)sizeof(Torus) * 8 - 2;
-    shift = (shift < 0) ? 0 : shift;
-    Torus code = (rowvector_decrypts[i] >> (unsigned)shift) & 3;
-    _plaintexts[i] = (code == 1 || code == 2);
+    int bits = sizeof(Torus) * 8 - 2;
+    decrypts[i] = ((decrypts[i] >> bits) & 3);
+    _plaintexts[i] = ((decrypts[i] == 1) || (decrypts[i] == 2));
   }
 #endif
   return true;
