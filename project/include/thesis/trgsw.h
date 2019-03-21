@@ -60,9 +60,7 @@ public:
   bool externalProduct(Trlwe &out, const Trlwe &inp,
                        const std::vector<int> &trlweCipherIds,
                        const std::vector<int> &trgswCipherIds) const;
-#ifdef ENABLE_TRGSW_INTERNAL_PRODUCT
   bool internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB);
-#endif
   bool cMux(Trlwe &out, const Trlwe &inp,
             const std::vector<int> &trlweCipherTrueIds,
             const std::vector<int> &trlweCipherFalseIds,

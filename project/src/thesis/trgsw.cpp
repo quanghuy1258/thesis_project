@@ -253,7 +253,6 @@ void Trgsw::setParamTo(Trlwe &obj) const {
   obj.clear_ciphertexts();
   obj.clear_plaintexts();
 }
-// TODO: Add error
 bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
                             const std::vector<int> &trlweCipherIds,
                             const std::vector<int> &trgswCipherIds) const {
@@ -287,6 +286,8 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
     out._stddevErrors.resize(numberOfProducts);
     for (int i = 0; i < numberOfProducts; i++) {
       out._ciphertexts[i].resize(_k + 1);
+      out._stddevErrors[i] = inp._stddevErrors[trlweCipherIds[i]] +
+                             (1 + _k * _N) * std::pow(2, -_l * _Bgbit - 1);
       for (int j = 0; j <= _k; j++) {
         out._ciphertexts[i][j].resize(_N);
         std::fill(out._ciphertexts[i][j].begin(), out._ciphertexts[i][j].end(),
@@ -299,6 +300,15 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
   }
   std::vector<std::vector<PolynomialInteger>> decVecs;
   decompositeAll(decVecs, inp);
+  for (int i = 0; i < numberOfProducts; i++) {
+    double s = 0;
+    for (int j = 0; j < (_k + 1) * _l; j++) {
+      for (int k = 0; k < _N; k++) {
+        s += std::abs(decVecs[trlweCipherIds[i]][j][k]);
+      }
+    }
+    out._stddevErrors[i] += s * _stddevErrors[trgswCipherIds[i]];
+  }
 #ifdef USING_GPU
 #else
   int numberThreads = ThreadPool::get_numberThreads();
@@ -331,20 +341,21 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
 #endif
   return true;
 }
-#ifdef ENABLE_TRGSW_INTERNAL_PRODUCT
 bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   if (cipherIdA < 0 || cipherIdA >= (signed)_ciphertexts.size() ||
       cipherIdB < 0 || cipherIdB >= (signed)_ciphertexts.size())
     return false;
-  if (false) { // TODO: Choose smaller error
+  if (_stddevErrors[cipherIdA] > _stddevErrors[cipherIdB]) {
     std::swap(cipherIdA, cipherIdB);
   }
   Trlwe inp, out;
   setParamTo(inp);
   inp._ciphertexts.resize((_k + 1) * _l);
+  inp._stddevErrors.resize((_k + 1) * _l);
   std::vector<int> trlweCipherIds((_k + 1) * _l), trgswCipherIds((_k + 1) * _l);
   for (int i = 0; i < (_k + 1) * _l; i++) {
     inp._ciphertexts[i].resize(_k + 1);
+    inp._stddevErrors[i] = _stddevErrors[cipherIdB];
     for (int j = 0; j <= _k; j++) {
       inp._ciphertexts[i][j].resize(_N);
       for (int k = 0; k < _N; k++) {
@@ -358,7 +369,9 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   externalProduct(out, inp, trlweCipherIds, trgswCipherIds);
   cipherIdResult = _ciphertexts.size();
   _ciphertexts.resize(cipherIdResult + 1);
+  _stddevErrors.resize(cipherIdResult + 1);
   _ciphertexts[cipherIdResult].resize((_k + 1) * _l * (_k + 1));
+  _stddevErrors[cipherIdResult] = 0;
   for (int i = 0; i < (_k + 1) * _l * (_k + 1); i++) {
     _ciphertexts[cipherIdResult][i].resize(_N);
     int c = i % (_k + 1);
@@ -366,10 +379,13 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
     for (int j = 0; j < _N; j++) {
       _ciphertexts[cipherIdResult][i][j] = out._ciphertexts[r][c][j];
     }
+    if (c == 0) {
+      _stddevErrors[cipherIdResult] =
+          std::max(_stddevErrors[cipherIdResult], out._stddevErrors[r]);
+    }
   }
   return true;
 }
-#endif
 bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
                  const std::vector<int> &trlweCipherTrueIds,
                  const std::vector<int> &trlweCipherFalseIds,
@@ -406,8 +422,11 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
   Trlwe temp;
   setParamTo(temp);
   temp._ciphertexts.resize(numberOfCMux);
+  temp._stddevErrors.resize(numberOfCMux);
   for (int i = 0; i < numberOfCMux; i++) {
     temp._ciphertexts[i].resize(_k + 1);
+    temp._stddevErrors[i] = std::max(inp._stddevErrors[trlweCipherTrueIds[i]],
+                                     inp._stddevErrors[trlweCipherFalseIds[i]]);
     for (int j = 0; j <= _k; j++) {
       temp._ciphertexts[i][j].resize(_N);
     }
