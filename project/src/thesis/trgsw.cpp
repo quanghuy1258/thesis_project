@@ -172,6 +172,10 @@ bool Trgsw::decryptAll() {
         decrypts[j] = _ciphertexts[j][_k * _l * (_k + 1) + _k][0];
         for (int k = 0; k < _k; k++) {
           decrypts[j] -= _ciphertexts[j][_k * _l * (_k + 1) + k][0] * _s[k][0];
+          for (int l = 1; l < _N; l++) {
+            decrypts[j] +=
+                _ciphertexts[j][_k * _l * (_k + 1) + k][l] * _s[k][_N - l];
+          }
         }
       }
       barrier.Notify();

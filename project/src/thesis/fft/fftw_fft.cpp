@@ -50,21 +50,23 @@ void FFT::torusPolynomialToFFT(void *out, const PolynomialTorus &inp) {
 #else
   int newN = _N << 4;
 #endif
-  for (int i = 0; i < newN; i++) {
+  for (int i = 0; i < (newN >> 1); i++) {
     obj->_normalForm[i] = 0;
   }
   for (int i = 0; i < _N; i++) {
 #if defined(USING_32BIT)
-    uint32_t temp = inp[i];
-    obj->_normalForm[(i << 2)] = (temp & 0xFFFF);
-    obj->_normalForm[(i << 2) + 1] = ((temp >> 16) & 0xFFFF);
+    obj->_normalForm[(i << 2)] = (inp[i] & 0xFFFF);
+    obj->_normalForm[(i << 2) + 1] = ((inp[i] >> 16) & 0xFFFF);
 #else
-    uint64_t temp = inp[i];
-    obj->_normalForm[(i << 3)] = (temp & 0xFFFF);
-    obj->_normalForm[(i << 3) + 1] = ((temp >> 16) & 0xFFFF);
-    obj->_normalForm[(i << 3) + 2] = ((temp >> 32) & 0xFFFF);
-    obj->_normalForm[(i << 3) + 3] = ((temp >> 48) & 0xFFFF);
+    obj->_normalForm[(i << 3)] = (inp[i] & 0xFFFF);
+    obj->_normalForm[(i << 3) + 1] = ((inp[i] >> 16) & 0xFFFF);
+    obj->_normalForm[(i << 3) + 2] = ((inp[i] >> 32) & 0xFFFF);
+    obj->_normalForm[(i << 3) + 3] = ((inp[i] >> 48) & 0xFFFF);
 #endif
+  }
+  for (int i = 0; i < (newN >> 1); i++) {
+    obj->_normalForm[i] /= 2;
+    obj->_normalForm[i + (newN >> 1)] = -(obj->_normalForm[i]);
   }
   fftw_execute(obj->_normal2fft);
 }
@@ -75,21 +77,23 @@ void FFT::integerPolynomialToFFT(void *out, const PolynomialInteger &inp) {
 #else
   int newN = _N << 4;
 #endif
-  for (int i = 0; i < newN; i++) {
+  for (int i = 0; i < (newN >> 1); i++) {
     obj->_normalForm[i] = 0;
   }
   for (int i = 0; i < _N; i++) {
 #if defined(USING_32BIT)
-    uint32_t temp = inp[i];
-    obj->_normalForm[(i << 2)] = (temp & 0xFFFF);
-    obj->_normalForm[(i << 2) + 1] = ((temp >> 16) & 0xFFFF);
+    obj->_normalForm[(i << 2)] = (inp[i] & 0xFFFF);
+    obj->_normalForm[(i << 2) + 1] = ((inp[i] >> 16) & 0xFFFF);
 #else
-    uint64_t temp = inp[i];
-    obj->_normalForm[(i << 3)] = (temp & 0xFFFF);
-    obj->_normalForm[(i << 3) + 1] = ((temp >> 16) & 0xFFFF);
-    obj->_normalForm[(i << 3) + 2] = ((temp >> 32) & 0xFFFF);
-    obj->_normalForm[(i << 3) + 3] = ((temp >> 48) & 0xFFFF);
+    obj->_normalForm[(i << 3)] = (inp[i] & 0xFFFF);
+    obj->_normalForm[(i << 3) + 1] = ((inp[i] >> 16) & 0xFFFF);
+    obj->_normalForm[(i << 3) + 2] = ((inp[i] >> 32) & 0xFFFF);
+    obj->_normalForm[(i << 3) + 3] = ((inp[i] >> 48) & 0xFFFF);
 #endif
+  }
+  for (int i = 0; i < (newN >> 1); i++) {
+    obj->_normalForm[i] /= 2;
+    obj->_normalForm[i + (newN >> 1)] = -(obj->_normalForm[i]);
   }
   fftw_execute(obj->_normal2fft);
 }
@@ -100,7 +104,7 @@ void FFT::binaryPolynomialToFFT(void *out, const PolynomialBinary &inp) {
 #else
   int newN = _N << 4;
 #endif
-  for (int i = 0; i < newN; i++) {
+  for (int i = 0; i < (newN >> 1); i++) {
     obj->_normalForm[i] = 0;
   }
   for (int i = 0; i < _N; i++) {
@@ -109,6 +113,10 @@ void FFT::binaryPolynomialToFFT(void *out, const PolynomialBinary &inp) {
 #else
     obj->_normalForm[(i << 3)] = (inp[i]) ? 1 : 0;
 #endif
+  }
+  for (int i = 0; i < (newN >> 1); i++) {
+    obj->_normalForm[i] /= 2;
+    obj->_normalForm[i + (newN >> 1)] = -(obj->_normalForm[i]);
   }
   fftw_execute(obj->_normal2fft);
 }
@@ -122,16 +130,16 @@ void FFT::torusPolynomialFromFFT(PolynomialTorus &out, void *inp) {
   fftw_execute(obj->_fft2normal);
   for (int i = 0; i < _N; i++) {
 #if defined(USING_32BIT)
-    uint64_t temp[2];
-    temp[0] = std::llround(obj->_normalForm[(i << 2)] / newN);
-    temp[1] = std::llround(obj->_normalForm[(i << 2) + 1] / newN);
+    int64_t temp[2];
+    temp[0] = std::llround(obj->_normalForm[(i << 2)] / (newN >> 1));
+    temp[1] = std::llround(obj->_normalForm[(i << 2) + 1] / (newN >> 1));
     out[i] = (temp[0] + (temp[1] << 16));
 #else
-    uint64_t temp[4];
-    temp[0] = std::llround(obj->_normalForm[(i << 3)] / newN);
-    temp[1] = std::llround(obj->_normalForm[(i << 3) + 1] / newN);
-    temp[2] = std::llround(obj->_normalForm[(i << 3) + 2] / newN);
-    temp[3] = std::llround(obj->_normalForm[(i << 3) + 3] / newN);
+    int64_t temp[4];
+    temp[0] = std::llround(obj->_normalForm[(i << 3)] / (newN >> 1));
+    temp[1] = std::llround(obj->_normalForm[(i << 3) + 1] / (newN >> 1));
+    temp[2] = std::llround(obj->_normalForm[(i << 3) + 2] / (newN >> 1));
+    temp[3] = std::llround(obj->_normalForm[(i << 3) + 3] / (newN >> 1));
     out[i] = (temp[0] + (temp[1] << 16) + (temp[2] << 32) + (temp[3] << 48));
 #endif
   }
