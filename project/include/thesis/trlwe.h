@@ -40,7 +40,8 @@ public:
   void clear_plaintexts();
   bool set_s(const std::vector<PolynomialBinary> &s);
   void generate_s();
-  bool addCiphertext(const std::vector<PolynomialTorus> &cipher, double stddevError);
+  bool addCiphertext(const std::vector<PolynomialTorus> &cipher,
+                     double stddevError);
   bool addPlaintext(const PolynomialBinary &plain);
 
   // Get attributes
@@ -52,6 +53,9 @@ public:
   // Utilities
   bool encryptAll();
   bool decryptAll();
+  bool getAllErrorsForDebugging(
+      std::vector<double> &errors,
+      const std::vector<PolynomialBinary> &expectedPlaintexts) const;
   bool tlweExtractAll(Tlwe &out) const;
   bool tlweExtractOne(Tlwe &out, int p, int cipherID) const;
 };

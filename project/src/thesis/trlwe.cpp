@@ -188,6 +188,51 @@ bool Trlwe::decryptAll() {
 #endif
   return true;
 }
+bool Trlwe::getAllErrorsForDebugging(
+    std::vector<double> &errors,
+    const std::vector<PolynomialBinary> &expectedPlaintexts) const {
+  if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
+    return false;
+  errors.resize(_ciphertexts.size());
+  std::fill(errors.begin(), errors.end(), 0);
+#ifdef USING_GPU
+#else
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
+  for (int i = 0; i < numberThreads; i++)
+    fftCalculators[i].set_N(_N);
+  for (int i = 0; i < numberThreads; i++) {
+    ThreadPool::get_threadPool().Schedule([&, i]() {
+      PolynomialTorus productTorusPolynomial, decryptTorusPolynomial;
+      int shift = sizeof(Torus) * 8 - 1;
+      Torus bit = 1;
+      bit <<= shift;
+      int s = (_ciphertexts.size() * i) / numberThreads,
+          e = (_ciphertexts.size() * (i + 1)) / numberThreads;
+      for (int j = s; j < e; j++) {
+        decryptTorusPolynomial = _ciphertexts[j][_k];
+        for (int k = 0; k < _k; k++) {
+          fftCalculators[i].torusPolynomialMultiplication(
+              productTorusPolynomial, _s[k], _ciphertexts[j][k]);
+          for (int l = 0; l < _N; l++) {
+            decryptTorusPolynomial[l] -= productTorusPolynomial[l];
+          }
+        }
+        for (int l = 0; l < _N; l++) {
+          decryptTorusPolynomial[l] -= ((expectedPlaintexts[j][l]) ? bit : 0);
+          errors[j] =
+              std::max(errors[j], std::abs(decryptTorusPolynomial[l] /
+                                           std::pow(2, sizeof(Torus) * 8)));
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
+#endif
+  return true;
+}
 bool Trlwe::tlweExtractAll(Tlwe &out) const {
   if (out.get_n() != (_N * _k))
     return false;

@@ -8,6 +8,7 @@
 TEST(Thesis, TrlweEncryptDecrypt) {
   std::srand(std::time(nullptr));
   thesis::Trlwe trlweObj;
+  std::vector<double> errors;
 
   trlweObj.clear_s();
   trlweObj.clear_ciphertexts();
@@ -33,12 +34,18 @@ TEST(Thesis, TrlweEncryptDecrypt) {
       ASSERT_TRUE(x[i][j] == trlweObj.get_plaintexts()[i][j]);
     }
   }
+  trlweObj.getAllErrorsForDebugging(errors, x);
+  for (int i = 0; i < numberTests; i++) {
+    ASSERT_TRUE(errors[i] < 0.25);
+  }
 }
 
 TEST(Thesis, TrlweExtractAllToTlwe) {
   std::srand(std::time(nullptr));
   thesis::Trlwe trlweObj;
   thesis::Tlwe tlweObj;
+  std::vector<double> errors;
+  std::vector<bool> expectedPlaintexts;
 
   trlweObj.clear_s();
   trlweObj.clear_ciphertexts();
@@ -70,11 +77,17 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
   tlweObj.decryptAll();
   std::cout << "Number of plaintexts: " << tlweObj.get_plaintexts().size()
             << std::endl;
+  expectedPlaintexts.resize(numberTests * trlweObj.get_N());
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trlweObj.get_N(); j++) {
       ASSERT_TRUE(x[i][j] ==
                   tlweObj.get_plaintexts()[i * trlweObj.get_N() + j]);
+      expectedPlaintexts[i * trlweObj.get_N() + j] = x[i][j];
     }
+  }
+  tlweObj.getAllErrorsForDebugging(errors, expectedPlaintexts);
+  for (int i = 0; i < numberTests * trlweObj.get_N(); i++) {
+    ASSERT_TRUE(errors[i] < 0.25);
   }
 }
 
@@ -82,6 +95,8 @@ TEST(Thesis, TrlweExtractOneToTlwe) {
   std::srand(std::time(nullptr));
   thesis::Trlwe trlweObj;
   thesis::Tlwe tlweObj;
+  std::vector<double> errors;
+  std::vector<bool> expectedPlaintexts;
 
   trlweObj.clear_s();
   trlweObj.clear_ciphertexts();
@@ -116,7 +131,13 @@ TEST(Thesis, TrlweExtractOneToTlwe) {
   tlweObj.decryptAll();
   std::cout << "Number of plaintexts: " << tlweObj.get_plaintexts().size()
             << std::endl;
+  expectedPlaintexts.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
     ASSERT_TRUE(x[i][p] == tlweObj.get_plaintexts()[i]);
+    expectedPlaintexts[i] = x[i][p];
+  }
+  tlweObj.getAllErrorsForDebugging(errors, expectedPlaintexts);
+  for (int i = 0; i < numberTests; i++) {
+    ASSERT_TRUE(errors[i] < 0.25);
   }
 }
