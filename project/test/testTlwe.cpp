@@ -6,6 +6,8 @@
 TEST(Thesis, TlweEncryptDecrypt) {
   std::srand(std::time(nullptr));
   thesis::Tlwe tlweObj;
+  std::vector<double> errors;
+  std::vector<bool> expectedPlaintexts;
 
   int numberTests = 100;
   while (numberTests--) {
@@ -18,6 +20,7 @@ TEST(Thesis, TlweEncryptDecrypt) {
       tlweObj.addPlaintext((x >> i) & 1);
     }
     tlweObj.encryptAll();
+    expectedPlaintexts = tlweObj.get_plaintexts();
     tlweObj.clear_plaintexts();
     tlweObj.decryptAll();
     for (unsigned int i = 0; i < sizeof(int) * 8; i++) {
@@ -26,5 +29,9 @@ TEST(Thesis, TlweEncryptDecrypt) {
       y = y | temp;
     }
     ASSERT_TRUE(x == y);
+    tlweObj.getAllErrorsForDebugging(errors, expectedPlaintexts);
+    for (unsigned int i = 0; i < sizeof(int) * 8; i++) {
+      ASSERT_TRUE(errors[i] < 0.25);
+    }
   }
 }

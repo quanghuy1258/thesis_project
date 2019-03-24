@@ -145,5 +145,37 @@ bool Tlwe::decryptAll() {
 #endif
   return true;
 }
+bool Tlwe::getAllErrorsForDebugging(
+    std::vector<double> &errors,
+    const std::vector<bool> &expectedPlaintexts) const {
+  if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
+    return false;
+  errors.resize(_ciphertexts.size());
+#ifdef USING_GPU
+#else
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  for (int i = 0; i < numberThreads; i++) {
+    ThreadPool::get_threadPool().Schedule([&, i]() {
+      Torus decrypt;
+      int shift = sizeof(Torus) * 8 - 1;
+      Torus bit = 1;
+      bit <<= shift;
+      int s = (_ciphertexts.size() * i) / numberThreads,
+          e = (_ciphertexts.size() * (i + 1)) / numberThreads;
+      for (int j = s; j < e; j++) {
+        decrypt = _ciphertexts[j][_n] - ((expectedPlaintexts[j]) ? bit : 0);
+        for (int k = 0; k < _n; k++) {
+          decrypt -= _ciphertexts[j][k] * _s[k];
+        }
+        errors[j] = std::abs(decrypt / std::pow(2, sizeof(Torus) * 8));
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
+#endif
+  return true;
+}
 
 } // namespace thesis
