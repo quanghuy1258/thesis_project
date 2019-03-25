@@ -116,9 +116,7 @@ bool Trgsw::encryptAll() {
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
       PolynomialTorus productTorusPolynomial;
-      int bits = sizeof(Torus) * 8 - _Bgbit;
-      Torus one_Bgbit = 1;
-      one_Bgbit <<= bits;
+      Torus bit = 1;
       int s = (_plaintexts.size() * (_k + 1) * _l * i) / numberThreads,
           e = (_plaintexts.size() * (_k + 1) * _l * (i + 1)) / numberThreads;
       for (int j = s; j < e; j++) {
@@ -135,8 +133,10 @@ bool Trgsw::encryptAll() {
                 productTorusPolynomial[l];
           }
         }
-        if ((rowIdInBlock == 0) && _plaintexts[plainID]) {
-          _ciphertexts[plainID][rowID * (_k + 1) + blockID][0] += one_Bgbit;
+        if (_plaintexts[plainID] &&
+            (8 * (signed)sizeof(Torus) >= _Bgbit * (rowIdInBlock + 1))) {
+          _ciphertexts[plainID][rowID * (_k + 1) + blockID][0] +=
+              (bit << (8 * sizeof(Torus) - _Bgbit * (rowIdInBlock + 1)));
         }
       }
       barrier.Notify();
