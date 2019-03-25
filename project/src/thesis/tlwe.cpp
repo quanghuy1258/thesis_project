@@ -150,7 +150,12 @@ bool Tlwe::getAllErrorsForDebugging(
     const std::vector<bool> &expectedPlaintexts) const {
   if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
     return false;
-  errors.resize(_ciphertexts.size());
+  if (_ciphertexts.empty()) {
+    errors.clear();
+    return true;
+  } else {
+    errors.resize(_ciphertexts.size());
+  }
 #ifdef USING_GPU
 #else
   int numberThreads = ThreadPool::get_numberThreads();

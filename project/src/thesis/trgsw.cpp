@@ -190,6 +190,81 @@ bool Trgsw::decryptAll() {
 #endif
   return true;
 }
+bool Trgsw::getAllErrorsForDebugging(
+    std::vector<double> &errors,
+    const std::vector<bool> &expectedPlaintexts) const {
+  if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
+    return false;
+  if (_ciphertexts.empty()) {
+    errors.clear();
+    return true;
+  } else {
+    errors.resize(_ciphertexts.size());
+    std::fill(errors.begin(), errors.end(), 0);
+  }
+#ifdef USING_GPU
+#else
+  std::vector<double> all_errors(_ciphertexts.size() * (_k + 1) * _l);
+  std::fill(all_errors.begin(), all_errors.end(), 0);
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
+  for (int i = 0; i < numberThreads; i++)
+    fftCalculators[i].set_N(_N);
+  for (int i = 0; i < numberThreads; i++) {
+    ThreadPool::get_threadPool().Schedule([&, i]() {
+      PolynomialTorus productTorusPolynomial, cipherTorusPolynomial,
+          decryptTorusPolynomial;
+      Torus bit = 1;
+      int s = (_ciphertexts.size() * (_k + 1) * _l * i) / numberThreads,
+          e = (_ciphertexts.size() * (_k + 1) * _l * (i + 1)) / numberThreads;
+      for (int j = s; j < e; j++) {
+        int cipherID = j / ((_k + 1) * _l);
+        int rowID = j % ((_k + 1) * _l);
+        int blockID = rowID / _l;
+        int rowIdInBlock = rowID % _l;
+        decryptTorusPolynomial = _ciphertexts[cipherID][rowID * (_k + 1) + _k];
+        if (expectedPlaintexts[cipherID] && (blockID == _k) &&
+            (8 * (signed)sizeof(Torus) >= _Bgbit * (rowIdInBlock + 1))) {
+          decryptTorusPolynomial[0] -=
+              (bit << (8 * sizeof(Torus) - _Bgbit * (rowIdInBlock + 1)));
+        }
+        for (int k = 0; k < _k; k++) {
+          if (expectedPlaintexts[cipherID] && (blockID == k) &&
+              (8 * (signed)sizeof(Torus) >= _Bgbit * (rowIdInBlock + 1))) {
+            cipherTorusPolynomial =
+                _ciphertexts[cipherID][rowID * (_k + 1) + k];
+            cipherTorusPolynomial[0] -=
+                (bit << (8 * sizeof(Torus) - _Bgbit * (rowIdInBlock + 1)));
+            fftCalculators[i].torusPolynomialMultiplication(
+                productTorusPolynomial, _s[k], cipherTorusPolynomial);
+          } else {
+            fftCalculators[i].torusPolynomialMultiplication(
+                productTorusPolynomial, _s[k],
+                _ciphertexts[cipherID][rowID * (_k + 1) + k]);
+          }
+          for (int l = 0; l < _N; l++) {
+            decryptTorusPolynomial[l] -= productTorusPolynomial[l];
+          }
+        }
+        for (int k = 0; k < _N; k++) {
+          all_errors[j] =
+              std::max(all_errors[j], std::abs(decryptTorusPolynomial[k] /
+                                               std::pow(2, sizeof(Torus) * 8)));
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
+  for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
+    for (int j = 0; j < (_k + 1) * _l; j++) {
+      errors[i] = std::max(errors[i], all_errors[i * (_k + 1) * _l + j]);
+    }
+  }
+#endif
+  return true;
+}
 bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
                            const Trlwe &inp) const {
   if (_N != inp._N || _k != inp._k)

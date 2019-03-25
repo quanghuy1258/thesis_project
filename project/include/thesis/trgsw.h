@@ -54,6 +54,9 @@ public:
   // Utilities
   bool encryptAll();
   bool decryptAll();
+  bool
+  getAllErrorsForDebugging(std::vector<double> &errors,
+                           const std::vector<bool> &expectedPlaintexts) const;
   bool decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
                       const Trlwe &inp) const;
   void setParamTo(Trlwe &obj) const;

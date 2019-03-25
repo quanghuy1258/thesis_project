@@ -193,8 +193,13 @@ bool Trlwe::getAllErrorsForDebugging(
     const std::vector<PolynomialBinary> &expectedPlaintexts) const {
   if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
     return false;
-  errors.resize(_ciphertexts.size());
-  std::fill(errors.begin(), errors.end(), 0);
+  if (_ciphertexts.empty()) {
+    errors.clear();
+    return true;
+  } else {
+    errors.resize(_ciphertexts.size());
+    std::fill(errors.begin(), errors.end(), 0);
+  }
 #ifdef USING_GPU
 #else
   int numberThreads = ThreadPool::get_numberThreads();
