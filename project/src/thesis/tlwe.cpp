@@ -15,24 +15,12 @@ Tlwe::~Tlwe() {}
 // Get params
 int Tlwe::get_n() const { return _n; }
 
-// Set params
-bool Tlwe::set_n(int n, bool isForcedClear) {
-  if (n < 1)
-    return false;
-  if (n != _n || isForcedClear) {
-    clear_s();
-    clear_ciphertexts();
-    clear_plaintexts();
-  }
-  _n = n;
-  return true;
-}
-
 // Set attributes
 void Tlwe::clear_s() { _s.clear(); }
 void Tlwe::clear_ciphertexts() {
   _ciphertexts.clear();
   _stddevErrors.clear();
+  _varianceErrors.clear();
 }
 void Tlwe::clear_plaintexts() { _plaintexts.clear(); }
 bool Tlwe::set_s(const std::vector<Integer> &s) {
@@ -47,11 +35,13 @@ void Tlwe::generate_s() {
     _s[i] = Random::getUniformInteger();
   }
 }
-bool Tlwe::addCiphertext(const std::vector<Torus> &cipher, double stddevError) {
+bool Tlwe::addCiphertext(const std::vector<Torus> &cipher, double stddevError,
+                         double varianceError) {
   if ((signed)cipher.size() != _n + 1)
     return false;
   _ciphertexts.push_back(cipher);
   _stddevErrors.push_back(stddevError);
+  _varianceErrors.push_back(varianceError);
   return true;
 };
 void Tlwe::addPlaintext(bool bit) { _plaintexts.push_back(bit); }
@@ -63,6 +53,9 @@ const std::vector<std::vector<Torus>> &Tlwe::get_ciphertexts() const {
 }
 const std::vector<double> &Tlwe::get_stddevErrors() const {
   return _stddevErrors;
+}
+const std::vector<double> &Tlwe::get_varianceErrors() const {
+  return _varianceErrors;
 }
 const std::vector<bool> &Tlwe::get_plaintexts() const { return _plaintexts; }
 
@@ -76,17 +69,17 @@ bool Tlwe::encryptAll() {
   } else {
     _ciphertexts.resize(_plaintexts.size());
     _stddevErrors.resize(_plaintexts.size());
+    _varianceErrors.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
       _ciphertexts[i].resize(_n + 1);
       _stddevErrors[i] = STDDEV_ERROR;
+      _varianceErrors[i] = STDDEV_ERROR * STDDEV_ERROR;
       for (int j = 0; j < _n; j++) {
         _ciphertexts[i][j] = Random::getUniformTorus();
       }
-      _ciphertexts[i][_n] = Random::getNormalTorus(0, _stddevErrors[i]);
+      _ciphertexts[i][_n] = Random::getNormalTorus(0, STDDEV_ERROR);
     }
   }
-#ifdef USING_GPU
-#else
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
@@ -106,7 +99,6 @@ bool Tlwe::encryptAll() {
     });
   }
   barrier.Wait();
-#endif
   return true;
 }
 bool Tlwe::decryptAll() {
@@ -118,8 +110,6 @@ bool Tlwe::decryptAll() {
   } else {
     _plaintexts.resize(_ciphertexts.size());
   }
-#ifdef USING_GPU
-#else
   std::vector<Torus> decrypts(_ciphertexts.size());
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
@@ -142,7 +132,6 @@ bool Tlwe::decryptAll() {
     decrypts[i] = ((decrypts[i] >> bits) & 3);
     _plaintexts[i] = ((decrypts[i] == 1) || (decrypts[i] == 2));
   }
-#endif
   return true;
 }
 bool Tlwe::getAllErrorsForDebugging(
@@ -156,8 +145,6 @@ bool Tlwe::getAllErrorsForDebugging(
   } else {
     errors.resize(_ciphertexts.size());
   }
-#ifdef USING_GPU
-#else
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
@@ -179,7 +166,6 @@ bool Tlwe::getAllErrorsForDebugging(
     });
   }
   barrier.Wait();
-#endif
   return true;
 }
 

@@ -15,6 +15,7 @@ private:
   std::vector<PolynomialBinary> _s;
   std::vector<std::vector<PolynomialTorus>> _ciphertexts;
   std::vector<double> _stddevErrors;
+  std::vector<double> _varianceErrors;
   std::vector<PolynomialBinary> _plaintexts;
 
   friend class Trgsw;
@@ -41,13 +42,14 @@ public:
   bool set_s(const std::vector<PolynomialBinary> &s);
   void generate_s();
   bool addCiphertext(const std::vector<PolynomialTorus> &cipher,
-                     double stddevError);
+                     double stddevError, double varianceError);
   bool addPlaintext(const PolynomialBinary &plain);
 
   // Get attributes
   const std::vector<PolynomialBinary> &get_s() const;
   const std::vector<std::vector<PolynomialTorus>> &get_ciphertexts() const;
   const std::vector<double> &get_stddevErrors() const;
+  const std::vector<double> &get_varianceErrors() const;
   const std::vector<PolynomialBinary> &get_plaintexts() const;
 
   // Utilities
@@ -56,8 +58,10 @@ public:
   bool getAllErrorsForDebugging(
       std::vector<double> &errors,
       const std::vector<PolynomialBinary> &expectedPlaintexts) const;
-  bool tlweExtractAll(Tlwe &out) const;
-  bool tlweExtractOne(Tlwe &out, int p, int cipherID) const;
+  void setParamTo(Tlwe &obj) const;
+  void tlweExtractAll(Tlwe &out) const;
+  bool tlweExtract(Tlwe &out, const std::vector<int> &ps,
+                   const std::vector<int> &cipherIDs) const;
 };
 
 } // namespace thesis

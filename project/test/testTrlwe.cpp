@@ -52,14 +52,6 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
   trlweObj.clear_plaintexts();
 
   trlweObj.generate_s();
-  tlweObj.set_n(trlweObj.get_N() * trlweObj.get_k(), true);
-  std::vector<thesis::Integer> sTlwe(trlweObj.get_N() * trlweObj.get_k());
-  for (int i = 0; i < trlweObj.get_N() * trlweObj.get_k(); i++) {
-    sTlwe[i] =
-        (trlweObj.get_s()[i / trlweObj.get_N()][i % trlweObj.get_N()]) ? 1 : 0;
-  }
-  tlweObj.set_s(sTlwe);
-
   std::vector<thesis::PolynomialBinary> x;
   int numberTests = 100;
   x.resize(numberTests);
@@ -71,7 +63,6 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
     trlweObj.addPlaintext(x[i]);
   }
   trlweObj.encryptAll();
-  trlweObj.clear_s();
   trlweObj.clear_plaintexts();
   trlweObj.tlweExtractAll(tlweObj);
   tlweObj.decryptAll();
@@ -91,7 +82,7 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
   }
 }
 
-TEST(Thesis, TrlweExtractOneToTlwe) {
+TEST(Thesis, TrlweExtractToTlwe) {
   std::srand(std::time(nullptr));
   thesis::Trlwe trlweObj;
   thesis::Tlwe tlweObj;
@@ -101,15 +92,7 @@ TEST(Thesis, TrlweExtractOneToTlwe) {
   trlweObj.clear_s();
   trlweObj.clear_ciphertexts();
   trlweObj.clear_plaintexts();
-
   trlweObj.generate_s();
-  tlweObj.set_n(trlweObj.get_N() * trlweObj.get_k(), true);
-  std::vector<thesis::Integer> sTlwe(trlweObj.get_N() * trlweObj.get_k());
-  for (int i = 0; i < trlweObj.get_N() * trlweObj.get_k(); i++) {
-    sTlwe[i] =
-        (trlweObj.get_s()[i / trlweObj.get_N()][i % trlweObj.get_N()]) ? 1 : 0;
-  }
-  tlweObj.set_s(sTlwe);
 
   std::vector<thesis::PolynomialBinary> x;
   int numberTests = 100;
@@ -122,19 +105,20 @@ TEST(Thesis, TrlweExtractOneToTlwe) {
     trlweObj.addPlaintext(x[i]);
   }
   trlweObj.encryptAll();
-  trlweObj.clear_s();
   trlweObj.clear_plaintexts();
-  int p = std::rand() % trlweObj.get_N();
+  std::vector<int> ps(numberTests), cipherIDs(numberTests);
   for (int i = 0; i < numberTests; i++) {
-    trlweObj.tlweExtractOne(tlweObj, p, i);
+    ps[i] = std::rand() % trlweObj.get_N();
+    cipherIDs[i] = std::rand() % numberTests;
   }
+  trlweObj.tlweExtract(tlweObj, ps, cipherIDs);
   tlweObj.decryptAll();
   std::cout << "Number of plaintexts: " << tlweObj.get_plaintexts().size()
             << std::endl;
   expectedPlaintexts.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
-    ASSERT_TRUE(x[i][p] == tlweObj.get_plaintexts()[i]);
-    expectedPlaintexts[i] = x[i][p];
+    ASSERT_TRUE(x[cipherIDs[i]][ps[i]] == tlweObj.get_plaintexts()[i]);
+    expectedPlaintexts[i] = x[cipherIDs[i]][ps[i]];
   }
   tlweObj.getAllErrorsForDebugging(errors, expectedPlaintexts);
   for (int i = 0; i < numberTests; i++) {

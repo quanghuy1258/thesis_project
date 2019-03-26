@@ -25,6 +25,7 @@ void Trlwe::clear_s() { _s.clear(); }
 void Trlwe::clear_ciphertexts() {
   _ciphertexts.clear();
   _stddevErrors.clear();
+  _varianceErrors.clear();
 }
 void Trlwe::clear_plaintexts() { _plaintexts.clear(); }
 bool Trlwe::set_s(const std::vector<PolynomialBinary> &s) {
@@ -47,7 +48,7 @@ void Trlwe::generate_s() {
   }
 }
 bool Trlwe::addCiphertext(const std::vector<PolynomialTorus> &cipher,
-                          double stddevError) {
+                          double stddevError, double varianceError) {
   if ((signed)cipher.size() != _k + 1)
     return false;
   for (int i = 0; i <= _k; i++) {
@@ -56,6 +57,7 @@ bool Trlwe::addCiphertext(const std::vector<PolynomialTorus> &cipher,
   }
   _ciphertexts.push_back(cipher);
   _stddevErrors.push_back(stddevError);
+  _varianceErrors.push_back(varianceError);
   return true;
 }
 bool Trlwe::addPlaintext(const PolynomialBinary &plain) {
@@ -74,6 +76,9 @@ Trlwe::get_ciphertexts() const {
 const std::vector<double> &Trlwe::get_stddevErrors() const {
   return _stddevErrors;
 }
+const std::vector<double> &Trlwe::get_varianceErrors() const {
+  return _varianceErrors;
+}
 const std::vector<PolynomialBinary> &Trlwe::get_plaintexts() const {
   return _plaintexts;
 }
@@ -88,9 +93,11 @@ bool Trlwe::encryptAll() {
   } else {
     _ciphertexts.resize(_plaintexts.size());
     _stddevErrors.resize(_plaintexts.size());
+    _varianceErrors.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
       _ciphertexts[i].resize(_k + 1);
       _stddevErrors[i] = STDDEV_ERROR;
+      _varianceErrors[i] = STDDEV_ERROR * STDDEV_ERROR;
       for (int j = 0; j <= _k; j++) {
         _ciphertexts[i][j].resize(_N);
         if (j != _k) {
@@ -101,8 +108,7 @@ bool Trlwe::encryptAll() {
         } else {
           // _ciphertexts[i][_k] Gaussian polynomial
           for (int k = 0; k < _N; k++) {
-            _ciphertexts[i][_k][k] =
-                Random::getNormalTorus(0, _stddevErrors[i]);
+            _ciphertexts[i][_k][k] = Random::getNormalTorus(0, STDDEV_ERROR);
           }
         }
       }
@@ -238,35 +244,110 @@ bool Trlwe::getAllErrorsForDebugging(
 #endif
   return true;
 }
-bool Trlwe::tlweExtractAll(Tlwe &out) const {
-  if (out.get_n() != (_N * _k))
-    return false;
-  for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
-    for (int j = 0; j < _N; j++) {
-      std::vector<Torus> cipher(_N * _k + 1);
-      for (int k = 0; k < _N * _k; k++) {
-        cipher[k] = (j >= k % _N)
-                        ? (_ciphertexts[i][k / _N][j - k % _N])
-                        : (-(_ciphertexts[i][k / _N][j - k % _N + _N]));
-      }
-      cipher[_N * _k] = _ciphertexts[i][_k][j];
-      out.addCiphertext(cipher, _stddevErrors[i]);
+void Trlwe::setParamTo(Tlwe &obj) const {
+  obj._n = _N * _k;
+  if (_s.empty()) {
+    obj._s.empty();
+  } else {
+    obj._s.resize(obj._n);
+    for (int i = 0; i < obj._n; i++) {
+      obj._s[i] = _s[i / _N][i % _N];
     }
   }
-  return true;
+  obj.clear_ciphertexts();
+  obj.clear_plaintexts();
 }
-bool Trlwe::tlweExtractOne(Tlwe &out, int p, int cipherID) const {
-  if (out.get_n() != (_N * _k) || p < 0 || p >= _N || cipherID < 0 ||
-      cipherID >= (signed)_ciphertexts.size())
-    return false;
-  std::vector<Torus> cipher(_N * _k + 1);
-  for (int i = 0; i < _N * _k; i++) {
-    cipher[i] = (p >= i % _N)
-                    ? (_ciphertexts[cipherID][i / _N][p - i % _N])
-                    : (-(_ciphertexts[cipherID][i / _N][p - i % _N + _N]));
+void Trlwe::tlweExtractAll(Tlwe &out) const {
+  setParamTo(out);
+  if (_ciphertexts.empty()) {
+    return;
+  } else {
+    out._ciphertexts.resize(_ciphertexts.size() * _N);
+    out._stddevErrors.resize(_ciphertexts.size() * _N);
+    out._varianceErrors.resize(_ciphertexts.size() * _N);
+    for (int i = 0; i < (signed)_ciphertexts.size() * _N; i++) {
+      out._ciphertexts[i].resize(_N * _k + 1);
+      out._stddevErrors[i] = _stddevErrors[i / _N];
+      out._varianceErrors[i] = _varianceErrors[i / _N];
+    }
   }
-  cipher[_N * _k] = _ciphertexts[cipherID][_k][p];
-  out.addCiphertext(cipher, _stddevErrors[cipherID]);
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  for (int it = 0; it < numberThreads; it++) {
+    ThreadPool::get_threadPool().Schedule([&, it]() {
+      int s = (_ciphertexts.size() * _N * (_N * _k + 1) * it) / numberThreads,
+          e = (_ciphertexts.size() * _N * (_N * _k + 1) * (it + 1)) /
+              numberThreads;
+      for (int i = s; i < e; i++) {
+        int cipherID = i / (_N * (_N * _k + 1));
+        int p = (i / (_N * _k + 1)) % _N;
+        int elementID = i % (_N * _k + 1);
+        if (elementID == (_N * _k)) {
+          out._ciphertexts[cipherID * _N + p][_N * _k] =
+              _ciphertexts[cipherID][_k][p];
+        } else {
+          out._ciphertexts[cipherID * _N + p][elementID] =
+              ((p >= (elementID % _N))
+                   ? (_ciphertexts[cipherID][elementID / _N]
+                                  [p - elementID % _N])
+                   : (-(_ciphertexts[cipherID][elementID / _N]
+                                    [p - elementID % _N + _N])));
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
+}
+bool Trlwe::tlweExtract(Tlwe &out, const std::vector<int> &ps,
+                        const std::vector<int> &cipherIDs) const {
+  if (ps.size() != cipherIDs.size())
+    return false;
+  int numberExtracts = ps.size();
+  for (int i = 0; i < numberExtracts; i++) {
+    if (ps[i] < 0 || ps[i] >= _N || cipherIDs[i] < 0 ||
+        cipherIDs[i] >= (signed)_ciphertexts.size())
+      return false;
+  }
+  setParamTo(out);
+  if (numberExtracts == 0) {
+    return true;
+  } else {
+    out._ciphertexts.resize(numberExtracts);
+    out._stddevErrors.resize(numberExtracts);
+    out._varianceErrors.resize(numberExtracts);
+    for (int i = 0; i < numberExtracts; i++) {
+      out._ciphertexts[i].resize(_N * _k + 1);
+      out._stddevErrors[i] = _stddevErrors[cipherIDs[i]];
+      out._varianceErrors[i] = _varianceErrors[cipherIDs[i]];
+    }
+  }
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  for (int it = 0; it < numberThreads; it++) {
+    ThreadPool::get_threadPool().Schedule([&, it]() {
+      int s = (numberExtracts * (_N * _k + 1) * it) / numberThreads,
+          e = (numberExtracts * (_N * _k + 1) * (it + 1)) / numberThreads;
+      for (int i = s; i < e; i++) {
+        int extractID = i / (_N * _k + 1);
+        int elementID = i % (_N * _k + 1);
+        int cipherID = cipherIDs[extractID];
+        int p = ps[extractID];
+        if (elementID == (_N * _k)) {
+          out._ciphertexts[extractID][_N * _k] = _ciphertexts[cipherID][_k][p];
+        } else {
+          out._ciphertexts[extractID][elementID] =
+              ((p >= (elementID % _N))
+                   ? (_ciphertexts[cipherID][elementID / _N]
+                                  [p - elementID % _N])
+                   : (-(_ciphertexts[cipherID][elementID / _N]
+                                    [p - elementID % _N + _N])));
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
   return true;
 }
 
