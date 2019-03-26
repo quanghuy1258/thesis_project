@@ -120,7 +120,7 @@ TEST(Thesis, ExternalProduct) {
   trgswObj.clear_plaintexts();
   std::vector<int> trlweCipherIds(numberTests), trgswCipherIds(numberTests);
   for (int i = 0; i < numberTests; i++) {
-    trlweCipherIds[i] = i;
+    trlweCipherIds[i] = std::rand() % numberTests;
     trgswCipherIds[i] = (i & 1);
   }
   ASSERT_TRUE(trgswObj.externalProduct(trlweObj[1], trlweObj[0], trlweCipherIds,
@@ -130,10 +130,10 @@ TEST(Thesis, ExternalProduct) {
   expectedPlaintexts = x;
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < trgswObj.get_N(); j++) {
-      int res = (i & 1) * ((x[i][j]) ? 1 : 0);
+      int res = (i & 1) * ((x[trlweCipherIds[i]][j]) ? 1 : 0);
       int ori_res = (trlweObj[1].get_plaintexts()[i][j]) ? 1 : 0;
       ASSERT_TRUE(res == ori_res);
-      expectedPlaintexts[i][j] = x[i][j] && ((i & 1) == 1);
+      expectedPlaintexts[i][j] = x[trlweCipherIds[i]][j] && ((i & 1) == 1);
     }
     double maxStddevError =
         (trgswObj.get_k() + 1) * trgswObj.get_l() * trgswObj.get_N() *

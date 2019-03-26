@@ -61,6 +61,9 @@ public:
                            const std::vector<bool> &expectedPlaintexts) const;
   bool decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
                       const Trlwe &inp) const;
+  bool decomposite(std::vector<std::vector<PolynomialInteger>> &out,
+                   const Trlwe &inp,
+                   const std::vector<int> &trlweCipherIds) const;
   void setParamTo(Trlwe &obj) const;
   bool externalProduct(Trlwe &out, const Trlwe &inp,
                        const std::vector<int> &trlweCipherIds,

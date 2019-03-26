@@ -288,8 +288,6 @@ bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
       }
     }
   }
-#ifdef USING_GPU
-#else
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   for (int it = 0; it < numberThreads; it++) {
@@ -298,8 +296,8 @@ bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
           e = (inp._ciphertexts.size() * (_k + 1) * _N * (it + 1)) /
               numberThreads;
       for (int newIt = s; newIt < e; newIt++) {
-        int j = newIt % _N;
         int i = (newIt / _N) % (_k + 1);
+        int j = newIt % _N;
         int cipherId = newIt / ((_k + 1) * _N);
         Torus value = inp._ciphertexts[cipherId][i][j], mask = 1;
         if ((signed)sizeof(Torus) * 8 > _Bgbit * _l) {
@@ -329,7 +327,70 @@ bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
     });
   }
   barrier.Wait();
-#endif
+  return true;
+}
+bool Trgsw::decomposite(std::vector<std::vector<PolynomialInteger>> &out,
+                        const Trlwe &inp,
+                        const std::vector<int> &trlweCipherIds) const {
+  if (_N != inp._N || _k != inp._k)
+    return false;
+  if (trlweCipherIds.empty()) {
+    out.clear();
+    return true;
+  } else {
+    for (int i = 0; i < (signed)trlweCipherIds.size(); i++) {
+      if (trlweCipherIds[i] < 0 ||
+          trlweCipherIds[i] >= (signed)inp._ciphertexts.size())
+        return false;
+    }
+    out.resize(trlweCipherIds.size());
+    for (int i = 0; i < (signed)trlweCipherIds.size(); i++) {
+      out[i].resize((_k + 1) * _l);
+      for (int j = 0; j < (_k + 1) * _l; j++) {
+        out[i][j].resize(_N);
+      }
+    }
+  }
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  for (int it = 0; it < numberThreads; it++) {
+    ThreadPool::get_threadPool().Schedule([&, it]() {
+      int s = (trlweCipherIds.size() * (_k + 1) * _N * it) / numberThreads,
+          e = (trlweCipherIds.size() * (_k + 1) * _N * (it + 1)) /
+              numberThreads;
+      for (int newIt = s; newIt < e; newIt++) {
+        int id = newIt / ((_k + 1) * _N);
+        int cipherId = trlweCipherIds[id];
+        int i = (newIt / _N) % (_k + 1);
+        int j = newIt % _N;
+        Torus value = inp._ciphertexts[cipherId][i][j], mask = 1;
+        if ((signed)sizeof(Torus) * 8 > _Bgbit * _l) {
+          mask <<= (sizeof(Torus) * 8 - _Bgbit * _l - 1);
+          value += mask;
+          mask = ~((mask << 1) - 1);
+          value &= mask;
+        }
+        mask = 1;
+        mask <<= _Bgbit;
+        for (int p = _l - 1; p >= 0; p--) {
+          Torus value_temp = value;
+          int shift = sizeof(Torus) * 8 - _Bgbit * (p + 1);
+          unsigned ushift = (shift < 0) ? (-shift) : shift;
+          value_temp =
+              (shift < 0) ? (value_temp << ushift) : (value_temp >> ushift);
+          out[id][i * _l + p][j] = value_temp % mask;
+          if (out[id][i * _l + p][j] < -mask / 2)
+            out[id][i * _l + p][j] += mask;
+          if (out[id][i * _l + p][j] >= mask / 2)
+            out[id][i * _l + p][j] -= mask;
+          value -= (shift < 0) ? (out[id][i * _l + p][j] >> ushift)
+                               : (out[id][i * _l + p][j] << ushift);
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
   return true;
 }
 void Trgsw::setParamTo(Trlwe &obj) const {
@@ -389,7 +450,7 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
     return true;
   }
   std::vector<std::vector<PolynomialInteger>> decVecs;
-  decompositeAll(decVecs, inp);
+  decomposite(decVecs, inp, trlweCipherIds);
   for (int i = 0; i < numberOfProducts; i++) {
     double s = 0;
     double s2 = 0;
@@ -417,7 +478,7 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
           e = (numberOfProducts * (_k + 1) * (it + 1)) / numberThreads;
       for (int newIt = s; newIt < e; newIt++) {
         int i = newIt % (_k + 1);
-        int trlweCipherId = trlweCipherIds[newIt / (_k + 1)];
+        int trlweCipherId = newIt / (_k + 1);
         int trgswCipherId = trgswCipherIds[newIt / (_k + 1)];
         for (int j = 0; j < (_k + 1) * _l; j++) {
           fftCalculators[it].torusPolynomialMultiplication(
