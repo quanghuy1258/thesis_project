@@ -31,6 +31,7 @@ void Trgsw::clear_s() { _s.clear(); }
 void Trgsw::clear_ciphertexts() {
   _ciphertexts.clear();
   _stddevErrors.clear();
+  _varianceErrors.clear();
 }
 void Trgsw::clear_plaintexts() { _plaintexts.clear(); }
 bool Trgsw::set_s(const std::vector<PolynomialBinary> &s) {
@@ -53,7 +54,7 @@ void Trgsw::generate_s() {
   }
 }
 bool Trgsw::addCiphertext(const std::vector<PolynomialTorus> &cipher,
-                          double stddevError) {
+                          double stddevError, double varianceError) {
   if ((signed)cipher.size() != (_k + 1) * _l * (_k + 1))
     return false;
   for (int i = 0; i < (_k + 1) * _l * (_k + 1); i++) {
@@ -62,6 +63,7 @@ bool Trgsw::addCiphertext(const std::vector<PolynomialTorus> &cipher,
   }
   _ciphertexts.push_back(cipher);
   _stddevErrors.push_back(stddevError);
+  _varianceErrors.push_back(varianceError);
   return true;
 }
 void Trgsw::addPlaintext(bool plain) { _plaintexts.push_back(plain); }
@@ -75,6 +77,9 @@ Trgsw::get_ciphertexts() const {
 const std::vector<double> &Trgsw::get_stddevErrors() const {
   return _stddevErrors;
 }
+const std::vector<double> &Trgsw::get_varianceErrors() const {
+  return _varianceErrors;
+}
 const std::vector<bool> &Trgsw::get_plaintexts() const { return _plaintexts; }
 
 // Utilities
@@ -87,9 +92,11 @@ bool Trgsw::encryptAll() {
   } else {
     _ciphertexts.resize(_plaintexts.size());
     _stddevErrors.resize(_plaintexts.size());
+    _varianceErrors.resize(_plaintexts.size());
     for (int i = 0; i < (signed)_plaintexts.size(); i++) {
       _ciphertexts[i].resize((_k + 1) * _l * (_k + 1));
       _stddevErrors[i] = STDDEV_ERROR;
+      _varianceErrors[i] = STDDEV_ERROR * STDDEV_ERROR;
       for (int j = 0; j < (_k + 1) * _l * (_k + 1); j++) {
         _ciphertexts[i][j].resize(_N);
         if (j % (_k + 1) != _k) {
@@ -100,7 +107,7 @@ bool Trgsw::encryptAll() {
         } else {
           // _ciphertexts[i][_k (mod _k+1)] Gaussian polynomial
           for (int k = 0; k < _N; k++) {
-            _ciphertexts[i][j][k] = Random::getNormalTorus(0, _stddevErrors[i]);
+            _ciphertexts[i][j][k] = Random::getNormalTorus(0, STDDEV_ERROR);
           }
         }
       }
@@ -363,10 +370,14 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
   if (numberOfProducts) {
     out._ciphertexts.resize(numberOfProducts);
     out._stddevErrors.resize(numberOfProducts);
+    out._varianceErrors.resize(numberOfProducts);
     for (int i = 0; i < numberOfProducts; i++) {
       out._ciphertexts[i].resize(_k + 1);
       out._stddevErrors[i] = inp._stddevErrors[trlweCipherIds[i]] +
                              (1 + _k * _N) * std::pow(2, -_l * _Bgbit - 1);
+      out._varianceErrors[i] =
+          inp._varianceErrors[trlweCipherIds[i]] +
+          (1 + _k * _N) * std::pow(2, -_l * _Bgbit * 2 - 2);
       for (int j = 0; j <= _k; j++) {
         out._ciphertexts[i][j].resize(_N);
         std::fill(out._ciphertexts[i][j].begin(), out._ciphertexts[i][j].end(),
@@ -381,12 +392,16 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
   decompositeAll(decVecs, inp);
   for (int i = 0; i < numberOfProducts; i++) {
     double s = 0;
+    double s2 = 0;
     for (int j = 0; j < (_k + 1) * _l; j++) {
       for (int k = 0; k < _N; k++) {
-        s += std::abs(decVecs[trlweCipherIds[i]][j][k]);
+        Integer temp = decVecs[trlweCipherIds[i]][j][k];
+        s += std::abs(temp);
+        s2 += temp * temp;
       }
     }
     out._stddevErrors[i] += s * _stddevErrors[trgswCipherIds[i]];
+    out._varianceErrors[i] += s2 * _varianceErrors[trgswCipherIds[i]];
   }
 #ifdef USING_GPU
 #else
@@ -431,10 +446,12 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   setParamTo(inp);
   inp._ciphertexts.resize((_k + 1) * _l);
   inp._stddevErrors.resize((_k + 1) * _l);
+  inp._varianceErrors.resize((_k + 1) * _l);
   std::vector<int> trlweCipherIds((_k + 1) * _l), trgswCipherIds((_k + 1) * _l);
   for (int i = 0; i < (_k + 1) * _l; i++) {
     inp._ciphertexts[i].resize(_k + 1);
     inp._stddevErrors[i] = _stddevErrors[cipherIdB];
+    inp._varianceErrors[i] = _varianceErrors[cipherIdB];
     for (int j = 0; j <= _k; j++) {
       inp._ciphertexts[i][j].resize(_N);
       for (int k = 0; k < _N; k++) {
@@ -449,8 +466,10 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   cipherIdResult = _ciphertexts.size();
   _ciphertexts.resize(cipherIdResult + 1);
   _stddevErrors.resize(cipherIdResult + 1);
+  _varianceErrors.resize(cipherIdResult + 1);
   _ciphertexts[cipherIdResult].resize((_k + 1) * _l * (_k + 1));
   _stddevErrors[cipherIdResult] = 0;
+  _varianceErrors[cipherIdResult] = 0;
   for (int i = 0; i < (_k + 1) * _l * (_k + 1); i++) {
     _ciphertexts[cipherIdResult][i].resize(_N);
     int c = i % (_k + 1);
@@ -461,6 +480,8 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
     if (c == 0) {
       _stddevErrors[cipherIdResult] =
           std::max(_stddevErrors[cipherIdResult], out._stddevErrors[r]);
+      _varianceErrors[cipherIdResult] =
+          std::max(_varianceErrors[cipherIdResult], out._varianceErrors[r]);
     }
   }
   return true;
@@ -502,10 +523,14 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
   setParamTo(temp);
   temp._ciphertexts.resize(numberOfCMux);
   temp._stddevErrors.resize(numberOfCMux);
+  temp._varianceErrors.resize(numberOfCMux);
   for (int i = 0; i < numberOfCMux; i++) {
     temp._ciphertexts[i].resize(_k + 1);
     temp._stddevErrors[i] = std::max(inp._stddevErrors[trlweCipherTrueIds[i]],
                                      inp._stddevErrors[trlweCipherFalseIds[i]]);
+    temp._varianceErrors[i] =
+        std::max(inp._varianceErrors[trlweCipherTrueIds[i]],
+                 inp._varianceErrors[trlweCipherFalseIds[i]]);
     for (int j = 0; j <= _k; j++) {
       temp._ciphertexts[i][j].resize(_N);
     }

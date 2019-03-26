@@ -16,6 +16,7 @@ private:
   std::vector<PolynomialBinary> _s;
   std::vector<std::vector<PolynomialTorus>> _ciphertexts;
   std::vector<double> _stddevErrors;
+  std::vector<double> _varianceErrors;
   std::vector<bool> _plaintexts;
 
 public:
@@ -42,13 +43,14 @@ public:
   bool set_s(const std::vector<PolynomialBinary> &s);
   void generate_s();
   bool addCiphertext(const std::vector<PolynomialTorus> &cipher,
-                     double stddevError);
+                     double stddevError, double varianceError);
   void addPlaintext(bool plain);
 
   // Get attributes
   const std::vector<PolynomialBinary> &get_s() const;
   const std::vector<std::vector<PolynomialTorus>> &get_ciphertexts() const;
   const std::vector<double> &get_stddevErrors() const;
+  const std::vector<double> &get_varianceErrors() const;
   const std::vector<bool> &get_plaintexts() const;
 
   // Utilities
