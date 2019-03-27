@@ -73,6 +73,10 @@ public:
             const std::vector<int> &trlweCipherTrueIds,
             const std::vector<int> &trlweCipherFalseIds,
             const std::vector<int> &trgswCipherIds) const;
+  bool blindRotate(Trlwe &out, const Trlwe &inp,
+                   const std::vector<int> &trlweCipherIds,
+                   const std::vector<int> &coefficients,
+                   const std::vector<int> &trgswCipherIds) const;
 };
 
 } // namespace thesis

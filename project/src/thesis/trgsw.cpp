@@ -573,12 +573,11 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
       }
     }
   }
-  out._N = _N;
-  out._k = _k;
-  if (!_s.empty())
-    out._s = _s;
-  else if (!inp._s.empty())
+  setParamTo(out);
+  if (!inp._s.empty())
     out._s = inp._s;
+  if (numberOfCMux == 0)
+    return true;
   std::vector<int> trlweCipherIds(numberOfCMux);
   Trlwe temp;
   setParamTo(temp);
@@ -597,8 +596,6 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
     }
     trlweCipherIds[i] = i;
   }
-#ifdef USING_GPU
-#else
   {
     int numberThreads = ThreadPool::get_numberThreads();
     Eigen::Barrier barrier(numberThreads);
@@ -607,9 +604,9 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
         int s = (numberOfCMux * (_k + 1) * _N * it) / numberThreads,
             e = (numberOfCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
         for (int newIt = s; newIt < e; newIt++) {
-          int k = newIt % _N;
-          int j = (newIt / _N) % (_k + 1);
           int i = newIt / ((_k + 1) * _N);
+          int j = (newIt / _N) % (_k + 1);
+          int k = newIt % _N;
           temp._ciphertexts[i][j][k] =
               inp._ciphertexts[trlweCipherTrueIds[i]][j][k] -
               inp._ciphertexts[trlweCipherFalseIds[i]][j][k];
@@ -619,10 +616,7 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
     }
     barrier.Wait();
   }
-#endif
   externalProduct(out, temp, trlweCipherIds, trgswCipherIds);
-#ifdef USING_GPU
-#else
   {
     int numberThreads = ThreadPool::get_numberThreads();
     Eigen::Barrier barrier(numberThreads);
@@ -631,9 +625,9 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
         int s = (numberOfCMux * (_k + 1) * _N * it) / numberThreads,
             e = (numberOfCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
         for (int newIt = s; newIt < e; newIt++) {
-          int k = newIt % _N;
-          int j = (newIt / _N) % (_k + 1);
           int i = newIt / ((_k + 1) * _N);
+          int j = (newIt / _N) % (_k + 1);
+          int k = newIt % _N;
           out._ciphertexts[i][j][k] +=
               inp._ciphertexts[trlweCipherFalseIds[i]][j][k];
         }
@@ -642,7 +636,160 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
     }
     barrier.Wait();
   }
-#endif
+  return true;
+}
+bool Trgsw::blindRotate(Trlwe &out, const Trlwe &inp,
+                        const std::vector<int> &trlweCipherIds,
+                        const std::vector<int> &coefficients,
+                        const std::vector<int> &trgswCipherIds) const {
+  if (_N != inp._N || _k != inp._k ||
+      coefficients.size() != trgswCipherIds.size() + 1)
+    return false;
+  if (!_s.empty() && !inp._s.empty()) {
+    for (int i = 0; i < _k; i++) {
+      for (int j = 0; j < _N; j++) {
+        if (_s[i][j] != inp._s[i][j])
+          return false;
+      }
+    }
+  }
+  int p = trgswCipherIds.size();
+  for (int i = 0; i < p; i++) {
+    if (trgswCipherIds[i] < 0 ||
+        trgswCipherIds[i] >= (signed)_ciphertexts.size())
+      return false;
+  }
+  for (unsigned int i = 0; i < trlweCipherIds.size(); i++) {
+    if (trlweCipherIds[i] < 0 ||
+        trlweCipherIds[i] >= (signed)inp._ciphertexts.size())
+      return false;
+  }
+  setParamTo(out);
+  if (!inp._s.empty())
+    out._s = inp._s;
+  if (trlweCipherIds.empty())
+    return true;
+  std::vector<int> trlweCipherTrueIds(trlweCipherIds.size()),
+      trlweCipherFalseIds(trlweCipherIds.size()),
+      temp_trgswCipherIds(trlweCipherIds.size()), coeffs(coefficients.size());
+  for (int i = 0; i <= p; i++) {
+    coeffs[i] = (coefficients[i] % (_N << 1) + (_N << 1)) % (_N << 1);
+  }
+  Trlwe *temp_inp = new Trlwe();
+  Trlwe *temp_out = new Trlwe();
+  setParamTo(*temp_out);
+  temp_out->_ciphertexts.resize(trlweCipherIds.size());
+  temp_out->_stddevErrors.resize(trlweCipherIds.size());
+  temp_out->_varianceErrors.resize(trlweCipherIds.size());
+  for (int i = 0; i < (signed)trlweCipherIds.size(); i++) {
+    temp_out->_ciphertexts[i].resize(_k + 1);
+    temp_out->_stddevErrors[i] = inp._stddevErrors[trlweCipherIds[i]];
+    temp_out->_varianceErrors[i] = inp._varianceErrors[trlweCipherIds[i]];
+    for (int j = 0; j <= _k; j++) {
+      temp_out->_ciphertexts[i][j].resize(_N);
+    }
+    trlweCipherFalseIds[i] = i;
+    trlweCipherTrueIds[i] = i + trlweCipherIds.size();
+  }
+  {
+    int numberThreads = ThreadPool::get_numberThreads();
+    Eigen::Barrier barrier(numberThreads);
+    for (int it = 0; it < numberThreads; it++) {
+      ThreadPool::get_threadPool().Schedule([&, it]() {
+        int s = (trlweCipherIds.size() * (_k + 1) * _N * it) / numberThreads,
+            e = (trlweCipherIds.size() * (_k + 1) * _N * (it + 1)) /
+                numberThreads;
+        for (int newIt = s; newIt < e; newIt++) {
+          int i = newIt / ((_k + 1) * _N);
+          int k = (newIt / _N) % (_k + 1);
+          int deg = newIt % _N;
+          if ((deg + coeffs[p] >= _N) && (deg + coeffs[p] < 2 * _N)) {
+            temp_out->_ciphertexts[i][k][deg] =
+                -inp._ciphertexts[trlweCipherIds[i]][k][deg + coeffs[p] - _N];
+          } else {
+            temp_out->_ciphertexts[i][k][deg] =
+                inp._ciphertexts[trlweCipherIds[i]][k][(deg + coeffs[p]) % _N];
+          }
+        }
+        barrier.Notify();
+      });
+    }
+    barrier.Wait();
+  }
+  for (int i = 0; i < p; i++) {
+    std::swap(temp_inp, temp_out);
+    temp_inp->_ciphertexts.resize(trlweCipherIds.size() << 1);
+    temp_inp->_stddevErrors.resize(trlweCipherIds.size() << 1);
+    temp_inp->_varianceErrors.resize(trlweCipherIds.size() << 1);
+    for (int j = 0; j < (signed)trlweCipherIds.size(); j++) {
+      temp_inp->_ciphertexts[j + trlweCipherIds.size()].resize(_k + 1);
+      temp_inp->_stddevErrors[j + trlweCipherIds.size()] =
+          temp_inp->_stddevErrors[j];
+      temp_inp->_varianceErrors[j + trlweCipherIds.size()] =
+          temp_inp->_varianceErrors[j];
+      for (int k = 0; k <= _k; k++) {
+        temp_inp->_ciphertexts[j + trlweCipherIds.size()][k].resize(_N);
+      }
+      temp_trgswCipherIds[j] = trgswCipherIds[i];
+    }
+    int numberThreads = ThreadPool::get_numberThreads();
+    Eigen::Barrier barrier(numberThreads);
+    for (int it = 0; it < numberThreads; it++) {
+      ThreadPool::get_threadPool().Schedule([&, it]() {
+        int s = (trlweCipherIds.size() * (_k + 1) * _N * it) / numberThreads,
+            e = (trlweCipherIds.size() * (_k + 1) * _N * (it + 1)) /
+                numberThreads;
+        for (int newIt = s; newIt < e; newIt++) {
+          int j = newIt / ((_k + 1) * _N);
+          int k = (newIt / _N) % (_k + 1);
+          int deg = newIt % _N;
+          if ((deg - coeffs[i] >= -_N) && (deg - coeffs[i] < 0)) {
+            temp_inp->_ciphertexts[j + trlweCipherIds.size()][k][deg] =
+                -(temp_inp->_ciphertexts[j][k][deg - coeffs[i] + _N]);
+          } else {
+            temp_inp->_ciphertexts[j + trlweCipherIds.size()][k][deg] =
+                temp_inp->_ciphertexts[j][k][(deg - coeffs[i] + 2 * _N) % _N];
+          }
+        }
+        barrier.Notify();
+      });
+    }
+    barrier.Wait();
+    cMux(*temp_out, *temp_inp, trlweCipherTrueIds, trlweCipherFalseIds,
+         temp_trgswCipherIds);
+  }
+  out._ciphertexts.resize(trlweCipherIds.size());
+  out._stddevErrors.resize(trlweCipherIds.size());
+  out._varianceErrors.resize(trlweCipherIds.size());
+  for (int i = 0; i < (signed)trlweCipherIds.size(); i++) {
+    out._ciphertexts[i].resize(_k + 1);
+    out._stddevErrors[i] = temp_out->_stddevErrors[i];
+    out._varianceErrors[i] = temp_out->_varianceErrors[i];
+    for (int j = 0; j <= _k; j++) {
+      out._ciphertexts[i][j].resize(_N);
+    }
+  }
+  {
+    int numberThreads = ThreadPool::get_numberThreads();
+    Eigen::Barrier barrier(numberThreads);
+    for (int it = 0; it < numberThreads; it++) {
+      ThreadPool::get_threadPool().Schedule([&, it]() {
+        int s = (trlweCipherIds.size() * (_k + 1) * _N * it) / numberThreads,
+            e = (trlweCipherIds.size() * (_k + 1) * _N * (it + 1)) /
+                numberThreads;
+        for (int newIt = s; newIt < e; newIt++) {
+          int i = newIt / ((_k + 1) * _N);
+          int k = (newIt / _N) % (_k + 1);
+          int deg = newIt % _N;
+          out._ciphertexts[i][k][deg] = temp_out->_ciphertexts[i][k][deg];
+        }
+        barrier.Notify();
+      });
+    }
+    barrier.Wait();
+  }
+  delete temp_inp;
+  delete temp_out;
   return true;
 }
 

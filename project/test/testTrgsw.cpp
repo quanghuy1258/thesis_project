@@ -304,3 +304,95 @@ TEST(Thesis, CMux) {
     ASSERT_TRUE(errors[i] < 0.25);
   }
 }
+
+TEST(Thesis, BlindRotate) {
+  std::srand(std::time(nullptr));
+  thesis::Trgsw trgswObj;
+  thesis::Trlwe trlweObj[2];
+  std::vector<double> errors;
+
+  trgswObj.clear_s();
+  trgswObj.clear_ciphertexts();
+  trgswObj.clear_plaintexts();
+  trgswObj.generate_s();
+  trgswObj.setParamTo(trlweObj[0]);
+
+  std::vector<thesis::PolynomialBinary> x, expectedPlaintexts;
+  std::vector<bool> y;
+  std::vector<int> trlweCipherIds, coefficients, trgswCipherIds;
+
+  int numberTests = 10;
+  x.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    x[i].resize(trgswObj.get_N());
+    for (int j = 0; j < trgswObj.get_N(); j++) {
+      x[i][j] = (std::rand() % 2 == 1);
+    }
+    trlweObj[0].addPlaintext(x[i]);
+  }
+  trlweObj[0].encryptAll();
+  trlweObj[0].clear_plaintexts();
+  y.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    y[i] = ((std::rand() & 1) == 1);
+    trgswObj.addPlaintext(y[i]);
+  }
+  trgswObj.encryptAll();
+  trgswObj.clear_plaintexts();
+  trlweCipherIds.resize(numberTests);
+  coefficients.resize(numberTests + 1);
+  trgswCipherIds.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    trlweCipherIds[i] = std::rand() % numberTests;
+    coefficients[i] = std::rand() % (2 * trgswObj.get_N());
+    trgswCipherIds[i] = std::rand() % numberTests;
+  }
+  coefficients[numberTests] = std::rand();
+  ASSERT_TRUE(trgswObj.blindRotate(trlweObj[1], trlweObj[0], trlweCipherIds,
+                                   coefficients, trgswCipherIds));
+  trlweObj[1].decryptAll();
+
+  int p = coefficients[numberTests];
+  for (int i = 0; i < numberTests; i++) {
+    p -= (y[trgswCipherIds[i]] ? coefficients[i] : 0);
+  }
+  p = ((p % (2 * trgswObj.get_N())) + 2 * trgswObj.get_N()) %
+      (2 * trgswObj.get_N());
+  expectedPlaintexts.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    expectedPlaintexts[i].resize(trgswObj.get_N());
+    for (int j = 0; j < trgswObj.get_N(); j++) {
+      if ((j + p >= trgswObj.get_N()) && (j + p < 2 * trgswObj.get_N())) {
+        expectedPlaintexts[i][j] =
+            -x[trlweCipherIds[i]][j + p - trgswObj.get_N()];
+      } else {
+        expectedPlaintexts[i][j] =
+            x[trlweCipherIds[i]][(j + p) % trgswObj.get_N()];
+      }
+      ASSERT_TRUE(trlweObj[1].get_plaintexts()[i][j] ==
+                  expectedPlaintexts[i][j]);
+    }
+    double maxStddevError =
+        trlweObj[0].get_stddevErrors()[trlweCipherIds[i]] +
+        ((trgswObj.get_k() + 1) * trgswObj.get_l() * trgswObj.get_N() *
+             std::pow(2, trgswObj.get_Bgbit() - 1) *
+             trgswObj.get_stddevErrors()[trgswCipherIds[i]] +
+         (trgswObj.get_k() * trgswObj.get_N() + 1) *
+             std::pow(2, -trgswObj.get_Bgbit() * trgswObj.get_l() - 1)) *
+            numberTests;
+    double maxVarError =
+        trlweObj[0].get_varianceErrors()[trlweCipherIds[i]] +
+        ((trgswObj.get_k() + 1) * trgswObj.get_l() * trgswObj.get_N() *
+             std::pow(2, trgswObj.get_Bgbit() * 2 - 2) *
+             trgswObj.get_varianceErrors()[trgswCipherIds[i]] +
+         (trgswObj.get_k() * trgswObj.get_N() + 1) *
+             std::pow(2, -trgswObj.get_Bgbit() * trgswObj.get_l() * 2 - 2)) *
+            numberTests;
+    ASSERT_TRUE(trlweObj[1].get_stddevErrors()[i] <= maxStddevError);
+    ASSERT_TRUE(trlweObj[1].get_varianceErrors()[i] <= maxVarError);
+  }
+  trlweObj[1].getAllErrorsForDebugging(errors, expectedPlaintexts);
+  for (int i = 0; i < numberTests; i++) {
+    ASSERT_TRUE(errors[i] < 0.25);
+  }
+}
