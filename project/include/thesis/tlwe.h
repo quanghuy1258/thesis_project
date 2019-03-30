@@ -10,13 +10,14 @@ class Tlwe {
 private:
   int _n;
 
-  std::vector<Integer> _s;
+  std::vector<bool> _s;
   std::vector<std::vector<Torus>> _ciphertexts;
   std::vector<double> _stddevErrors;
   std::vector<double> _varianceErrors;
   std::vector<bool> _plaintexts;
 
   friend class Trlwe;
+  friend class Trgsw;
 
 public:
   // Constructors
@@ -32,18 +33,21 @@ public:
   // Get params
   int get_n() const;
 
+  // Set params
+  bool set_n(int n);
+
   // Set attributes
   void clear_s();
   void clear_ciphertexts();
   void clear_plaintexts();
-  bool set_s(const std::vector<Integer> &s);
+  bool set_s(const std::vector<bool> &s);
   void generate_s();
   bool addCiphertext(const std::vector<Torus> &cipher, double stddevError,
                      double varianceError);
   void addPlaintext(bool bit);
 
   // Get attributes
-  const std::vector<Integer> &get_s() const;
+  const std::vector<bool> &get_s() const;
   const std::vector<std::vector<Torus>> &get_ciphertexts() const;
   const std::vector<double> &get_stddevErrors() const;
   const std::vector<double> &get_varianceErrors() const;

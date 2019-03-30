@@ -15,6 +15,14 @@ Tlwe::~Tlwe() {}
 // Get params
 int Tlwe::get_n() const { return _n; }
 
+// Set params
+bool Tlwe::set_n(int n) {
+  if (n < 1)
+    return false;
+  _n = n;
+  return true;
+}
+
 // Set attributes
 void Tlwe::clear_s() { _s.clear(); }
 void Tlwe::clear_ciphertexts() {
@@ -23,7 +31,7 @@ void Tlwe::clear_ciphertexts() {
   _varianceErrors.clear();
 }
 void Tlwe::clear_plaintexts() { _plaintexts.clear(); }
-bool Tlwe::set_s(const std::vector<Integer> &s) {
+bool Tlwe::set_s(const std::vector<bool> &s) {
   if ((signed)s.size() != _n)
     return false;
   _s = s;
@@ -32,7 +40,7 @@ bool Tlwe::set_s(const std::vector<Integer> &s) {
 void Tlwe::generate_s() {
   _s.resize(_n);
   for (int i = 0; i < _n; i++) {
-    _s[i] = Random::getUniformInteger();
+    _s[i] = (Random::getUniformInteger() % 2 == 1);
   }
 }
 bool Tlwe::addCiphertext(const std::vector<Torus> &cipher, double stddevError,
@@ -47,7 +55,7 @@ bool Tlwe::addCiphertext(const std::vector<Torus> &cipher, double stddevError,
 void Tlwe::addPlaintext(bool bit) { _plaintexts.push_back(bit); }
 
 // Get attributes
-const std::vector<Integer> &Tlwe::get_s() const { return _s; }
+const std::vector<bool> &Tlwe::get_s() const { return _s; }
 const std::vector<std::vector<Torus>> &Tlwe::get_ciphertexts() const {
   return _ciphertexts;
 }
@@ -91,7 +99,8 @@ bool Tlwe::encryptAll() {
       bit <<= shift;
       for (int j = s; j < e; j++) {
         for (int k = 0; k < _n; k++) {
-          _ciphertexts[j][_n] += _ciphertexts[j][k] * _s[k];
+          if (_s[k])
+            _ciphertexts[j][_n] += _ciphertexts[j][k];
         }
         _ciphertexts[j][_n] += ((_plaintexts[j]) ? bit : 0);
       }
@@ -120,7 +129,8 @@ bool Tlwe::decryptAll() {
       for (int j = s; j < e; j++) {
         decrypts[j] = _ciphertexts[j][_n];
         for (int k = 0; k < _n; k++) {
-          decrypts[j] -= _ciphertexts[j][k] * _s[k];
+          if (_s[k])
+            decrypts[j] -= _ciphertexts[j][k];
         }
       }
       barrier.Notify();
@@ -158,7 +168,8 @@ bool Tlwe::getAllErrorsForDebugging(
       for (int j = s; j < e; j++) {
         decrypt = _ciphertexts[j][_n] - ((expectedPlaintexts[j]) ? bit : 0);
         for (int k = 0; k < _n; k++) {
-          decrypt -= _ciphertexts[j][k] * _s[k];
+          if (_s[k])
+            decrypt -= _ciphertexts[j][k];
         }
         errors[j] = std::abs(decrypt / std::pow(2, sizeof(Torus) * 8));
       }
