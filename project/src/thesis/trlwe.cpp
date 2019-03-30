@@ -43,7 +43,7 @@ void Trlwe::generate_s() {
   for (int i = 0; i < _k; i++) {
     _s[i].resize(_N);
     for (int j = 0; j < _N; j++) {
-      _s[i][j] = (Random::getUniformInteger() % 2 == 1) ? true : false;
+      _s[i][j] = (Random::getUniformInteger() % 2 == 1);
     }
   }
 }

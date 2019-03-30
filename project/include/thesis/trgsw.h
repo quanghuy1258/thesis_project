@@ -77,6 +77,9 @@ public:
                    const std::vector<int> &trlweCipherIds,
                    const std::vector<int> &coefficients,
                    const std::vector<int> &trgswCipherIds) const;
+  bool bootstrapTLWE(Tlwe &out, const std::vector<Torus> &constants,
+                     const Tlwe &inp, int tlweCipherId,
+                     const std::vector<int> &trgswCipherIds) const;
 };
 
 } // namespace thesis

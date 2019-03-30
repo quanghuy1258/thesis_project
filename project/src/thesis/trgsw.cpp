@@ -49,7 +49,7 @@ void Trgsw::generate_s() {
   for (int i = 0; i < _k; i++) {
     _s[i].resize(_N);
     for (int j = 0; j < _N; j++) {
-      _s[i][j] = (Random::getUniformInteger() % 2 == 1) ? true : false;
+      _s[i][j] = (Random::getUniformInteger() % 2 == 1);
     }
   }
 }
@@ -790,6 +790,63 @@ bool Trgsw::blindRotate(Trlwe &out, const Trlwe &inp,
   }
   delete temp_inp;
   delete temp_out;
+  return true;
+}
+bool Trgsw::bootstrapTLWE(Tlwe &out, const std::vector<Torus> &constants,
+                          const Tlwe &inp, int tlweCipherId,
+                          const std::vector<int> &trgswCipherIds) const {
+  if (inp._n != (signed)trgswCipherIds.size() || tlweCipherId < 0 ||
+      tlweCipherId >= (signed)inp._ciphertexts.size())
+    return false;
+  for (int i = 0; i < inp._n; i++) {
+    if (trgswCipherIds[i] < 0 ||
+        trgswCipherIds[i] >= (signed)trgswCipherIds.size())
+      return false;
+  }
+  out._n = _N;
+  out.clear_s();
+  out.clear_ciphertexts();
+  out.clear_plaintexts();
+  if (constants.empty())
+    return true;
+  Trlwe trlwe_inp, trlwe_out;
+  std::vector<int> trlweCipherIds, coefficients, ps;
+  setParamTo(trlwe_inp);
+  trlwe_inp._ciphertexts.resize(constants.size());
+  trlwe_inp._stddevErrors.resize(constants.size());
+  trlwe_inp._varianceErrors.resize(constants.size());
+  trlweCipherIds.resize(constants.size());
+  ps.resize(constants.size());
+  for (int i = 0; i < (signed)constants.size(); i++) {
+    trlwe_inp._ciphertexts[i].resize(_k + 1);
+    trlwe_inp._stddevErrors[i] = 0;
+    trlwe_inp._varianceErrors[i] = 0;
+    for (int j = 0; j < _k; j++) {
+      trlwe_inp._ciphertexts[i][j].resize(_N);
+      std::fill(trlwe_inp._ciphertexts[i][j].begin(),
+                trlwe_inp._ciphertexts[i][j].end(), 0);
+    }
+    trlwe_inp._ciphertexts[i][_k].resize(_N);
+    Torus constant = (constants[i] >> 1);
+    for (int j = 0; j < _N; j++) {
+      trlwe_inp._ciphertexts[i][_k][j] =
+          (j < (_N >> 1)) ? (-constant) : constant;
+    }
+    trlweCipherIds[i] = i;
+    ps[i] = 0;
+  }
+  coefficients.resize(inp._n + 1);
+  for (int i = 0; i <= inp._n; i++) {
+    double number = inp._ciphertexts[tlweCipherId][i];
+    number = (number * 2 * _N) / std::pow(2, sizeof(Torus) * 8);
+    coefficients[i] = std::llround(number);
+  }
+  blindRotate(trlwe_out, trlwe_inp, trlweCipherIds, coefficients,
+              trgswCipherIds);
+  trlwe_out.tlweExtract(out, ps, trlweCipherIds);
+  for (int i = 0; i < (signed)constants.size(); i++) {
+    out._ciphertexts[i][_N] += (constants[i] >> 1);
+  }
   return true;
 }
 

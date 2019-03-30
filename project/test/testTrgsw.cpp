@@ -396,3 +396,54 @@ TEST(Thesis, BlindRotate) {
     ASSERT_TRUE(errors[i] < 0.25);
   }
 }
+
+TEST(Thesis, BootstrapTLWE) {
+  std::srand(std::time(nullptr));
+  thesis::Trgsw trgswObj;
+  thesis::Tlwe tlweObj[2];
+  std::vector<int> trgswCipherIds;
+
+  trgswObj.clear_s();
+  trgswObj.clear_ciphertexts();
+  trgswObj.clear_plaintexts();
+  trgswObj.generate_s();
+
+  tlweObj[0].clear_s();
+  tlweObj[0].clear_ciphertexts();
+  tlweObj[0].clear_plaintexts();
+  tlweObj[0].set_n(5);
+  tlweObj[0].generate_s();
+
+  trgswCipherIds.resize(tlweObj[0].get_n());
+  for (int i = 0; i < tlweObj[0].get_n(); i++) {
+    trgswObj.addPlaintext(tlweObj[0].get_s()[tlweObj[0].get_n() - 1 - i]);
+    trgswCipherIds[i] = tlweObj[0].get_n() - 1 - i;
+  }
+  trgswObj.encryptAll();
+  tlweObj[0].addPlaintext(false);
+  tlweObj[0].addPlaintext(true);
+  tlweObj[0].encryptAll();
+
+  int numberTests = 100;
+  std::vector<thesis::Torus> constants(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    while (true) {
+      constants[i] = std::rand() & 15;
+      if (constants[i] != 4 && constants[i] != 12)
+        break;
+    }
+    constants[i] <<= sizeof(thesis::Torus) * 8 - 4;
+  }
+  trgswObj.bootstrapTLWE(tlweObj[1], constants, tlweObj[0], 1, trgswCipherIds);
+  tlweObj[1].decryptAll();
+
+  for (int i = 0; i < numberTests; i++) {
+    constants[i] >>= sizeof(thesis::Torus) * 8 - 4;
+    constants[i] &= 15;
+    if (constants[i] > 4 && constants[i] < 12) {
+      ASSERT_TRUE(tlweObj[1].get_plaintexts()[i] == true);
+    } else {
+      ASSERT_TRUE(tlweObj[1].get_plaintexts()[i] == false);
+    }
+  }
+}
