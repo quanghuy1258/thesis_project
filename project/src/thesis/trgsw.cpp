@@ -849,5 +849,68 @@ bool Trgsw::bootstrapTLWE(Tlwe &out, const std::vector<Torus> &constants,
   }
   return true;
 }
+bool Trgsw::gateBootstrap(Tlwe &out, const std::vector<Torus> &constants,
+                          const Tlwe &inp, int tlweCipherId,
+                          const std::vector<int> &trgswCipherIds,
+                          const Tlwe &ks, int ks_t) const {
+  if (ks_t < 1 || ks_t > (signed)sizeof(Torus) * 8 ||
+      (signed)ks._ciphertexts.size() != ks_t * _k * _N)
+    return false;
+  Tlwe temp_out;
+  if (!bootstrapTLWE(temp_out, constants, inp, tlweCipherId, trgswCipherIds))
+    return false;
+  out._n = ks._n;
+  out._s = ks._s;
+  out.clear_ciphertexts();
+  out.clear_plaintexts();
+  if (temp_out._ciphertexts.empty())
+    return true;
+  out._ciphertexts.resize(temp_out._ciphertexts.size());
+  out._stddevErrors.resize(temp_out._ciphertexts.size());
+  out._varianceErrors.resize(temp_out._ciphertexts.size());
+  for (int i = 0; i < (signed)temp_out._ciphertexts.size(); i++) {
+    out._ciphertexts[i].resize(ks._n + 1);
+    std::fill(out._ciphertexts[i].begin(), out._ciphertexts[i].end(), 0);
+    out._ciphertexts[i][ks._n] = temp_out._ciphertexts[i][_k * _N];
+    out._stddevErrors[i] = temp_out._stddevErrors[i];
+    out._varianceErrors[i] = temp_out._varianceErrors[i];
+  }
+  int numberThreads = ThreadPool::get_numberThreads();
+  Eigen::Barrier barrier(numberThreads);
+  for (int it = 0; it < numberThreads; it++) {
+    ThreadPool::get_threadPool().Schedule([&, it]() {
+      int s = (temp_out._ciphertexts.size() * (ks._n + 1) * it) / numberThreads,
+          e = (temp_out._ciphertexts.size() * (ks._n + 1) * (it + 1)) /
+              numberThreads;
+      Torus round = 0;
+      if ((signed)sizeof(Torus) * 8 > ks_t) {
+        round = 1;
+        round <<= (sizeof(Torus) * 8 - ks_t - 1);
+      }
+      for (int newIt = s; newIt < e; newIt++) {
+        int i = newIt / (ks._n + 1);
+        int j = newIt % (ks._n + 1);
+        for (int k = 0; k < _k * _N; k++) {
+          Torus temp_torus = temp_out._ciphertexts[i][k] + round;
+          for (int l = 0; l < ks_t; l++) {
+            Integer bit = (temp_torus >> (sizeof(Torus) * 8 - l - 1)) & 1;
+            out._ciphertexts[i][j] -= bit * ks._ciphertexts[k * ks_t + l][j];
+            if (j == ks._n) {
+              out._stddevErrors[i] += ks._stddevErrors[k * ks_t + l];
+              out._varianceErrors[i] += ks._varianceErrors[k * ks_t + l];
+            }
+          }
+          if (j == ks._n) {
+            out._stddevErrors[i] += std::pow(2, -(ks_t + 1));
+            out._varianceErrors[i] += std::pow(2, -2 * (ks_t + 1));
+          }
+        }
+      }
+      barrier.Notify();
+    });
+  }
+  barrier.Wait();
+  return true;
+}
 
 } // namespace thesis

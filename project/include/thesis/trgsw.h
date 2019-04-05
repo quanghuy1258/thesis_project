@@ -80,6 +80,10 @@ public:
   bool bootstrapTLWE(Tlwe &out, const std::vector<Torus> &constants,
                      const Tlwe &inp, int tlweCipherId,
                      const std::vector<int> &trgswCipherIds) const;
+  bool gateBootstrap(Tlwe &out, const std::vector<Torus> &constants,
+                     const Tlwe &inp, int tlweCipherId,
+                     const std::vector<int> &trgswCipherIds, const Tlwe &ks,
+                     int ks_t) const;
 };
 
 } // namespace thesis

@@ -179,5 +179,23 @@ bool Tlwe::getAllErrorsForDebugging(
   barrier.Wait();
   return true;
 }
+bool Tlwe::initPublicKeySwitching(const std::vector<bool> &key, int t) {
+  if (key.empty() || _s.empty() || t < 1 || t > (signed)sizeof(Torus) * 8)
+    return false;
+  _plaintexts.resize(key.size() * t);
+  std::fill(_plaintexts.begin(), _plaintexts.end(), false);
+  encryptAll();
+  clear_plaintexts();
+  for (int i = 0; i < (signed)key.size(); i++) {
+    if (!key[i])
+      continue;
+    for (int j = 0; j < t; j++) {
+      Torus bit = 1;
+      bit <<= (sizeof(Torus) * 8 - j - 1);
+      _ciphertexts[i * t + j][_n] += bit;
+    }
+  }
+  return true;
+}
 
 } // namespace thesis

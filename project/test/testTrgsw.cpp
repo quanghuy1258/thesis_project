@@ -402,6 +402,8 @@ TEST(Thesis, BootstrapTLWE) {
   thesis::Trgsw trgswObj;
   thesis::Tlwe tlweObj[2];
   std::vector<int> trgswCipherIds;
+  std::vector<double> errors;
+  std::vector<bool> expectedPlaintexts;
 
   trgswObj.clear_s();
   trgswObj.clear_ciphertexts();
@@ -437,13 +439,134 @@ TEST(Thesis, BootstrapTLWE) {
   trgswObj.bootstrapTLWE(tlweObj[1], constants, tlweObj[0], 1, trgswCipherIds);
   tlweObj[1].decryptAll();
 
+  double maxStddevError =
+      tlweObj[0].get_n() * (trgswObj.get_k() * trgswObj.get_N() + 1) *
+      std::pow(2, -trgswObj.get_Bgbit() * trgswObj.get_l() - 1);
+  double maxVarError =
+      tlweObj[0].get_n() * (trgswObj.get_k() * trgswObj.get_N() + 1) *
+      std::pow(2, -trgswObj.get_Bgbit() * trgswObj.get_l() * 2 - 2);
+  for (int i = 0; i < tlweObj[0].get_n(); i++) {
+    maxStddevError += (trgswObj.get_k() + 1) * trgswObj.get_l() *
+                      trgswObj.get_N() * std::pow(2, trgswObj.get_Bgbit() - 1) *
+                      trgswObj.get_stddevErrors()[trgswCipherIds[i]];
+    maxVarError += (trgswObj.get_k() + 1) * trgswObj.get_l() *
+                   trgswObj.get_N() *
+                   std::pow(2, trgswObj.get_Bgbit() * 2 - 2) *
+                   trgswObj.get_varianceErrors()[trgswCipherIds[i]];
+  }
+
+  expectedPlaintexts.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
     constants[i] >>= sizeof(thesis::Torus) * 8 - 4;
     constants[i] &= 15;
     if (constants[i] > 4 && constants[i] < 12) {
-      ASSERT_TRUE(tlweObj[1].get_plaintexts()[i] == true);
+      expectedPlaintexts[i] = true;
     } else {
-      ASSERT_TRUE(tlweObj[1].get_plaintexts()[i] == false);
+      expectedPlaintexts[i] = false;
     }
+    ASSERT_TRUE(tlweObj[1].get_plaintexts()[i] == expectedPlaintexts[i]);
+    ASSERT_TRUE(tlweObj[1].get_stddevErrors()[i] <= maxStddevError);
+    ASSERT_TRUE(tlweObj[1].get_varianceErrors()[i] <= maxVarError);
+  }
+  tlweObj[1].getAllErrorsForDebugging(errors, expectedPlaintexts);
+  for (int i = 0; i < numberTests; i++) {
+    ASSERT_TRUE(errors[i] < 0.25);
+  }
+}
+
+TEST(Thesis, GateBootstrap) {
+  std::srand(std::time(nullptr));
+  thesis::Trgsw trgswObj;
+  thesis::Tlwe tlweObj[3];
+  std::vector<int> trgswCipherIds;
+  std::vector<double> errors;
+  std::vector<bool> trgswObj_s, expectedPlaintexts;
+
+  trgswObj.clear_s();
+  trgswObj.clear_ciphertexts();
+  trgswObj.clear_plaintexts();
+  trgswObj.generate_s();
+  trgswObj_s.resize(trgswObj.get_k() * trgswObj.get_N());
+  for (int i = 0; i < trgswObj.get_k(); i++) {
+    for (int j = 0; j < trgswObj.get_N(); j++) {
+      trgswObj_s[i * trgswObj.get_N() + j] = trgswObj.get_s()[i][j];
+    }
+  }
+
+  tlweObj[0].clear_s();
+  tlweObj[0].clear_ciphertexts();
+  tlweObj[0].clear_plaintexts();
+  tlweObj[0].set_n(5);
+  tlweObj[0].generate_s();
+
+  int t = 16;
+  tlweObj[2].set_n(5);
+  tlweObj[2].set_s(tlweObj[0].get_s());
+  tlweObj[2].initPublicKeySwitching(trgswObj_s, t);
+
+  trgswCipherIds.resize(tlweObj[0].get_n());
+  for (int i = 0; i < tlweObj[0].get_n(); i++) {
+    trgswObj.addPlaintext(tlweObj[0].get_s()[tlweObj[0].get_n() - 1 - i]);
+    trgswCipherIds[i] = tlweObj[0].get_n() - 1 - i;
+  }
+  trgswObj.encryptAll();
+  tlweObj[0].addPlaintext(false);
+  tlweObj[0].addPlaintext(true);
+  tlweObj[0].encryptAll();
+
+  int numberTests = 100;
+  std::vector<thesis::Torus> constants(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    while (true) {
+      constants[i] = std::rand() & 15;
+      if (constants[i] != 4 && constants[i] != 12)
+        break;
+    }
+    constants[i] <<= sizeof(thesis::Torus) * 8 - 4;
+  }
+  trgswObj.gateBootstrap(tlweObj[1], constants, tlweObj[0], 1, trgswCipherIds,
+                         tlweObj[2], t);
+  tlweObj[1].decryptAll();
+
+  double maxStddevError =
+      tlweObj[0].get_n() * (trgswObj.get_k() * trgswObj.get_N() + 1) *
+          std::pow(2, -trgswObj.get_Bgbit() * trgswObj.get_l() - 1) +
+      trgswObj.get_k() * trgswObj.get_N() * std::pow(2, -(t + 1));
+  double maxVarError =
+      tlweObj[0].get_n() * (trgswObj.get_k() * trgswObj.get_N() + 1) *
+          std::pow(2, -trgswObj.get_Bgbit() * trgswObj.get_l() * 2 - 2) +
+      trgswObj.get_k() * trgswObj.get_N() * std::pow(2, -(t + 1) * 2);
+  for (int i = 0; i < tlweObj[0].get_n(); i++) {
+    maxStddevError += (trgswObj.get_k() + 1) * trgswObj.get_l() *
+                      trgswObj.get_N() * std::pow(2, trgswObj.get_Bgbit() - 1) *
+                      trgswObj.get_stddevErrors()[trgswCipherIds[i]];
+    maxVarError += (trgswObj.get_k() + 1) * trgswObj.get_l() *
+                   trgswObj.get_N() *
+                   std::pow(2, trgswObj.get_Bgbit() * 2 - 2) *
+                   trgswObj.get_varianceErrors()[trgswCipherIds[i]];
+  }
+  for (int i = 0; i < trgswObj.get_k() * trgswObj.get_N(); i++) {
+    for (int j = 0; j < t; j++) {
+      maxStddevError += tlweObj[2].get_stddevErrors()[i * t + j];
+      maxVarError += tlweObj[2].get_varianceErrors()[i * t + j];
+    }
+  }
+
+  expectedPlaintexts.resize(numberTests);
+  for (int i = 0; i < numberTests; i++) {
+    constants[i] >>= sizeof(thesis::Torus) * 8 - 4;
+    constants[i] &= 15;
+    if (constants[i] > 4 && constants[i] < 12) {
+      expectedPlaintexts[i] = true;
+    } else {
+      expectedPlaintexts[i] = false;
+    }
+    ASSERT_TRUE(tlweObj[1].get_plaintexts()[i] == expectedPlaintexts[i]);
+    ASSERT_TRUE(tlweObj[1].get_stddevErrors()[i] <= maxStddevError);
+    ASSERT_TRUE(tlweObj[1].get_varianceErrors()[i] <= maxVarError);
+  }
+  tlweObj[1].getAllErrorsForDebugging(errors, expectedPlaintexts);
+  for (int i = 0; i < numberTests; i++) {
+    ASSERT_TRUE(errors[i] < 0.25);
   }
 }

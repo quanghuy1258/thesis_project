@@ -59,6 +59,7 @@ public:
   bool
   getAllErrorsForDebugging(std::vector<double> &errors,
                            const std::vector<bool> &expectedPlaintexts) const;
+  bool initPublicKeySwitching(const std::vector<bool> &key, int t);
 };
 
 }; // namespace thesis
