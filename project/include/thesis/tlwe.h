@@ -34,16 +34,19 @@ public:
   int get_n() const;
 
   // Set params
-  bool set_n(int n);
+  bool set_n(int n, bool isForcedToCheck = true);
 
   // Set attributes
   void clear_s();
   void clear_ciphertexts();
   void clear_plaintexts();
-  bool set_s(const std::vector<bool> &s);
-  void generate_s();
+  bool set_s(const std::vector<bool> &s, bool isForcedToCheck = true);
+  bool moveTo_s(std::vector<bool> &s, bool isForcedToCheck = true);
+  bool generate_s(bool isForcedToCheck = true);
   bool addCiphertext(const std::vector<Torus> &cipher, double stddevError,
-                     double varianceError);
+                     double varianceError, bool isForcedToCheck = true);
+  bool moveCiphertext(std::vector<Torus> &cipher, double stddevError,
+                      double varianceError, bool isForcedToCheck = true);
   void addPlaintext(bool bit);
 
   // Get attributes
@@ -54,12 +57,13 @@ public:
   const std::vector<bool> &get_plaintexts() const;
 
   // Utilities
-  bool encryptAll();
-  bool decryptAll();
-  bool
-  getAllErrorsForDebugging(std::vector<double> &errors,
-                           const std::vector<bool> &expectedPlaintexts) const;
-  bool initPublicKeySwitching(const std::vector<bool> &key, int t);
+  bool encryptAll(bool isForcedToCheck = true);
+  bool decryptAll(bool isForcedToCheck = true);
+  bool getAllErrorsForDebugging(std::vector<double> &errors,
+                                const std::vector<bool> &expectedPlaintexts,
+                                bool isForcedToCheck = true) const;
+  bool initPublicKeySwitching(const std::vector<bool> &key, int t,
+                              bool isForcedToCheck = true);
 };
 
 }; // namespace thesis

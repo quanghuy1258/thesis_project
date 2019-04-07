@@ -16,8 +16,8 @@ Tlwe::~Tlwe() {}
 int Tlwe::get_n() const { return _n; }
 
 // Set params
-bool Tlwe::set_n(int n) {
-  if (n < 1)
+bool Tlwe::set_n(int n, bool isForcedToCheck) {
+  if (isForcedToCheck && n < 1)
     return false;
   _n = n;
   return true;
@@ -31,27 +31,56 @@ void Tlwe::clear_ciphertexts() {
   _varianceErrors.clear();
 }
 void Tlwe::clear_plaintexts() { _plaintexts.clear(); }
-bool Tlwe::set_s(const std::vector<bool> &s) {
-  if ((signed)s.size() != _n)
-    return false;
+bool Tlwe::set_s(const std::vector<bool> &s, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int s_size = s.size();
+    if (s_size != _n)
+      return false;
+  }
   _s = s;
   return true;
 }
-void Tlwe::generate_s() {
-  _s.resize(_n);
-  for (int i = 0; i < _n; i++) {
-    _s[i] = (Random::getUniformInteger() % 2 == 1);
+bool Tlwe::moveTo_s(std::vector<bool> &s, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int s_size = s.size();
+    if (s_size != _n)
+      return false;
   }
+  _s = std::move(s);
+  return true;
+}
+bool Tlwe::generate_s(bool isForcedToCheck) {
+  if (isForcedToCheck && _n < 1)
+    return false;
+  _s.resize(_n);
+  for (int i = 0; i < _n; i++)
+    _s[i] = Random::getUniformInteger() & 1;
+  return true;
 }
 bool Tlwe::addCiphertext(const std::vector<Torus> &cipher, double stddevError,
-                         double varianceError) {
-  if ((signed)cipher.size() != _n + 1)
-    return false;
+                         double varianceError, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int cipher_size = cipher.size();
+    if (cipher_size != _n + 1 || stddevError < 0 || varianceError < 0)
+      return false;
+  }
   _ciphertexts.push_back(cipher);
   _stddevErrors.push_back(stddevError);
   _varianceErrors.push_back(varianceError);
   return true;
 };
+bool Tlwe::moveCiphertext(std::vector<Torus> &cipher, double stddevError,
+                          double varianceError, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int cipher_size = cipher.size();
+    if (cipher_size != _n + 1 || stddevError < 0 || varianceError < 0)
+      return false;
+  }
+  _ciphertexts.push_back(std::move(cipher));
+  _stddevErrors.push_back(stddevError);
+  _varianceErrors.push_back(varianceError);
+  return true;
+}
 void Tlwe::addPlaintext(bool bit) { _plaintexts.push_back(bit); }
 
 // Get attributes
@@ -68,125 +97,153 @@ const std::vector<double> &Tlwe::get_varianceErrors() const {
 const std::vector<bool> &Tlwe::get_plaintexts() const { return _plaintexts; }
 
 // Utilities
-bool Tlwe::encryptAll() {
-  if (_s.empty())
+bool Tlwe::encryptAll(bool isForcedToCheck) {
+  if (isForcedToCheck && _s.empty()) {
     return false;
-  if (_plaintexts.empty()) {
+  }
+  const int _plaintexts_size = _plaintexts.size();
+  if (_plaintexts_size == 0) {
     clear_ciphertexts();
     return true;
   } else {
-    _ciphertexts.resize(_plaintexts.size());
-    _stddevErrors.resize(_plaintexts.size());
-    _varianceErrors.resize(_plaintexts.size());
-    for (int i = 0; i < (signed)_plaintexts.size(); i++) {
+    _ciphertexts.resize(_plaintexts_size);
+    _stddevErrors.resize(_plaintexts_size);
+    _varianceErrors.resize(_plaintexts_size);
+    for (int i = 0; i < _plaintexts_size; i++) {
       _ciphertexts[i].resize(_n + 1);
       _stddevErrors[i] = STDDEV_ERROR;
       _varianceErrors[i] = STDDEV_ERROR * STDDEV_ERROR;
-      for (int j = 0; j < _n; j++) {
+      for (int j = 0; j < _n; j++)
         _ciphertexts[i][j] = Random::getUniformTorus();
-      }
       _ciphertexts[i][_n] = Random::getNormalTorus(0, STDDEV_ERROR);
     }
   }
-  int numberThreads = ThreadPool::get_numberThreads();
+  const int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
+  std::vector<std::vector<Torus>> encrypts(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
-      int s = (_plaintexts.size() * i) / numberThreads,
-          e = (_plaintexts.size() * (i + 1)) / numberThreads;
-      int shift = sizeof(Torus) * 8 - 1;
+      encrypts[i].resize(_plaintexts_size, 0);
       Torus bit = 1;
-      bit <<= shift;
-      for (int j = s; j < e; j++) {
-        for (int k = 0; k < _n; k++) {
-          if (_s[k])
-            _ciphertexts[j][_n] += _ciphertexts[j][k];
+      bit <<= sizeof(Torus) * 8 - 1;
+      int s = (_plaintexts_size * (_n + 1) * i) / numberThreads,
+          e = (_plaintexts_size * (_n + 1) * (i + 1)) / numberThreads;
+      for (int it = s; it < e; it++) {
+        int j = it / (_n + 1);
+        int k = it % (_n + 1);
+        if (k == _n) {
+          encrypts[i][j] += _plaintexts[j] ? bit : 0;
+        } else {
+          encrypts[i][j] += _s[k] ? _ciphertexts[j][k] : 0;
         }
-        _ciphertexts[j][_n] += ((_plaintexts[j]) ? bit : 0);
       }
       barrier.Notify();
     });
   }
   barrier.Wait();
+  for (int i = 0; i < _plaintexts_size; i++) {
+    for (int j = 0; j < numberThreads; j++)
+      _ciphertexts[i][_n] += encrypts[j][i];
+  }
   return true;
 }
-bool Tlwe::decryptAll() {
-  if (_s.empty())
+bool Tlwe::decryptAll(bool isForcedToCheck) {
+  if (isForcedToCheck && _s.empty())
     return false;
-  if (_ciphertexts.empty()) {
+  const int _ciphertexts_size = _ciphertexts.size();
+  if (_ciphertexts_size == 0) {
     clear_plaintexts();
     return true;
   } else {
-    _plaintexts.resize(_ciphertexts.size());
+    _plaintexts.resize(_ciphertexts_size);
   }
-  std::vector<Torus> decrypts(_ciphertexts.size());
-  int numberThreads = ThreadPool::get_numberThreads();
+  const int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
+  std::vector<std::vector<Torus>> decrypts(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
-      int s = (_ciphertexts.size() * i) / numberThreads,
-          e = (_ciphertexts.size() * (i + 1)) / numberThreads;
-      for (int j = s; j < e; j++) {
-        decrypts[j] = _ciphertexts[j][_n];
-        for (int k = 0; k < _n; k++) {
-          if (_s[k])
-            decrypts[j] -= _ciphertexts[j][k];
+      decrypts[i].resize(_ciphertexts_size, 0);
+      int s = (_ciphertexts_size * (_n + 1) * i) / numberThreads,
+          e = (_ciphertexts_size * (_n + 1) * (i + 1)) / numberThreads;
+      for (int it = s; it < e; it++) {
+        int j = it / (_n + 1);
+        int k = it % (_n + 1);
+        if (k == _n) {
+          decrypts[i][j] += _ciphertexts[j][_n];
+        } else {
+          decrypts[i][j] -= _s[k] ? _ciphertexts[j][k] : 0;
         }
       }
       barrier.Notify();
     });
   }
   barrier.Wait();
-  for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
-    int bits = sizeof(Torus) * 8 - 2;
-    decrypts[i] = ((decrypts[i] >> bits) & 3);
-    _plaintexts[i] = ((decrypts[i] == 1) || (decrypts[i] == 2));
+  for (int i = 0; i < _ciphertexts_size; i++) {
+    Torus bit_torus = 0;
+    for (int j = 0; j < numberThreads; j++)
+      bit_torus += decrypts[j][i];
+    double bit_double = bit_torus;
+    _plaintexts[i] =
+        std::llround(bit_double / std::pow(2, sizeof(Torus) * 8 - 1)) & 1;
   }
   return true;
 }
-bool Tlwe::getAllErrorsForDebugging(
-    std::vector<double> &errors,
-    const std::vector<bool> &expectedPlaintexts) const {
-  if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
+bool Tlwe::getAllErrorsForDebugging(std::vector<double> &errors,
+                                    const std::vector<bool> &expectedPlaintexts,
+                                    bool isForcedToCheck) const {
+  if (isForcedToCheck &&
+      (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size()))
     return false;
-  if (_ciphertexts.empty()) {
+  const int _ciphertexts_size = _ciphertexts.size();
+  if (_ciphertexts_size == 0) {
     errors.clear();
     return true;
   } else {
-    errors.resize(_ciphertexts.size());
+    errors.resize(_ciphertexts_size, 0);
   }
-  int numberThreads = ThreadPool::get_numberThreads();
+  const int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
+  std::vector<std::vector<Torus>> decrypt_errors(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
-      Torus decrypt;
-      int shift = sizeof(Torus) * 8 - 1;
+      decrypt_errors[i].resize(_ciphertexts_size);
       Torus bit = 1;
-      bit <<= shift;
-      int s = (_ciphertexts.size() * i) / numberThreads,
-          e = (_ciphertexts.size() * (i + 1)) / numberThreads;
-      for (int j = s; j < e; j++) {
-        decrypt = _ciphertexts[j][_n] - ((expectedPlaintexts[j]) ? bit : 0);
-        for (int k = 0; k < _n; k++) {
-          if (_s[k])
-            decrypt -= _ciphertexts[j][k];
+      bit <<= sizeof(Torus) * 8 - 1;
+      int s = (_ciphertexts_size * (_n + 1) * i) / numberThreads,
+          e = (_ciphertexts_size * (_n + 1) * (i + 1)) / numberThreads;
+      for (int it = s; it < e; it++) {
+        int j = it / (_n + 1);
+        int k = it % (_n + 1);
+        if (k == _n) {
+          decrypt_errors[i][j] += _ciphertexts[j][_n];
+          decrypt_errors[i][j] -= (expectedPlaintexts[j]) ? bit : 0;
+        } else {
+          decrypt_errors[i][j] -= _s[k] ? _ciphertexts[j][k] : 0;
         }
-        errors[j] = std::abs(decrypt / std::pow(2, sizeof(Torus) * 8));
       }
       barrier.Notify();
     });
   }
   barrier.Wait();
+  for (int i = 0; i < _ciphertexts_size; i++) {
+    Torus error = 0;
+    for (int j = 0; j < numberThreads; j++)
+      error += decrypt_errors[j][i];
+    errors[i] = std::abs(error / std::pow(2, sizeof(Torus) * 8));
+  }
   return true;
 }
-bool Tlwe::initPublicKeySwitching(const std::vector<bool> &key, int t) {
-  if (key.empty() || _s.empty() || t < 1 || t > (signed)sizeof(Torus) * 8)
+bool Tlwe::initPublicKeySwitching(const std::vector<bool> &key, int t,
+                                  bool isForcedToCheck) {
+  if (isForcedToCheck &&
+      (key.empty() || _s.empty() || t < 1 || t > (signed)sizeof(Torus) * 8))
     return false;
-  _plaintexts.resize(key.size() * t);
+  const int key_size = key.size();
+  _plaintexts.resize(key_size * t);
   std::fill(_plaintexts.begin(), _plaintexts.end(), false);
-  encryptAll();
+  encryptAll(false);
   clear_plaintexts();
-  for (int i = 0; i < (signed)key.size(); i++) {
+  for (int i = 0; i < key_size; i++) {
     if (!key[i])
       continue;
     for (int j = 0; j < t; j++) {
