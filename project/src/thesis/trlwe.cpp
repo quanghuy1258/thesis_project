@@ -28,42 +28,99 @@ void Trlwe::clear_ciphertexts() {
   _varianceErrors.clear();
 }
 void Trlwe::clear_plaintexts() { _plaintexts.clear(); }
-bool Trlwe::set_s(const std::vector<PolynomialBinary> &s) {
-  if ((signed)s.size() != _k)
-    return false;
-  for (int i = 0; i < _k; i++) {
-    if ((signed)s[i].size() != _N)
+bool Trlwe::set_s(const std::vector<PolynomialBinary> &s,
+                  bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int s_size = s.size();
+    if (s_size != _k)
       return false;
+    for (int i = 0; i < _k; i++) {
+      const int s_i_size = s[i].size();
+      if (s_i_size != _N)
+        return false;
+    }
   }
   _s = s;
+  return true;
+}
+bool Trlwe::moveTo_s(std::vector<PolynomialBinary> &s, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int s_size = s.size();
+    if (s_size != _k)
+      return false;
+    for (int i = 0; i < _k; i++) {
+      const int s_i_size = s[i].size();
+      if (s_i_size != _N)
+        return false;
+    }
+  }
+  _s = std::move(s);
   return true;
 }
 void Trlwe::generate_s() {
   _s.resize(_k);
   for (int i = 0; i < _k; i++) {
     _s[i].resize(_N);
-    for (int j = 0; j < _N; j++) {
-      _s[i][j] = (Random::getUniformInteger() % 2 == 1);
-    }
+    for (int j = 0; j < _N; j++)
+      _s[i][j] = Random::getUniformInteger() & 1;
   }
 }
 bool Trlwe::addCiphertext(const std::vector<PolynomialTorus> &cipher,
-                          double stddevError, double varianceError) {
-  if ((signed)cipher.size() != _k + 1)
-    return false;
-  for (int i = 0; i <= _k; i++) {
-    if ((signed)cipher[i].size() != _N)
+                          double stddevError, double varianceError,
+                          bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    if (stddevError < 0 || varianceError < 0)
       return false;
+    const int cipher_size = cipher.size();
+    if (cipher_size != _k + 1)
+      return false;
+    for (int i = 0; i <= _k; i++) {
+      const int cipher_i_size = cipher[i].size();
+      if (cipher_i_size != _N)
+        return false;
+    }
   }
   _ciphertexts.push_back(cipher);
   _stddevErrors.push_back(stddevError);
   _varianceErrors.push_back(varianceError);
   return true;
 }
-bool Trlwe::addPlaintext(const PolynomialBinary &plain) {
-  if ((signed)plain.size() != _N)
-    return false;
+bool Trlwe::moveCiphertext(std::vector<PolynomialTorus> &cipher,
+                           double stddevError, double varianceError,
+                           bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    if (stddevError < 0 || varianceError < 0)
+      return false;
+    const int cipher_size = cipher.size();
+    if (cipher_size != _k + 1)
+      return false;
+    for (int i = 0; i <= _k; i++) {
+      const int cipher_i_size = cipher[i].size();
+      if (cipher_i_size != _N)
+        return false;
+    }
+  }
+  _ciphertexts.push_back(std::move(cipher));
+  _stddevErrors.push_back(stddevError);
+  _varianceErrors.push_back(varianceError);
+  return true;
+}
+bool Trlwe::addPlaintext(const PolynomialBinary &plain, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int plain_size = plain.size();
+    if (plain_size != _N)
+      return false;
+  }
   _plaintexts.push_back(plain);
+  return true;
+}
+bool Trlwe::movePlaintext(PolynomialBinary &plain, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int plain_size = plain.size();
+    if (plain_size != _N)
+      return false;
+  }
+  _plaintexts.push_back(std::move(plain));
   return true;
 }
 
@@ -84,17 +141,18 @@ const std::vector<PolynomialBinary> &Trlwe::get_plaintexts() const {
 }
 
 // Utilities
-bool Trlwe::encryptAll() {
-  if (_s.empty())
+bool Trlwe::encryptAll(bool isForcedToCheck) {
+  if (isForcedToCheck && _s.empty())
     return false;
   if (_plaintexts.empty()) {
     clear_ciphertexts();
     return true;
   } else {
-    _ciphertexts.resize(_plaintexts.size());
-    _stddevErrors.resize(_plaintexts.size());
-    _varianceErrors.resize(_plaintexts.size());
-    for (int i = 0; i < (signed)_plaintexts.size(); i++) {
+    const int _plaintexts_size = _plaintexts.size();
+    _ciphertexts.resize(_plaintexts_size);
+    _stddevErrors.resize(_plaintexts_size);
+    _varianceErrors.resize(_plaintexts_size);
+    for (int i = 0; i < _plaintexts_size; i++) {
       _ciphertexts[i].resize(_k + 1);
       _stddevErrors[i] = STDDEV_ERROR;
       _varianceErrors[i] = STDDEV_ERROR * STDDEV_ERROR;
@@ -102,14 +160,12 @@ bool Trlwe::encryptAll() {
         _ciphertexts[i][j].resize(_N);
         if (j != _k) {
           // _ciphertexts[i][j] uniform polynomial
-          for (int k = 0; k < _N; k++) {
+          for (int k = 0; k < _N; k++)
             _ciphertexts[i][j][k] = Random::getUniformTorus();
-          }
         } else {
           // _ciphertexts[i][_k] Gaussian polynomial
-          for (int k = 0; k < _N; k++) {
+          for (int k = 0; k < _N; k++)
             _ciphertexts[i][_k][k] = Random::getNormalTorus(0, STDDEV_ERROR);
-          }
         }
       }
     }
@@ -148,17 +204,17 @@ bool Trlwe::encryptAll() {
 #endif
   return true;
 }
-bool Trlwe::decryptAll() {
-  if (_s.empty())
+bool Trlwe::decryptAll(bool isForcedToCheck) {
+  if (isForcedToCheck && _s.empty())
     return false;
   if (_ciphertexts.empty()) {
     clear_plaintexts();
     return true;
   } else {
-    _plaintexts.resize(_ciphertexts.size());
-    for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
+    const int _ciphertexts_size = _ciphertexts.size();
+    _plaintexts.resize(_ciphertexts_size);
+    for (int i = 0; i < _ciphertexts_size; i++)
       _plaintexts[i].resize(_N);
-    }
   }
 #ifdef USING_GPU
 #else
@@ -196,9 +252,18 @@ bool Trlwe::decryptAll() {
 }
 bool Trlwe::getAllErrorsForDebugging(
     std::vector<double> &errors,
-    const std::vector<PolynomialBinary> &expectedPlaintexts) const {
-  if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
-    return false;
+    const std::vector<PolynomialBinary> &expectedPlaintexts,
+    bool isForcedToCheck) const {
+  if (isForcedToCheck) {
+    if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
+      return false;
+    const int expectedPlaintexts_size = expectedPlaintexts.size();
+    for (int i = 0; i < expectedPlaintexts_size; i++) {
+      const int expectedPlaintexts_i_size = expectedPlaintexts[i].size();
+      if (expectedPlaintexts_i_size != _N)
+        return false;
+    }
+  }
   if (_ciphertexts.empty()) {
     errors.clear();
     return true;
@@ -262,10 +327,11 @@ void Trlwe::tlweExtractAll(Tlwe &out) const {
   if (_ciphertexts.empty()) {
     return;
   } else {
-    out._ciphertexts.resize(_ciphertexts.size() * _N);
-    out._stddevErrors.resize(_ciphertexts.size() * _N);
-    out._varianceErrors.resize(_ciphertexts.size() * _N);
-    for (int i = 0; i < (signed)_ciphertexts.size() * _N; i++) {
+    const int _ciphertexts_size = _ciphertexts.size();
+    out._ciphertexts.resize(_ciphertexts_size * _N);
+    out._stddevErrors.resize(_ciphertexts_size * _N);
+    out._varianceErrors.resize(_ciphertexts_size * _N);
+    for (int i = 0; i < _ciphertexts_size * _N; i++) {
       out._ciphertexts[i].resize(_N * _k + 1);
       out._stddevErrors[i] = _stddevErrors[i / _N];
       out._varianceErrors[i] = _varianceErrors[i / _N];
@@ -285,13 +351,12 @@ void Trlwe::tlweExtractAll(Tlwe &out) const {
         if (elementID == (_N * _k)) {
           out._ciphertexts[cipherID * _N + p][_N * _k] =
               _ciphertexts[cipherID][_k][p];
+        } else if (p >= (elementID % _N)) {
+          out._ciphertexts[cipherID * _N + p][elementID] =
+              _ciphertexts[cipherID][elementID / _N][p - elementID % _N];
         } else {
           out._ciphertexts[cipherID * _N + p][elementID] =
-              ((p >= (elementID % _N))
-                   ? (_ciphertexts[cipherID][elementID / _N]
-                                  [p - elementID % _N])
-                   : (-(_ciphertexts[cipherID][elementID / _N]
-                                    [p - elementID % _N + _N])));
+              -_ciphertexts[cipherID][elementID / _N][p - elementID % _N + _N];
         }
       }
       barrier.Notify();
@@ -300,14 +365,18 @@ void Trlwe::tlweExtractAll(Tlwe &out) const {
   barrier.Wait();
 }
 bool Trlwe::tlweExtract(Tlwe &out, const std::vector<int> &ps,
-                        const std::vector<int> &cipherIDs) const {
-  if (ps.size() != cipherIDs.size())
-    return false;
-  int numberExtracts = ps.size();
-  for (int i = 0; i < numberExtracts; i++) {
-    if (ps[i] < 0 || ps[i] >= _N || cipherIDs[i] < 0 ||
-        cipherIDs[i] >= (signed)_ciphertexts.size())
+                        const std::vector<int> &cipherIDs,
+                        bool isForcedToCheck) const {
+  const int numberExtracts = ps.size();
+  if (isForcedToCheck) {
+    if (ps.size() != cipherIDs.size())
       return false;
+    const int _ciphertexts_size = _ciphertexts.size();
+    for (int i = 0; i < numberExtracts; i++) {
+      if (ps[i] < 0 || ps[i] >= _N || cipherIDs[i] < 0 ||
+          cipherIDs[i] >= _ciphertexts_size)
+        return false;
+    }
   }
   setParamTo(out);
   if (numberExtracts == 0) {
@@ -335,13 +404,12 @@ bool Trlwe::tlweExtract(Tlwe &out, const std::vector<int> &ps,
         int p = ps[extractID];
         if (elementID == (_N * _k)) {
           out._ciphertexts[extractID][_N * _k] = _ciphertexts[cipherID][_k][p];
+        } else if (p >= (elementID % _N)) {
+          out._ciphertexts[extractID][elementID] =
+              _ciphertexts[cipherID][elementID / _N][p - elementID % _N];
         } else {
           out._ciphertexts[extractID][elementID] =
-              ((p >= (elementID % _N))
-                   ? (_ciphertexts[cipherID][elementID / _N]
-                                  [p - elementID % _N])
-                   : (-(_ciphertexts[cipherID][elementID / _N]
-                                    [p - elementID % _N + _N])));
+              -_ciphertexts[cipherID][elementID / _N][p - elementID % _N + _N];
         }
       }
       barrier.Notify();

@@ -39,11 +39,17 @@ public:
   void clear_s();
   void clear_ciphertexts();
   void clear_plaintexts();
-  bool set_s(const std::vector<PolynomialBinary> &s);
+  bool set_s(const std::vector<PolynomialBinary> &s,
+             bool isForcedToCheck = true);
+  bool moveTo_s(std::vector<PolynomialBinary> &s, bool isForcedToCheck = true);
   void generate_s();
   bool addCiphertext(const std::vector<PolynomialTorus> &cipher,
-                     double stddevError, double varianceError);
-  bool addPlaintext(const PolynomialBinary &plain);
+                     double stddevError, double varianceError,
+                     bool isForcedToCheck = true);
+  bool moveCiphertext(std::vector<PolynomialTorus> &cipher, double stddevError,
+                      double varianceError, bool isForcedToCheck = true);
+  bool addPlaintext(const PolynomialBinary &plain, bool isForcedToCheck = true);
+  bool movePlaintext(PolynomialBinary &plain, bool isForcedToCheck = true);
 
   // Get attributes
   const std::vector<PolynomialBinary> &get_s() const;
@@ -53,15 +59,17 @@ public:
   const std::vector<PolynomialBinary> &get_plaintexts() const;
 
   // Utilities
-  bool encryptAll();
-  bool decryptAll();
+  bool encryptAll(bool isForcedToCheck = true);
+  bool decryptAll(bool isForcedToCheck = true);
   bool getAllErrorsForDebugging(
       std::vector<double> &errors,
-      const std::vector<PolynomialBinary> &expectedPlaintexts) const;
+      const std::vector<PolynomialBinary> &expectedPlaintexts,
+      bool isForcedToCheck = true) const;
   void setParamTo(Tlwe &obj) const;
   void tlweExtractAll(Tlwe &out) const;
   bool tlweExtract(Tlwe &out, const std::vector<int> &ps,
-                   const std::vector<int> &cipherIDs) const;
+                   const std::vector<int> &cipherIDs,
+                   bool isForcedToCheck = true) const;
 };
 
 } // namespace thesis
