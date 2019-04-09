@@ -6,10 +6,6 @@
 namespace thesis {
 
 class ThreadPool {
-private:
-  static int _numberThreads;
-  static Eigen::ThreadPool _threadPool;
-
 public:
   static int get_numberThreads();
   static Eigen::ThreadPool &get_threadPool();

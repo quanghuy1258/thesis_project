@@ -3,9 +3,13 @@
 
 namespace thesis {
 
-int ThreadPool::_numberThreads = std::thread::hardware_concurrency();
-Eigen::ThreadPool ThreadPool::_threadPool(ThreadPool::get_numberThreads());
-int ThreadPool::get_numberThreads() { return _numberThreads; }
-Eigen::ThreadPool &ThreadPool::get_threadPool() { return _threadPool; }
+int ThreadPool::get_numberThreads() {
+  static int _numberThreads = std::thread::hardware_concurrency();
+  return _numberThreads;
+}
+Eigen::ThreadPool &ThreadPool::get_threadPool() {
+  static Eigen::ThreadPool _threadPool(ThreadPool::get_numberThreads());
+  return _threadPool;
+}
 
 } // namespace thesis
