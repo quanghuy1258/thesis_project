@@ -167,9 +167,6 @@ bool Trgsw::decryptAll() {
   std::vector<Torus> decrypts(_ciphertexts.size());
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
-  std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
-  for (int i = 0; i < numberThreads; i++)
-    fftCalculators[i].set_N(_N);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
       PolynomialTorus productTorusPolynomial;
