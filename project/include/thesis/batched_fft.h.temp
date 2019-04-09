@@ -1,0 +1,65 @@
+#ifndef THESIS_BATCHED_FFT_H
+#define THESIS_BATCHED_FFT_H
+
+#include "thesis/declarations.h"
+#include "thesis/load_lib.h"
+
+#define USING_FFTW
+
+namespace thesis {
+
+class BatchedFFT {
+private:
+  int _batch;
+  int _N;
+  std::vector<double> _inp;
+  std::vector<std::complex<double>> _fft_inp;
+  std::vector<int> _multiplication_pair;
+  std::vector<std::complex<double>> _fft_out;
+  std::vector<double> _out;
+
+  BatchedFFT(int batch, int N) {
+#if defined(USING_32BIT)
+    const int mode = 8;
+#else
+    const int mode = 16;
+#endif
+    _batch = batch;
+    _N = N;
+    _multiplication_pair.resize(_batch * 2);
+    _inp.resize(_batch * _N * mode);
+    _fft_inp.resize(_batch * (_N / 2 + 1) * mode * 2);
+    _fft_out.resize(_batch * (_N / 2 + 1) * mode);
+    _out.resize(_batch * _N * mode);
+  }
+
+public:
+  // Constructors
+  BatchedFFT() = delete;
+  static std::unique_ptr<BatchedFFT> createInstance(int batch, int N) {
+    std::unique_ptr<BatchedFFT> ptr;
+    if (batch > 0 && N > 1 && (N & (N - 1)) == 0)
+      ptr.reset(new BatchedFFT(batch, N));
+    return ptr;
+  }
+  BatchedFFT(const BatchedFFT &) = delete;
+
+  // Destructor
+  ~BatchedFFT() {}
+
+  // Copy assignment operator
+  BatchedFFT &operator=(const BatchedFFT &obj) = delete;
+
+  // Get params
+  int get_batch() const { return _batch; }
+  int get_N() const { return _N; }
+
+  // Utilities
+  bool addInput(const PolynomialTorus &inp, int pos) {}
+  bool addInput(const PolynomialInteger &inp, int pos) {}
+  bool addInput(const PolynomialBinary &inp, int pos) {}
+}; // namespace thesis
+
+} // namespace thesis
+
+#endif
