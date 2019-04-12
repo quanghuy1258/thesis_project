@@ -8,6 +8,7 @@ namespace thesis {
 
 class FFTW : public BatchedFFT {
 private:
+  std::vector<std::complex<double>> _fft_out;
   std::vector<fftw_plan> _inp_plan;
   std::vector<fftw_plan> _out_plan;
 
@@ -21,6 +22,7 @@ public:
 #else
     const int mode = 8;
 #endif
+    _fft_out.resize(_batch * (_N * mode + 1), 0);
     _inp_plan.resize(_batch, nullptr);
     _out_plan.resize(_batch, nullptr);
     for (int i = 0; i < _batch; i++) {
@@ -59,43 +61,44 @@ public:
     barrier.Wait();
     return true;
   }
-  bool doIFFT() {
-    Eigen::Barrier barrier(_batch);
-    for (int i = 0; i < _batch; i++) {
-      ThreadPool::get_threadPool().Schedule([this, &barrier, i]() {
-        fftw_execute(_out_plan[i]);
-        barrier.Notify();
-      });
-    }
-    barrier.Wait();
-    return true;
-  }
-  bool doMultiplication() {
-    const int numberThreads = ThreadPool::get_numberThreads();
-    Eigen::Barrier barrier(numberThreads);
-    for (int i = 0; i < numberThreads; i++) {
-      ThreadPool::get_threadPool().Schedule(
-          [this, &barrier, i, numberThreads]() {
+  bool doMultiplicationAndIFFT() {
+    {
+      const int numberThreads = ThreadPool::get_numberThreads();
+      Eigen::Barrier barrier(numberThreads);
+      for (int i = 0; i < numberThreads; i++) {
+        ThreadPool::get_threadPool().Schedule(
+            [this, &barrier, i, numberThreads]() {
 #if defined(USING_32BIT)
-            const int mode = 4;
+              const int mode = 4;
 #else
-            const int mode = 8;
+              const int mode = 8;
 #endif
-            int s = (_batch * _N * (mode / 2) * i) / numberThreads,
-                e = (_batch * _N * (mode / 2) * (i + 1)) / numberThreads;
-            for (int it = s; it < e; it++) {
-              int j = it / (_N * (mode / 2));
-              int k = it % (_N * (mode / 2));
-              int left = _multiplication_pair[j * 2];
-              int right = _multiplication_pair[j * 2 + 1];
-              _fft_out[j * (_N * mode + 1) + 2 * k + 1] =
-                  _fft_inp[left * (_N * mode + 1) + 2 * k + 1] *
-                  _fft_inp[right * (_N * mode + 1) + 2 * k + 1];
-            }
-            barrier.Notify();
-          });
+              int s = (_batch * _N * (mode / 2) * i) / numberThreads,
+                  e = (_batch * _N * (mode / 2) * (i + 1)) / numberThreads;
+              for (int it = s; it < e; it++) {
+                int j = it / (_N * (mode / 2));
+                int k = it % (_N * (mode / 2));
+                int left = _multiplication_pair[j * 2];
+                int right = _multiplication_pair[j * 2 + 1];
+                _fft_out[j * (_N * mode + 1) + 2 * k + 1] =
+                    _fft_inp[left * (_N * mode + 1) + 2 * k + 1] *
+                    _fft_inp[right * (_N * mode + 1) + 2 * k + 1];
+              }
+              barrier.Notify();
+            });
+      }
+      barrier.Wait();
     }
-    barrier.Wait();
+    {
+      Eigen::Barrier barrier(_batch);
+      for (int i = 0; i < _batch; i++) {
+        ThreadPool::get_threadPool().Schedule([this, &barrier, i]() {
+          fftw_execute(_out_plan[i]);
+          barrier.Notify();
+        });
+      }
+      barrier.Wait();
+    }
     return true;
   }
 };

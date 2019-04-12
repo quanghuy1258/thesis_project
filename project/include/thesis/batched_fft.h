@@ -15,7 +15,6 @@ protected:
   std::vector<int> _multiplication_pair;
   std::vector<double> _inp;
   std::vector<std::complex<double>> _fft_inp;
-  std::vector<std::complex<double>> _fft_out;
   std::vector<double> _out;
 
   // Constructors
@@ -31,7 +30,6 @@ protected:
     _multiplication_pair.resize(_batch * 2, 0);
     _inp.resize(_batch * _N * 2 * mode, 0);
     _fft_inp.resize((_batch + _cache) * (_N * mode + 1), 0);
-    _fft_out.resize(_batch * (_N * mode + 1), 0);
     _out.resize(_batch * _N * 2 * mode, 0);
   }
 
@@ -260,8 +258,7 @@ public:
   }
 
   virtual bool doFFT() = 0;
-  virtual bool doIFFT() = 0;
-  virtual bool doMultiplication() = 0;
+  virtual bool doMultiplicationAndIFFT() = 0;
 }; // namespace thesis
 
 } // namespace thesis

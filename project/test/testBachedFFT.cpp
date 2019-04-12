@@ -51,8 +51,7 @@ TEST(Thesis, BachedFFT) {
   ptr->doFFT();
   for (int i = 0; i < 8; i++)
     ASSERT_TRUE(ptr->setMultiplicationPair(i, i + 8, i));
-  ptr->doMultiplication();
-  ptr->doIFFT();
+  ptr->doMultiplicationAndIFFT();
   for (int i = 0; i < 8; i++)
     ASSERT_TRUE(ptr->addOutput(result, i));
   for (int i = 0; i < 8; i++) {
