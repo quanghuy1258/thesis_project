@@ -49,8 +49,10 @@ public:
   }
 
   // Copy assignment operator
+  using BatchedFFT::operator=;
   FFTW &operator=(const FFTW &obj) = delete;
 
+  using BatchedFFT::doFFT;
   bool doFFT() {
     Eigen::Barrier barrier(_batch);
     for (int i = 0; i < _batch; i++) {
@@ -62,6 +64,7 @@ public:
     barrier.Wait();
     return true;
   }
+  using BatchedFFT::doMultiplicationAndIFFT;
   bool doMultiplicationAndIFFT() {
     {
       const int numberThreads = ThreadPool::get_numberThreads();
