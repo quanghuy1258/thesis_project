@@ -5,8 +5,6 @@
 #include "thesis/load_lib.h"
 #include "thesis/threadpool.h"
 
-#define USING_FFTW
-
 namespace thesis {
 
 class BatchedFFT {

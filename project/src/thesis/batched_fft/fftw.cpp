@@ -2,7 +2,7 @@
 
 #include "thesis/batched_fft.h"
 
-#ifdef USING_FFTW
+//#ifndef USING_CUDA // TODO: Will be replaced in the future
 
 namespace thesis {
 
@@ -103,4 +103,4 @@ BatchedFFT *BatchedFFT::newCustomInstance(int N, int batch, int cache) {
 
 } // namespace thesis
 
-#endif
+//#endif

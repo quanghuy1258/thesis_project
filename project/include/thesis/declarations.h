@@ -23,7 +23,8 @@ class Tlwe;
 class Trlwe;
 class Trgsw;
 
-class FFT;
+class [[deprecated("Replaced by BatchedFFT")]] FFT;
+class BatchedFFT;
 class Random;
 class ThreadPool;
 

@@ -122,23 +122,24 @@ bool Tlwe::encryptAll(bool isForcedToCheck) {
   Eigen::Barrier barrier(numberThreads);
   std::vector<std::vector<Torus>> encrypts(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
-    ThreadPool::get_threadPool().Schedule([&, i]() {
-      encrypts[i].resize(_plaintexts_size, 0);
-      Torus bit = 1;
-      bit <<= sizeof(Torus) * 8 - 1;
-      int s = (_plaintexts_size * (_n + 1) * i) / numberThreads,
-          e = (_plaintexts_size * (_n + 1) * (i + 1)) / numberThreads;
-      for (int it = s; it < e; it++) {
-        int j = it / (_n + 1);
-        int k = it % (_n + 1);
-        if (k == _n) {
-          encrypts[i][j] += _plaintexts[j] ? bit : 0;
-        } else {
-          encrypts[i][j] += _s[k] ? _ciphertexts[j][k] : 0;
-        }
-      }
-      barrier.Notify();
-    });
+    ThreadPool::get_threadPool().Schedule(
+        [this, i, &encrypts, _plaintexts_size, numberThreads, &barrier]() {
+          encrypts[i].resize(_plaintexts_size, 0);
+          Torus bit = 1;
+          bit <<= sizeof(Torus) * 8 - 1;
+          int s = (_plaintexts_size * (_n + 1) * i) / numberThreads,
+              e = (_plaintexts_size * (_n + 1) * (i + 1)) / numberThreads;
+          for (int it = s; it < e; it++) {
+            int j = it / (_n + 1);
+            int k = it % (_n + 1);
+            if (k == _n) {
+              encrypts[i][j] += _plaintexts[j] ? bit : 0;
+            } else {
+              encrypts[i][j] += _s[k] ? _ciphertexts[j][k] : 0;
+            }
+          }
+          barrier.Notify();
+        });
   }
   barrier.Wait();
   for (int i = 0; i < _plaintexts_size; i++) {
@@ -161,21 +162,22 @@ bool Tlwe::decryptAll(bool isForcedToCheck) {
   Eigen::Barrier barrier(numberThreads);
   std::vector<std::vector<Torus>> decrypts(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
-    ThreadPool::get_threadPool().Schedule([&, i]() {
-      decrypts[i].resize(_ciphertexts_size, 0);
-      int s = (_ciphertexts_size * (_n + 1) * i) / numberThreads,
-          e = (_ciphertexts_size * (_n + 1) * (i + 1)) / numberThreads;
-      for (int it = s; it < e; it++) {
-        int j = it / (_n + 1);
-        int k = it % (_n + 1);
-        if (k == _n) {
-          decrypts[i][j] += _ciphertexts[j][_n];
-        } else {
-          decrypts[i][j] -= _s[k] ? _ciphertexts[j][k] : 0;
-        }
-      }
-      barrier.Notify();
-    });
+    ThreadPool::get_threadPool().Schedule(
+        [this, i, &decrypts, _ciphertexts_size, numberThreads, &barrier]() {
+          decrypts[i].resize(_ciphertexts_size, 0);
+          int s = (_ciphertexts_size * (_n + 1) * i) / numberThreads,
+              e = (_ciphertexts_size * (_n + 1) * (i + 1)) / numberThreads;
+          for (int it = s; it < e; it++) {
+            int j = it / (_n + 1);
+            int k = it % (_n + 1);
+            if (k == _n) {
+              decrypts[i][j] += _ciphertexts[j][_n];
+            } else {
+              decrypts[i][j] -= _s[k] ? _ciphertexts[j][k] : 0;
+            }
+          }
+          barrier.Notify();
+        });
   }
   barrier.Wait();
   for (int i = 0; i < _ciphertexts_size; i++) {
@@ -205,7 +207,9 @@ bool Tlwe::getAllErrorsForDebugging(std::vector<double> &errors,
   Eigen::Barrier barrier(numberThreads);
   std::vector<std::vector<Torus>> decrypt_errors(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
-    ThreadPool::get_threadPool().Schedule([&, i]() {
+    ThreadPool::get_threadPool().Schedule([this, i, &decrypt_errors,
+                                           _ciphertexts_size, numberThreads,
+                                           &expectedPlaintexts, &barrier]() {
       decrypt_errors[i].resize(_ciphertexts_size);
       Torus bit = 1;
       bit <<= sizeof(Torus) * 8 - 1;

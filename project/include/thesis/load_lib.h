@@ -2,8 +2,12 @@
 #define THESIS_LOAD_LIB_H
 
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <ctime>
+#include <cwchar>
 
 #include <algorithm>
 #include <atomic>
@@ -20,13 +24,18 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <numeric>
 #include <queue>
 #include <random>
+#include <ratio>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <stack>
 #include <string>
 #include <thread>
+#include <tuple>
+#include <utility>
 #include <vector>
 
 #endif
