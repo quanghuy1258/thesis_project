@@ -259,9 +259,9 @@ public:
     return true;
   }
 
-  virtual void doFFT() = 0;
-  virtual void doIFFT() = 0;
-  virtual void doMultiplication() = 0;
+  virtual bool doFFT() = 0;
+  virtual bool doIFFT() = 0;
+  virtual bool doMultiplication() = 0;
 }; // namespace thesis
 
 } // namespace thesis

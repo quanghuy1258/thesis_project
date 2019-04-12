@@ -48,7 +48,7 @@ public:
   // Copy assignment operator
   FFTW &operator=(const FFTW &obj) = delete;
 
-  void doFFT() {
+  bool doFFT() {
     Eigen::Barrier barrier(_batch);
     for (int i = 0; i < _batch; i++) {
       ThreadPool::get_threadPool().Schedule([this, &barrier, i]() {
@@ -57,8 +57,9 @@ public:
       });
     }
     barrier.Wait();
+    return true;
   }
-  void doIFFT() {
+  bool doIFFT() {
     Eigen::Barrier barrier(_batch);
     for (int i = 0; i < _batch; i++) {
       ThreadPool::get_threadPool().Schedule([this, &barrier, i]() {
@@ -67,33 +68,35 @@ public:
       });
     }
     barrier.Wait();
+    return true;
   }
-  void doMultiplication() {
+  bool doMultiplication() {
     const int numberThreads = ThreadPool::get_numberThreads();
     Eigen::Barrier barrier(numberThreads);
     for (int i = 0; i < numberThreads; i++) {
-      ThreadPool::get_threadPool().Schedule([this, &barrier, i,
-                                             numberThreads]() {
+      ThreadPool::get_threadPool().Schedule(
+          [this, &barrier, i, numberThreads]() {
 #if defined(USING_32BIT)
-        const int mode = 4;
+            const int mode = 4;
 #else
-        const int mode = 8;
+            const int mode = 8;
 #endif
-        int s = (_batch * _N * (mode / 2) * i) / numberThreads,
-            e = (_batch * _N * (mode / 2) * (i + 1)) / numberThreads;
-        for (int it = s; it < e; it++) {
-          int j = it / (_N * (mode / 2));
-          int k = it % (_N * (mode / 2));
-          int left = _multiplication_pair[j * 2];
-          int right = _multiplication_pair[j * 2 + 1];
-          _fft_out[j * (_N * mode + 1) + 2 * k + 1] =
-              _fft_inp[left * (_N * mode + 1) + 2 * k + 1] *
-              _fft_inp[right * (_N * mode + 1) + 2 * k + 1];
-        }
-        barrier.Notify();
-      });
+            int s = (_batch * _N * (mode / 2) * i) / numberThreads,
+                e = (_batch * _N * (mode / 2) * (i + 1)) / numberThreads;
+            for (int it = s; it < e; it++) {
+              int j = it / (_N * (mode / 2));
+              int k = it % (_N * (mode / 2));
+              int left = _multiplication_pair[j * 2];
+              int right = _multiplication_pair[j * 2 + 1];
+              _fft_out[j * (_N * mode + 1) + 2 * k + 1] =
+                  _fft_inp[left * (_N * mode + 1) + 2 * k + 1] *
+                  _fft_inp[right * (_N * mode + 1) + 2 * k + 1];
+            }
+            barrier.Notify();
+          });
     }
     barrier.Wait();
+    return true;
   }
 };
 
