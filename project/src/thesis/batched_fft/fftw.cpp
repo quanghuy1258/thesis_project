@@ -1,8 +1,9 @@
 #include <fftw3.h>
 
 #include "thesis/batched_fft.h"
+#include "thesis/threadpool.h"
 
-//#ifndef USING_CUDA // TODO: Will be replaced in the future
+#ifndef USING_CUDA
 
 namespace thesis {
 
@@ -109,4 +110,4 @@ BatchedFFT *BatchedFFT::newCustomInstance(int N, int batch, int cache) {
 
 } // namespace thesis
 
-//#endif
+#endif

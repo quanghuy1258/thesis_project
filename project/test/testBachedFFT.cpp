@@ -3,6 +3,7 @@
 #include "thesis/batched_fft.h"
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
+#include "thesis/threadpool.h"
 
 TEST(Thesis, BachedFFT) {
   std::srand(std::time(nullptr));

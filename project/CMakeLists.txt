@@ -39,6 +39,7 @@ else()
 endif()
 if(CUDA_FOUND)
 	ADD_DEFINITIONS (-DUSING_CUDA)
+	ENABLE_LANGUAGE (CUDA)
 endif()
 
 # Check requirements
