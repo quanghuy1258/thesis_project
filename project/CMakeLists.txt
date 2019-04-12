@@ -19,7 +19,7 @@ FUNCTION (print_all_include_directories)
 ENDFUNCTION (print_all_include_directories)
 
 # Project Properties
-CMAKE_MINIMUM_REQUIRED (VERSION 3.3)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.13)
 PROJECT (thesis_project CXX)
 if(NOT CMAKE_BUILD_TYPE)
 	MESSAGE (STATUS "No build type selected, default to Release")
@@ -31,15 +31,17 @@ SET (CMAKE_CXX_STANDARD_REQUIRED ON)
 SET (CMAKE_CXX_FLAGS "-O3 -Wall")
 
 # GPU support
+INCLUDE (CheckLanguage)
 if(NOT CPU_ONLY)
 	MESSAGE (STATUS "CPU_ONLY=OFF --> Try to use CUDA if possible")
-	FIND_PACKAGE (CUDA 8.0)
+	CHECK_LANGUAGE (CUDA)
 else()
 	MESSAGE (STATUS "CPU_ONLY=ON --> Only use CPU")
 endif()
-if(CUDA_FOUND)
+if(CMAKE_CUDA_COMPILER)
 	ADD_DEFINITIONS (-DUSING_CUDA)
 	ENABLE_LANGUAGE (CUDA)
+	FIND_PACKAGE (CUDA 8.0 REQUIRED)
 endif()
 
 # Check requirements
@@ -69,7 +71,7 @@ ADD_SUBDIRECTORY(thirdparty)
 INCLUDE_DIRECTORIES("${MAINFOLDER}/include")
 
 # Add packages
-FIND_PACKAGE(Threads)
+FIND_PACKAGE (Threads REQUIRED)
 
 # Add Build Targets
 ADD_SUBDIRECTORY(src)
