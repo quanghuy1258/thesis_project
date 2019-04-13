@@ -1,9 +1,9 @@
+#ifdef USING_CUDA
+
 #include "thesis/batched_fft.h"
 
 #include <cuComplex.h>
 #include <cufft.h>
-
-#ifdef USING_CUDA
 
 __global__ void multiply(int N, int batch, cuDoubleComplex *inp, int *id,
                          cuDoubleComplex *out) {
@@ -78,10 +78,10 @@ public:
     if (cudaMalloc(&_out_data, sizeof(cufftDoubleComplex) * (_N * mode + 1) *
                                    _batch) == cudaSuccess)
       _isInitCode |= 4;
-    if (cufftPlan1d(&_inp_plan, _N * 2 * mode, CUFFT_D2Z, _batch) !=
+    if (cufftPlan1d(&_inp_plan, _N * 2 * mode, CUFFT_D2Z, _batch) ==
         CUFFT_SUCCESS)
       _isInitCode |= 8;
-    if (cufftPlan1d(&_out_plan, _N * 2 * mode, CUFFT_Z2D, _batch) !=
+    if (cufftPlan1d(&_out_plan, _N * 2 * mode, CUFFT_Z2D, _batch) ==
         CUFFT_SUCCESS)
       _isInitCode |= 16;
     if (_isInitCode == 31)

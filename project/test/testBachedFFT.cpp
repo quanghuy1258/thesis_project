@@ -9,6 +9,7 @@ TEST(Thesis, BachedFFT) {
   std::srand(std::time(nullptr));
   std::unique_ptr<thesis::BatchedFFT> ptr =
       thesis::BatchedFFT::createInstance(8, 8, 8);
+  ASSERT_TRUE(ptr != nullptr);
   std::vector<thesis::PolynomialTorus> torusInp(8);
   std::vector<thesis::PolynomialInteger> integerInp(8);
   thesis::PolynomialTorus result(8, 0), expect(8, 0);
@@ -36,7 +37,7 @@ TEST(Thesis, BachedFFT) {
       ASSERT_TRUE(ptr->setIntegerInput(integerInp[i], i, &notifier));
     notifier.Wait();
   }
-  ptr->doFFT();
+  ASSERT_TRUE(ptr->doFFT());
   {
     Eigen::Barrier notifier(8);
     for (int i = 0; i < 8; i++)
@@ -49,10 +50,10 @@ TEST(Thesis, BachedFFT) {
       ASSERT_TRUE(ptr->setTorusInput(torusInp[i], i, &notifier));
     notifier.Wait();
   }
-  ptr->doFFT();
+  ASSERT_TRUE(ptr->doFFT());
   for (int i = 0; i < 8; i++)
     ASSERT_TRUE(ptr->setMultiplicationPair(i, i + 8, i));
-  ptr->doMultiplicationAndIFFT();
+  ASSERT_TRUE(ptr->doMultiplicationAndIFFT());
   for (int i = 0; i < 8; i++)
     ASSERT_TRUE(ptr->addOutput(result, i));
   for (int i = 0; i < 8; i++) {

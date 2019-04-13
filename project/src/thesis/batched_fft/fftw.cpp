@@ -1,9 +1,9 @@
+#ifndef USING_CUDA
+
 #include <fftw3.h>
 
 #include "thesis/batched_fft.h"
 #include "thesis/threadpool.h"
-
-#ifndef USING_CUDA
 
 namespace thesis {
 
