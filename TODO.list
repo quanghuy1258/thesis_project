@@ -1,1 +1,6 @@
 - Ring Multiplication: 3 functions -> Mul, AddMul, SubMul
+
+- Include: Remove Single FFT (fft.h)
+- Benchmark: Remove Single FFT (CMakeLists.txt)
+- Test: Remove Single FFT (CMakeLists.txt + TestFFT.cpp)
+- Src: Remove Single FFT (CMakeLists.txt + fft)
