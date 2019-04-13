@@ -22,6 +22,7 @@ class CuFFT : public BatchedFFT {
 private:
   int _isInitCode;
   int *_multiplication_pair_ptr;
+  cufftDoubleReal *_data;
   cufftDoubleComplex *_inp_data;
   cufftDoubleComplex *_out_data;
   cufftHandle _inp_plan;
@@ -34,6 +35,7 @@ public:
   CuFFT(int N, int batch, int cache) : BatchedFFT(N, batch, cache) {
     _isInitCode = 0;
     _multiplication_pair_ptr = nullptr;
+    _data = nullptr;
     _inp_data = nullptr;
     _out_data = nullptr;
     _inp_plan = 0;
@@ -41,21 +43,25 @@ public:
   }
 
   void clean() {
-    if (_isInitCode & 16) {
+    if (_isInitCode & 32) {
       cufftDestroy(_out_plan);
       _out_plan = 0;
     }
-    if (_isInitCode & 8) {
+    if (_isInitCode & 16) {
       cufftDestroy(_inp_plan);
       _inp_plan = 0;
     }
-    if (_isInitCode & 4) {
+    if (_isInitCode & 8) {
       cudaFree(_out_data);
       _out_data = nullptr;
     }
-    if (_isInitCode & 2) {
+    if (_isInitCode & 4) {
       cudaFree(_inp_data);
       _inp_data = nullptr;
+    }
+    if (_isInitCode & 2) {
+      cudaFree(_data);
+      _data = nullptr;
     }
     if (_isInitCode & 1) {
       cudaFree(_multiplication_pair_ptr);
@@ -72,19 +78,22 @@ public:
     if (cudaMalloc(&_multiplication_pair_ptr, sizeof(int) * _batch * 2) ==
         cudaSuccess)
       _isInitCode |= 1;
+    if (cudaMalloc(&_data, sizeof(cufftDoubleReal) * _N * 2 * mode * _batch) ==
+        cudaSuccess)
+      _isInitCode |= 2;
     if (cudaMalloc(&_inp_data, sizeof(cufftDoubleComplex) * (_N * mode + 1) *
                                    (_batch + _cache)) == cudaSuccess)
-      _isInitCode |= 2;
+      _isInitCode |= 4;
     if (cudaMalloc(&_out_data, sizeof(cufftDoubleComplex) * (_N * mode + 1) *
                                    _batch) == cudaSuccess)
-      _isInitCode |= 4;
+      _isInitCode |= 8;
     if (cufftPlan1d(&_inp_plan, _N * 2 * mode, CUFFT_D2Z, _batch) ==
         CUFFT_SUCCESS)
-      _isInitCode |= 8;
+      _isInitCode |= 16;
     if (cufftPlan1d(&_out_plan, _N * 2 * mode, CUFFT_Z2D, _batch) ==
         CUFFT_SUCCESS)
-      _isInitCode |= 16;
-    if (_isInitCode == 31)
+      _isInitCode |= 32;
+    if (_isInitCode == 63)
       return true;
     clean();
     return false;
@@ -106,12 +115,11 @@ public:
 #endif
     if (_isInitCode == 0)
       return false;
-    if (cudaMemcpy(_inp_data, _inp.data(),
+    if (cudaMemcpy(_data, _inp.data(),
                    sizeof(cufftDoubleReal) * _N * 2 * mode * _batch,
                    cudaMemcpyHostToDevice) != cudaSuccess)
       return false;
-    if (cufftExecD2Z(_inp_plan, (cufftDoubleReal *)_inp_data, _inp_data) !=
-        CUFFT_SUCCESS)
+    if (cufftExecD2Z(_inp_plan, _data, _inp_data) != CUFFT_SUCCESS)
       return false;
     if (cudaDeviceSynchronize() != cudaSuccess)
       return false;
@@ -144,12 +152,11 @@ public:
     dim3 numBlocks((_N * mode + 512) / 512, _batch);
     multiply<<<numBlocks, threadsPerBlock>>>(
         _N * mode + 1, _batch, _inp_data, _multiplication_pair_ptr, _out_data);
-    if (cufftExecZ2D(_out_plan, _out_data, (cufftDoubleReal *)_out_data) !=
-        CUFFT_SUCCESS)
+    if (cufftExecZ2D(_out_plan, _out_data, _data) != CUFFT_SUCCESS)
       return false;
     if (cudaDeviceSynchronize() != cudaSuccess)
       return false;
-    if (cudaMemcpy(_out.data(), _out_data,
+    if (cudaMemcpy(_out.data(), _data,
                    sizeof(cufftDoubleReal) * _N * 2 * mode * _batch,
                    cudaMemcpyDeviceToHost) != cudaSuccess)
       return false;
