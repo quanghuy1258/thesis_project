@@ -193,10 +193,11 @@ bool Tlwe::decryptAll(bool isForcedToCheck) {
 bool Tlwe::getAllErrorsForDebugging(std::vector<double> &errors,
                                     const std::vector<bool> &expectedPlaintexts,
                                     bool isForcedToCheck) const {
-  if (isForcedToCheck &&
-      (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size()))
-    return false;
   const int _ciphertexts_size = _ciphertexts.size();
+  const int expectedPlaintexts_size = expectedPlaintexts.size();
+  if (isForcedToCheck &&
+      (_s.empty() || _ciphertexts_size != expectedPlaintexts_size))
+    return false;
   if (_ciphertexts_size == 0) {
     errors.clear();
     return true;

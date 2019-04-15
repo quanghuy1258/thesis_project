@@ -144,11 +144,11 @@ const std::vector<PolynomialBinary> &Trlwe::get_plaintexts() const {
 bool Trlwe::encryptAll(bool isForcedToCheck) {
   if (isForcedToCheck && _s.empty())
     return false;
-  if (_plaintexts.empty()) {
+  const int _plaintexts_size = _plaintexts.size();
+  if (_plaintexts_size == 0) {
     clear_ciphertexts();
     return true;
   } else {
-    const int _plaintexts_size = _plaintexts.size();
     _ciphertexts.resize(_plaintexts_size);
     _stddevErrors.resize(_plaintexts_size);
     _varianceErrors.resize(_plaintexts_size);
@@ -171,7 +171,6 @@ bool Trlwe::encryptAll(bool isForcedToCheck) {
     }
   }
   const int numberThreads = ThreadPool::get_numberThreads();
-  const int _plaintexts_size = _plaintexts.size();
   std::unique_ptr<BatchedFFT> ptr =
       BatchedFFT::createInstance(_N, _k * numberThreads, _k, false);
   {
@@ -225,17 +224,16 @@ bool Trlwe::encryptAll(bool isForcedToCheck) {
 bool Trlwe::decryptAll(bool isForcedToCheck) {
   if (isForcedToCheck && _s.empty())
     return false;
-  if (_ciphertexts.empty()) {
+  const int _ciphertexts_size = _ciphertexts.size();
+  if (_ciphertexts_size == 0) {
     clear_plaintexts();
     return true;
   } else {
-    const int _ciphertexts_size = _ciphertexts.size();
     _plaintexts.resize(_ciphertexts_size);
     for (int i = 0; i < _ciphertexts_size; i++)
       _plaintexts[i].resize(_N);
   }
   const int numberThreads = ThreadPool::get_numberThreads();
-  const int _ciphertexts_size = _ciphertexts.size();
   std::unique_ptr<BatchedFFT> ptr =
       BatchedFFT::createInstance(_N, _k * numberThreads, _k, false);
   {
@@ -293,25 +291,25 @@ bool Trlwe::getAllErrorsForDebugging(
     std::vector<double> &errors,
     const std::vector<PolynomialBinary> &expectedPlaintexts,
     bool isForcedToCheck) const {
+  const int _ciphertexts_size = _ciphertexts.size();
+  const int expectedPlaintexts_size = expectedPlaintexts.size();
   if (isForcedToCheck) {
-    if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
+    if (_s.empty() || _ciphertexts_size != expectedPlaintexts_size)
       return false;
-    const int expectedPlaintexts_size = expectedPlaintexts.size();
     for (int i = 0; i < expectedPlaintexts_size; i++) {
       const int expectedPlaintexts_i_size = expectedPlaintexts[i].size();
       if (expectedPlaintexts_i_size != _N)
         return false;
     }
   }
-  if (_ciphertexts.empty()) {
+  if (_ciphertexts_size == 0) {
     errors.clear();
     return true;
   } else {
-    errors.resize(_ciphertexts.size());
+    errors.resize(_ciphertexts_size);
     std::fill(errors.begin(), errors.end(), 0);
   }
   const int numberThreads = ThreadPool::get_numberThreads();
-  const int _ciphertexts_size = _ciphertexts.size();
   std::unique_ptr<BatchedFFT> ptr =
       BatchedFFT::createInstance(_N, _k * numberThreads, _k, false);
   {
@@ -371,7 +369,7 @@ bool Trlwe::getAllErrorsForDebugging(
 void Trlwe::setParamTo(Tlwe &obj) const {
   obj._n = _N * _k;
   if (_s.empty()) {
-    obj._s.empty();
+    obj._s.clear();
   } else {
     obj._s.resize(obj._n);
     for (int i = 0; i < obj._n; i++) {
@@ -382,11 +380,11 @@ void Trlwe::setParamTo(Tlwe &obj) const {
   obj.clear_plaintexts();
 }
 void Trlwe::tlweExtractAll(Tlwe &out) const {
+  const int _ciphertexts_size = _ciphertexts.size();
   setParamTo(out);
-  if (_ciphertexts.empty()) {
+  if (_ciphertexts_size == 0) {
     return;
   } else {
-    const int _ciphertexts_size = _ciphertexts.size();
     out._ciphertexts.resize(_ciphertexts_size * _N);
     out._stddevErrors.resize(_ciphertexts_size * _N);
     out._varianceErrors.resize(_ciphertexts_size * _N);
@@ -400,8 +398,8 @@ void Trlwe::tlweExtractAll(Tlwe &out) const {
   Eigen::Barrier barrier(numberThreads);
   for (int it = 0; it < numberThreads; it++) {
     ThreadPool::get_threadPool().Schedule([&, it]() {
-      int s = (_ciphertexts.size() * _N * (_N * _k + 1) * it) / numberThreads,
-          e = (_ciphertexts.size() * _N * (_N * _k + 1) * (it + 1)) /
+      int s = (_ciphertexts_size * _N * (_N * _k + 1) * it) / numberThreads,
+          e = (_ciphertexts_size * _N * (_N * _k + 1) * (it + 1)) /
               numberThreads;
       for (int i = s; i < e; i++) {
         int cipherID = i / (_N * (_N * _k + 1));
@@ -427,8 +425,9 @@ bool Trlwe::tlweExtract(Tlwe &out, const std::vector<int> &ps,
                         const std::vector<int> &cipherIDs,
                         bool isForcedToCheck) const {
   const int numberExtracts = ps.size();
+  const int cipherIDs_size = cipherIDs.size();
   if (isForcedToCheck) {
-    if (ps.size() != cipherIDs.size())
+    if (numberExtracts != cipherIDs_size)
       return false;
     const int _ciphertexts_size = _ciphertexts.size();
     for (int i = 0; i < numberExtracts; i++) {
