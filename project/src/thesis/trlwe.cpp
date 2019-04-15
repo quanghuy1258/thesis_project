@@ -307,7 +307,7 @@ bool Trlwe::getAllErrorsForDebugging(
     return true;
   } else {
     errors.resize(_ciphertexts_size);
-    std::fill(errors.begin(), errors.end(), 0);
+    std::memset(errors.data(), 0, _ciphertexts_size * sizeof(double));
   }
   const int numberThreads = ThreadPool::get_numberThreads();
   std::unique_ptr<BatchedFFT> ptr =
