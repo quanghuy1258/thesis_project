@@ -3,7 +3,6 @@
 
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
-#include "thesis/tlwe.h"
 
 namespace thesis {
 
@@ -17,6 +16,8 @@ private:
   std::vector<double> _stddevErrors;
   std::vector<double> _varianceErrors;
   std::vector<PolynomialBinary> _plaintexts;
+
+  std::unique_ptr<BatchedFFT> _ptrEncDec;
 
   friend class Trgsw;
 
@@ -64,7 +65,7 @@ public:
   bool getAllErrorsForDebugging(
       std::vector<double> &errors,
       const std::vector<PolynomialBinary> &expectedPlaintexts,
-      bool isForcedToCheck = true) const;
+      bool isForcedToCheck = true);
   void setParamTo(Tlwe &obj) const;
   void tlweExtractAll(Tlwe &out) const;
   bool tlweExtract(Tlwe &out, const std::vector<int> &ps,

@@ -1,5 +1,5 @@
 #include "thesis/trgsw.h"
-#include "thesis/fft.h"
+#include "thesis/batched_fft.h"
 #include "thesis/random.h"
 #include "thesis/threadpool.h"
 #include "thesis/trlwe.h"
@@ -34,14 +34,33 @@ void Trgsw::clear_ciphertexts() {
   _varianceErrors.clear();
 }
 void Trgsw::clear_plaintexts() { _plaintexts.clear(); }
-bool Trgsw::set_s(const std::vector<PolynomialBinary> &s) {
-  if ((signed)s.size() != _k)
-    return false;
-  for (int i = 0; i < _k; i++) {
-    if ((signed)s[i].size() != _N)
+bool Trgsw::set_s(const std::vector<PolynomialBinary> &s,
+                  bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int s_size = s.size();
+    if (s_size != _k)
       return false;
+    for (int i = 0; i < _k; i++) {
+      const int s_i_size = s[i].size();
+      if (s_i_size != _N)
+        return false;
+    }
   }
   _s = s;
+  return true;
+}
+bool Trgsw::move_s(std::vector<PolynomialBinary> &s, bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int s_size = s.size();
+    if (s_size != _k)
+      return false;
+    for (int i = 0; i < _k; i++) {
+      const int s_i_size = s[i].size();
+      if (s_i_size != _N)
+        return false;
+    }
+  }
+  _s = std::move(s);
   return true;
 }
 void Trgsw::generate_s() {
@@ -49,19 +68,44 @@ void Trgsw::generate_s() {
   for (int i = 0; i < _k; i++) {
     _s[i].resize(_N);
     for (int j = 0; j < _N; j++) {
-      _s[i][j] = (Random::getUniformInteger() % 2 == 1);
+      _s[i][j] = Random::getUniformInteger() & 1;
     }
   }
 }
 bool Trgsw::addCiphertext(const std::vector<PolynomialTorus> &cipher,
-                          double stddevError, double varianceError) {
-  if ((signed)cipher.size() != (_k + 1) * _l * (_k + 1))
-    return false;
-  for (int i = 0; i < (_k + 1) * _l * (_k + 1); i++) {
-    if ((signed)cipher[i].size() != _N)
+                          double stddevError, double varianceError,
+                          bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int cipher_size = cipher.size();
+    if (cipher_size != (_k + 1) * _l * (_k + 1) || stddevError < 0 ||
+        varianceError < 0)
       return false;
+    for (int i = 0; i < cipher_size; i++) {
+      const int cipher_i_size = cipher[i].size();
+      if (cipher_i_size != _N)
+        return false;
+    }
   }
   _ciphertexts.push_back(cipher);
+  _stddevErrors.push_back(stddevError);
+  _varianceErrors.push_back(varianceError);
+  return true;
+}
+bool Trgsw::moveCiphertext(std::vector<PolynomialTorus> &cipher,
+                           double stddevError, double varianceError,
+                           bool isForcedToCheck) {
+  if (isForcedToCheck) {
+    const int cipher_size = cipher.size();
+    if (cipher_size != (_k + 1) * _l * (_k + 1) || stddevError < 0 ||
+        varianceError < 0)
+      return false;
+    for (int i = 0; i < cipher_size; i++) {
+      const int cipher_i_size = cipher[i].size();
+      if (cipher_i_size != _N)
+        return false;
+    }
+  }
+  _ciphertexts.push_back(std::move(cipher));
   _stddevErrors.push_back(stddevError);
   _varianceErrors.push_back(varianceError);
   return true;
@@ -83,17 +127,20 @@ const std::vector<double> &Trgsw::get_varianceErrors() const {
 const std::vector<bool> &Trgsw::get_plaintexts() const { return _plaintexts; }
 
 // Utilities
-bool Trgsw::encryptAll() {
-  if (_s.empty())
+bool Trgsw::encryptAll(bool isForcedToCheck) {
+  if (isForcedToCheck && _s.empty())
     return false;
-  if (_plaintexts.empty()) {
+  const int bitsize_Torus = 8 * sizeof(Torus);
+  const Torus bit = 1;
+  const int _plaintexts_size = _plaintexts.size();
+  if (_plaintexts_size == 0) {
     clear_ciphertexts();
     return true;
   } else {
-    _ciphertexts.resize(_plaintexts.size());
-    _stddevErrors.resize(_plaintexts.size());
-    _varianceErrors.resize(_plaintexts.size());
-    for (int i = 0; i < (signed)_plaintexts.size(); i++) {
+    _ciphertexts.resize(_plaintexts_size);
+    _stddevErrors.resize(_plaintexts_size);
+    _varianceErrors.resize(_plaintexts_size);
+    for (int i = 0; i < _plaintexts_size; i++) {
       _ciphertexts[i].resize((_k + 1) * _l * (_k + 1));
       _stddevErrors[i] = STDDEV_ERROR;
       _varianceErrors[i] = STDDEV_ERROR * STDDEV_ERROR;
@@ -113,65 +160,52 @@ bool Trgsw::encryptAll() {
       }
     }
   }
-#ifdef USING_GPU
-#else
-  int numberThreads = ThreadPool::get_numberThreads();
-  Eigen::Barrier barrier(numberThreads);
-  std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
-  for (int i = 0; i < numberThreads; i++)
-    fftCalculators[i].set_N(_N);
-  for (int i = 0; i < numberThreads; i++) {
-    ThreadPool::get_threadPool().Schedule([&, i]() {
-      PolynomialTorus productTorusPolynomial;
-      Torus bit = 1;
-      int s = (_plaintexts.size() * (_k + 1) * _l * i) / numberThreads,
-          e = (_plaintexts.size() * (_k + 1) * _l * (i + 1)) / numberThreads;
-      for (int j = s; j < e; j++) {
-        int plainID = j / ((_k + 1) * _l);
-        int rowID = j % ((_k + 1) * _l);
-        int blockID = rowID / _l;
-        int rowIdInBlock = rowID % _l;
-        for (int k = 0; k < _k; k++) {
-          fftCalculators[i].torusPolynomialMultiplication(
-              productTorusPolynomial, _s[k],
-              _ciphertexts[plainID][rowID * (_k + 1) + k]);
-          for (int l = 0; l < _N; l++) {
-            _ciphertexts[plainID][rowID * (_k + 1) + _k][l] +=
-                productTorusPolynomial[l];
-          }
-        }
-        if (_plaintexts[plainID] &&
-            (8 * (signed)sizeof(Torus) >= _Bgbit * (rowIdInBlock + 1))) {
-          _ciphertexts[plainID][rowID * (_k + 1) + blockID][0] +=
-              (bit << (8 * sizeof(Torus) - _Bgbit * (rowIdInBlock + 1)));
-        }
-      }
-      barrier.Notify();
-    });
+  std::unique_ptr<BatchedFFT> ptr =
+      BatchedFFT::createInstance(_N, _k * 2, _k, false);
+  for (int i = 0; i < _k; i++)
+    ptr->setBinaryInp(_s[i], _k + i, false);
+  for (int i = 0; i < _plaintexts_size; i++) {
+    for (int j = 0; j < (_k + 1) * _l; j++) {
+      for (int k = 0; k < _k; k++)
+        ptr->setTorusInp(_ciphertexts[i][j * (_k + 1) + k], k, false);
+      for (int k = 0; k < _k; k++)
+        ptr->setMulPair(k, _k + k, k, false);
+      ptr->addAllOut(_ciphertexts[i][j * (_k + 1) + _k], false);
+    }
   }
-  barrier.Wait();
-#endif
+  ptr->waitAll();
+  for (int i = 0; i < _plaintexts_size; i++) {
+    if (!_plaintexts[i])
+      continue;
+    for (int j = 0; j <= _k; j++) {
+      for (int k = 0; k < _l; k++) {
+        if (bitsize_Torus < _Bgbit * (k + 1))
+          break;
+        _ciphertexts[i][j * _l * (_k + 1) + k * (_k + 1) + j][0] +=
+            (bit << (bitsize_Torus - _Bgbit * (k + 1)));
+      }
+    }
+  }
   return true;
 }
-bool Trgsw::decryptAll() {
-  if (_s.empty())
+bool Trgsw::decryptAll(bool isForcedToCheck) {
+  if (isForcedToCheck && _s.empty())
     return false;
-  if (_ciphertexts.empty()) {
+  const int bitsize_Torus = 8 * sizeof(Torus);
+  const int _ciphertexts_size = _ciphertexts.size();
+  if (_ciphertexts_size == 0) {
     clear_plaintexts();
     return true;
   } else {
-    _plaintexts.resize(_ciphertexts.size());
+    _plaintexts.resize(_ciphertexts_size);
   }
-#ifdef USING_GPU
-#else
-  std::vector<Torus> decrypts(_ciphertexts.size());
+  std::vector<Torus> decrypts(_ciphertexts_size);
   int numberThreads = ThreadPool::get_numberThreads();
   Eigen::Barrier barrier(numberThreads);
   for (int i = 0; i < numberThreads; i++) {
     ThreadPool::get_threadPool().Schedule([&, i]() {
-      PolynomialTorus productTorusPolynomial;
-      int s = (_ciphertexts.size() * i) / numberThreads,
-          e = (_ciphertexts.size() * (i + 1)) / numberThreads;
+      int s = (_ciphertexts_size * i) / numberThreads,
+          e = (_ciphertexts_size * (i + 1)) / numberThreads;
       for (int j = s; j < e; j++) {
         decrypts[j] = _ciphertexts[j][_k * _l * (_k + 1) + _k][0];
         for (int k = 0; k < _k; k++) {
@@ -186,119 +220,115 @@ bool Trgsw::decryptAll() {
     });
   }
   barrier.Wait();
-  for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
-    int bits = sizeof(Torus) * 8 - _Bgbit - 1;
-    decrypts[i] = ((decrypts[i] >> bits) & 3);
-    _plaintexts[i] = ((decrypts[i] == 1) || (decrypts[i] == 2));
+  const int bits = bitsize_Torus - _Bgbit - 1;
+  for (int i = 0; i < _ciphertexts_size; i++) {
+    decrypts[i] = (decrypts[i] >> bits) & 3;
+    _plaintexts[i] = (decrypts[i] == 1 || decrypts[i] == 2);
   }
-#endif
   return true;
 }
 bool Trgsw::getAllErrorsForDebugging(
-    std::vector<double> &errors,
-    const std::vector<bool> &expectedPlaintexts) const {
-  if (_s.empty() || _ciphertexts.size() != expectedPlaintexts.size())
+    std::vector<double> &errors, const std::vector<bool> &expectedPlaintexts,
+    bool isForcedToCheck) {
+  const int bitsize_Torus = 8 * sizeof(Torus);
+  const Torus bit = 1;
+  const int _ciphertexts_size = _ciphertexts.size();
+  const int expectedPlaintexts_size = expectedPlaintexts.size();
+  if (isForcedToCheck &&
+      (_s.empty() || _ciphertexts_size != expectedPlaintexts_size))
     return false;
-  if (_ciphertexts.empty()) {
+  if (_ciphertexts_size == 0) {
     errors.clear();
     return true;
   } else {
-    errors.resize(_ciphertexts.size());
-    std::fill(errors.begin(), errors.end(), 0);
+    errors.resize(_ciphertexts_size);
+    std::memset(errors.data(), 0, _ciphertexts_size * sizeof(double));
   }
-#ifdef USING_GPU
-#else
-  std::vector<double> all_errors(_ciphertexts.size() * (_k + 1) * _l);
-  std::fill(all_errors.begin(), all_errors.end(), 0);
-  int numberThreads = ThreadPool::get_numberThreads();
-  Eigen::Barrier barrier(numberThreads);
-  std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
-  for (int i = 0; i < numberThreads; i++)
-    fftCalculators[i].set_N(_N);
-  for (int i = 0; i < numberThreads; i++) {
-    ThreadPool::get_threadPool().Schedule([&, i]() {
-      PolynomialTorus productTorusPolynomial, cipherTorusPolynomial,
-          decryptTorusPolynomial;
-      Torus bit = 1;
-      int s = (_ciphertexts.size() * (_k + 1) * _l * i) / numberThreads,
-          e = (_ciphertexts.size() * (_k + 1) * _l * (i + 1)) / numberThreads;
-      for (int j = s; j < e; j++) {
-        int cipherID = j / ((_k + 1) * _l);
-        int rowID = j % ((_k + 1) * _l);
-        int blockID = rowID / _l;
-        int rowIdInBlock = rowID % _l;
-        decryptTorusPolynomial = _ciphertexts[cipherID][rowID * (_k + 1) + _k];
-        if (expectedPlaintexts[cipherID] && (blockID == _k) &&
-            (8 * (signed)sizeof(Torus) >= _Bgbit * (rowIdInBlock + 1))) {
-          decryptTorusPolynomial[0] -=
-              (bit << (8 * sizeof(Torus) - _Bgbit * (rowIdInBlock + 1)));
-        }
-        for (int k = 0; k < _k; k++) {
-          if (expectedPlaintexts[cipherID] && (blockID == k) &&
-              (8 * (signed)sizeof(Torus) >= _Bgbit * (rowIdInBlock + 1))) {
-            cipherTorusPolynomial =
-                _ciphertexts[cipherID][rowID * (_k + 1) + k];
-            cipherTorusPolynomial[0] -=
-                (bit << (8 * sizeof(Torus) - _Bgbit * (rowIdInBlock + 1)));
-            fftCalculators[i].torusPolynomialMultiplication(
-                productTorusPolynomial, _s[k], cipherTorusPolynomial);
-          } else {
-            fftCalculators[i].torusPolynomialMultiplication(
-                productTorusPolynomial, _s[k],
-                _ciphertexts[cipherID][rowID * (_k + 1) + k]);
-          }
-          for (int l = 0; l < _N; l++) {
-            decryptTorusPolynomial[l] -= productTorusPolynomial[l];
-          }
+  std::unique_ptr<BatchedFFT> ptr =
+      BatchedFFT::createInstance(_N, _k * 2, _k, false);
+  for (int i = 0; i < _k; i++)
+    ptr->setBinaryInp(_s[i], _k + i, false);
+  int old_i = -1, old_j = -1;
+  PolynomialTorus decrypt;
+  if (expectedPlaintexts[0] && bitsize_Torus >= _Bgbit)
+    _ciphertexts[0][0][0] -= (bit << (bitsize_Torus - _Bgbit));
+  for (int i = 0; i < _ciphertexts_size; i++) {
+    for (int j = 0; j < (_k + 1) * _l; j++) {
+      for (int k = 0; k < _k; k++)
+        ptr->setTorusInp(_ciphertexts[i][j * (_k + 1) + k], k, false);
+      for (int k = 0; k < _k; k++)
+        ptr->setMulPair(k, _k + k, k, false);
+      if (old_i >= 0 && old_j >= 0) {
+        if (expectedPlaintexts[old_i] &&
+            bitsize_Torus >= _Bgbit * (old_j % _l + 1)) {
+          _ciphertexts[old_i][old_j * (_k + 1) + old_j / _l][0] +=
+              (bit << (bitsize_Torus - _Bgbit * (old_j % _l + 1)));
         }
         for (int k = 0; k < _N; k++) {
-          all_errors[j] =
-              std::max(all_errors[j], std::abs(decryptTorusPolynomial[k] /
-                                               std::pow(2, sizeof(Torus) * 8)));
+          double bit_double = decrypt[k];
+          errors[old_i] = std::max(
+              errors[old_i], std::abs(bit_double / std::pow(2, bitsize_Torus)));
         }
       }
-      barrier.Notify();
-    });
-  }
-  barrier.Wait();
-  for (int i = 0; i < (signed)_ciphertexts.size(); i++) {
-    for (int j = 0; j < (_k + 1) * _l; j++) {
-      errors[i] = std::max(errors[i], all_errors[i * (_k + 1) * _l + j]);
+      old_i = i;
+      old_j = j;
+      int new_i = i, new_j = j + 1;
+      if (new_j == (_k + 1) * _l) {
+        new_i = i + 1;
+        new_j = 0;
+      }
+      if (new_i == _ciphertexts_size) {
+        new_i = -1;
+        new_j = -1;
+      }
+      if (new_i >= 0 && new_j >= 0 && expectedPlaintexts[new_i] &&
+          bitsize_Torus >= _Bgbit * (new_j % _l + 1)) {
+        _ciphertexts[new_i][new_j * (_k + 1) + new_j / _l][0] -=
+            (bit << (bitsize_Torus - _Bgbit * (new_j % _l + 1)));
+      }
+      decrypt = _ciphertexts[i][j * (_k + 1) + _k];
+      ptr->subAllOut(decrypt, false);
     }
   }
-#endif
+  ptr->waitAll();
+  if (expectedPlaintexts[_ciphertexts_size - 1] &&
+      bitsize_Torus >= _Bgbit * _l) {
+    _ciphertexts[_ciphertexts_size - 1][(_k + 1) * _l * (_k + 1) - 1][0] +=
+        (bit << (bitsize_Torus - _Bgbit * _l));
+  }
   return true;
 }
 bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
-                           const Trlwe &inp) const {
-  if (_N != inp._N || _k != inp._k)
+                           const Trlwe &inp, bool isForcedToCheck) const {
+  if (isForcedToCheck && (_N != inp._N || _k != inp._k))
     return false;
-  if (inp._ciphertexts.empty()) {
+  const int inp_ciphertexts_size = inp._ciphertexts.size();
+  if (inp_ciphertexts_size == 0) {
     out.clear();
     return true;
   } else {
-    out.resize(inp._ciphertexts.size());
-    for (int i = 0; i < (signed)inp._ciphertexts.size(); i++) {
+    out.resize(inp_ciphertexts_size);
+    for (int i = 0; i < inp_ciphertexts_size; i++) {
       out[i].resize((_k + 1) * _l);
       for (int j = 0; j < (_k + 1) * _l; j++) {
         out[i][j].resize(_N);
       }
     }
   }
-  int numberThreads = ThreadPool::get_numberThreads();
+  const int numberThreads = ThreadPool::get_numberThreads();
+  const int bitsize_Torus = 8 * sizeof(Torus);
   Eigen::Barrier barrier(numberThreads);
   for (int it = 0; it < numberThreads; it++) {
     ThreadPool::get_threadPool().Schedule([&, it]() {
-      int s = (inp._ciphertexts.size() * (_k + 1) * _N * it) / numberThreads,
-          e = (inp._ciphertexts.size() * (_k + 1) * _N * (it + 1)) /
-              numberThreads;
+      int s = (inp_ciphertexts_size * (_k + 1) * _N * it) / numberThreads,
+          e = (inp_ciphertexts_size * (_k + 1) * _N * (it + 1)) / numberThreads;
       for (int newIt = s; newIt < e; newIt++) {
         int i = (newIt / _N) % (_k + 1);
         int j = newIt % _N;
         int cipherId = newIt / ((_k + 1) * _N);
         Torus value = inp._ciphertexts[cipherId][i][j], mask = 1;
-        if ((signed)sizeof(Torus) * 8 > _Bgbit * _l) {
-          mask <<= ((signed)sizeof(Torus) * 8 - _Bgbit * _l - 1);
+        if (bitsize_Torus > _Bgbit * _l) {
+          mask <<= (bitsize_Torus - _Bgbit * _l - 1);
           value += mask;
           mask = ~((mask << 1) - 1);
           value &= mask;
@@ -307,17 +337,18 @@ bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
         mask <<= _Bgbit;
         for (int p = _l - 1; p >= 0; p--) {
           Torus value_temp = value;
-          int shift = sizeof(Torus) * 8 - _Bgbit * (p + 1);
-          unsigned ushift = (shift < 0) ? (-shift) : shift;
+          int shift = bitsize_Torus - _Bgbit * (p + 1);
+          int ushift = std::abs(shift);
           value_temp =
               (shift < 0) ? (value_temp << ushift) : (value_temp >> ushift);
-          out[cipherId][i * _l + p][j] = value_temp % mask;
-          if (out[cipherId][i * _l + p][j] < -mask / 2)
-            out[cipherId][i * _l + p][j] += mask;
-          if (out[cipherId][i * _l + p][j] >= mask / 2)
-            out[cipherId][i * _l + p][j] -= mask;
-          value -= (shift < 0) ? (out[cipherId][i * _l + p][j] >> ushift)
-                               : (out[cipherId][i * _l + p][j] << ushift);
+          value_temp = value_temp % mask;
+          if (value_temp < -mask / 2)
+            value_temp += mask;
+          if (value_temp >= mask / 2)
+            value_temp -= mask;
+          out[cipherId][i * _l + p][j] = value_temp;
+          value -=
+              (shift < 0) ? (value_temp >> ushift) : (value_temp << ushift);
         }
       }
       barrier.Notify();
@@ -328,41 +359,45 @@ bool Trgsw::decompositeAll(std::vector<std::vector<PolynomialInteger>> &out,
 }
 bool Trgsw::decomposite(std::vector<std::vector<PolynomialInteger>> &out,
                         const Trlwe &inp,
-                        const std::vector<int> &trlweCipherIds) const {
-  if (_N != inp._N || _k != inp._k)
-    return false;
-  if (trlweCipherIds.empty()) {
+                        const std::vector<int> &trlweCipherIds,
+                        bool isForcedToCheck) const {
+  const int trlweCipherIds_size = trlweCipherIds.size();
+  const int inp_ciphertexts_size = inp._ciphertexts.size();
+  if (isForcedToCheck) {
+    if (_N != inp._N || _k != inp._k)
+      return false;
+    for (int i = 0; i < trlweCipherIds_size; i++) {
+      if (trlweCipherIds[i] < 0 || trlweCipherIds[i] >= inp_ciphertexts_size)
+        return false;
+    }
+  }
+  if (trlweCipherIds_size == 0) {
     out.clear();
     return true;
   } else {
-    for (int i = 0; i < (signed)trlweCipherIds.size(); i++) {
-      if (trlweCipherIds[i] < 0 ||
-          trlweCipherIds[i] >= (signed)inp._ciphertexts.size())
-        return false;
-    }
-    out.resize(trlweCipherIds.size());
-    for (int i = 0; i < (signed)trlweCipherIds.size(); i++) {
+    out.resize(trlweCipherIds_size);
+    for (int i = 0; i < trlweCipherIds_size; i++) {
       out[i].resize((_k + 1) * _l);
       for (int j = 0; j < (_k + 1) * _l; j++) {
         out[i][j].resize(_N);
       }
     }
   }
-  int numberThreads = ThreadPool::get_numberThreads();
+  const int numberThreads = ThreadPool::get_numberThreads();
+  const int bitsize_Torus = 8 * sizeof(Torus);
   Eigen::Barrier barrier(numberThreads);
   for (int it = 0; it < numberThreads; it++) {
     ThreadPool::get_threadPool().Schedule([&, it]() {
-      int s = (trlweCipherIds.size() * (_k + 1) * _N * it) / numberThreads,
-          e = (trlweCipherIds.size() * (_k + 1) * _N * (it + 1)) /
-              numberThreads;
+      int s = (trlweCipherIds_size * (_k + 1) * _N * it) / numberThreads,
+          e = (trlweCipherIds_size * (_k + 1) * _N * (it + 1)) / numberThreads;
       for (int newIt = s; newIt < e; newIt++) {
         int id = newIt / ((_k + 1) * _N);
         int cipherId = trlweCipherIds[id];
         int i = (newIt / _N) % (_k + 1);
         int j = newIt % _N;
         Torus value = inp._ciphertexts[cipherId][i][j], mask = 1;
-        if ((signed)sizeof(Torus) * 8 > _Bgbit * _l) {
-          mask <<= (sizeof(Torus) * 8 - _Bgbit * _l - 1);
+        if (bitsize_Torus > _Bgbit * _l) {
+          mask <<= (bitsize_Torus - _Bgbit * _l - 1);
           value += mask;
           mask = ~((mask << 1) - 1);
           value &= mask;
@@ -371,17 +406,18 @@ bool Trgsw::decomposite(std::vector<std::vector<PolynomialInteger>> &out,
         mask <<= _Bgbit;
         for (int p = _l - 1; p >= 0; p--) {
           Torus value_temp = value;
-          int shift = sizeof(Torus) * 8 - _Bgbit * (p + 1);
-          unsigned ushift = (shift < 0) ? (-shift) : shift;
+          int shift = bitsize_Torus - _Bgbit * (p + 1);
+          int ushift = std::abs(shift);
           value_temp =
               (shift < 0) ? (value_temp << ushift) : (value_temp >> ushift);
-          out[id][i * _l + p][j] = value_temp % mask;
-          if (out[id][i * _l + p][j] < -mask / 2)
-            out[id][i * _l + p][j] += mask;
-          if (out[id][i * _l + p][j] >= mask / 2)
-            out[id][i * _l + p][j] -= mask;
-          value -= (shift < 0) ? (out[id][i * _l + p][j] >> ushift)
-                               : (out[id][i * _l + p][j] << ushift);
+          value_temp = value_temp % mask;
+          if (value_temp < -mask / 2)
+            value_temp += mask;
+          if (value_temp >= mask / 2)
+            value_temp -= mask;
+          out[id][i * _l + p][j] = value_temp;
+          value -=
+              (shift < 0) ? (value_temp >> ushift) : (value_temp << ushift);
         }
       }
       barrier.Notify();
@@ -394,42 +430,49 @@ void Trgsw::setParamTo(Trlwe &obj) const {
   obj._N = _N;
   obj._k = _k;
   obj._s = _s;
+  obj._ptrEncDec.reset();
   obj.clear_ciphertexts();
   obj.clear_plaintexts();
 }
-bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
-                            const std::vector<int> &trlweCipherIds,
-                            const std::vector<int> &trgswCipherIds) const {
-  if (_N != inp._N || _k != inp._k ||
-      trlweCipherIds.size() != trgswCipherIds.size())
-    return false;
-  int numberOfProducts = trgswCipherIds.size();
-  for (int i = 0; i < numberOfProducts; i++) {
-    if (trlweCipherIds[i] < 0 ||
-        trlweCipherIds[i] >= (signed)inp._ciphertexts.size() ||
-        trgswCipherIds[i] < 0 ||
-        trgswCipherIds[i] >= (signed)_ciphertexts.size())
+bool Trgsw::_externalProduct(Trlwe &out, const Trlwe &inp,
+                             const std::vector<int> &trlweCipherIds,
+                             const std::vector<int> &trgswCipherIds,
+                             std::unique_ptr<BatchedFFT> &ptr,
+                             bool isForcedToCheck) const {
+  const int numberProducts = trgswCipherIds.size();
+  const int trlweCipherIds_size = trlweCipherIds.size();
+  const int inp_ciphertexts_size = inp._ciphertexts.size();
+  const int _ciphertexts_size = _ciphertexts.size();
+  if (isForcedToCheck) {
+    if (_N != inp._N || _k != inp._k || trlweCipherIds_size != numberProducts ||
+        !ptr || ptr->get_N() != _N ||
+        ptr->get_batch_inp() < (_k + 1) * _l * 2 ||
+        ptr->get_batch_out() != (_k + 1) * _l)
       return false;
-  }
-  if (!_s.empty() && !inp._s.empty()) {
-    for (int i = 0; i < _k; i++) {
-      for (int j = 0; j < _N; j++) {
-        if (_s[i][j] != inp._s[i][j])
-          return false;
+    for (int i = 0; i < numberProducts; i++) {
+      if (trlweCipherIds[i] < 0 || trlweCipherIds[i] >= inp_ciphertexts_size ||
+          trgswCipherIds[i] < 0 || trgswCipherIds[i] >= _ciphertexts_size)
+        return false;
+    }
+    if (!_s.empty() && !inp._s.empty()) {
+      for (int i = 0; i < _k; i++) {
+        for (int j = 0; j < _N; j++) {
+          if (_s[i][j] != inp._s[i][j])
+            return false;
+        }
       }
     }
   }
-  out._N = _N;
-  out._k = _k;
-  if (!_s.empty())
-    out._s = _s;
-  else if (!inp._s.empty())
+  setParamTo(out);
+  if (!inp._s.empty())
     out._s = inp._s;
-  if (numberOfProducts) {
-    out._ciphertexts.resize(numberOfProducts);
-    out._stddevErrors.resize(numberOfProducts);
-    out._varianceErrors.resize(numberOfProducts);
-    for (int i = 0; i < numberOfProducts; i++) {
+  if (numberProducts == 0) {
+    return true;
+  } else {
+    out._ciphertexts.resize(numberProducts);
+    out._stddevErrors.resize(numberProducts);
+    out._varianceErrors.resize(numberProducts);
+    for (int i = 0; i < numberProducts; i++) {
       out._ciphertexts[i].resize(_k + 1);
       out._stddevErrors[i] = inp._stddevErrors[trlweCipherIds[i]] +
                              (1 + _k * _N) * std::pow(2, -_l * _Bgbit - 1);
@@ -438,89 +481,58 @@ bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
           (1 + _k * _N) * std::pow(2, -_l * _Bgbit * 2 - 2);
       for (int j = 0; j <= _k; j++) {
         out._ciphertexts[i][j].resize(_N);
-        std::fill(out._ciphertexts[i][j].begin(), out._ciphertexts[i][j].end(),
-                  0);
+        std::memset(out._ciphertexts[i][j].data(), 0, _N * sizeof(Torus));
       }
     }
-  } else {
-    out.clear_ciphertexts();
-    return true;
   }
   std::vector<std::vector<PolynomialInteger>> decVecs;
-  decomposite(decVecs, inp, trlweCipherIds);
-  for (int i = 0; i < numberOfProducts; i++) {
+  decomposite(decVecs, inp, trlweCipherIds, false);
+  for (int i = 0; i < numberProducts; i++) {
     double s = 0;
     double s2 = 0;
     for (int j = 0; j < (_k + 1) * _l; j++) {
+      ptr->setIntegerInp(decVecs[i][j], (_k + 1) * _l + j, false);
       for (int k = 0; k < _N; k++) {
-        Integer temp = decVecs[trlweCipherIds[i]][j][k];
+        double temp = decVecs[i][j][k];
         s += std::abs(temp);
         s2 += temp * temp;
       }
     }
     out._stddevErrors[i] += s * _stddevErrors[trgswCipherIds[i]];
     out._varianceErrors[i] += s2 * _varianceErrors[trgswCipherIds[i]];
+    for (int k = 0; k <= _k; k++) {
+      for (int j = 0; j < (_k + 1) * _l; j++)
+        ptr->setTorusInp(_ciphertexts[trgswCipherIds[i]][j * (_k + 1) + k], j,
+                         false);
+      for (int j = 0; j < (_k + 1) * _l; j++)
+        ptr->setMulPair(j, (_k + 1) * _l + j, j, false);
+      ptr->addAllOut(out._ciphertexts[i][k], false);
+    }
   }
-#ifdef USING_GPU
-#else
-  int numberThreads = ThreadPool::get_numberThreads();
-  Eigen::Barrier barrier(numberThreads);
-  std::unique_ptr<FFT[]> fftCalculators(new FFT[numberThreads]);
-  for (int i = 0; i < numberThreads; i++)
-    fftCalculators[i].set_N(_N);
-  for (int it = 0; it < numberThreads; it++) {
-    ThreadPool::get_threadPool().Schedule([&, it]() {
-      PolynomialTorus productTorusPolynomial;
-      int s = (numberOfProducts * (_k + 1) * it) / numberThreads,
-          e = (numberOfProducts * (_k + 1) * (it + 1)) / numberThreads;
-      for (int newIt = s; newIt < e; newIt++) {
-        int i = newIt % (_k + 1);
-        int trlweCipherId = newIt / (_k + 1);
-        int trgswCipherId = trgswCipherIds[newIt / (_k + 1)];
-        for (int j = 0; j < (_k + 1) * _l; j++) {
-          fftCalculators[it].torusPolynomialMultiplication(
-              productTorusPolynomial, decVecs[trlweCipherId][j],
-              _ciphertexts[trgswCipherId][j * (_k + 1) + i]);
-          for (int k = 0; k < _N; k++) {
-            out._ciphertexts[trlweCipherId][i][k] += productTorusPolynomial[k];
-          }
-        }
-      }
-      barrier.Notify();
-    });
-  }
-  barrier.Wait();
-#endif
+  ptr->waitAll();
   return true;
 }
-bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
-  if (cipherIdA < 0 || cipherIdA >= (signed)_ciphertexts.size() ||
-      cipherIdB < 0 || cipherIdB >= (signed)_ciphertexts.size())
+bool Trgsw::externalProduct(Trlwe &out, const Trlwe &inp,
+                            const std::vector<int> &trlweCipherIds,
+                            const std::vector<int> &trgswCipherIds,
+                            bool isForcedToCheck) const {
+  std::unique_ptr<BatchedFFT> ptr =
+      BatchedFFT::createInstance(_N, (_k + 1) * _l * 2, (_k + 1) * _l, false);
+  return _externalProduct(out, inp, trlweCipherIds, trgswCipherIds, ptr,
+                          isForcedToCheck);
+}
+bool Trgsw::_internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB,
+                             std::unique_ptr<BatchedFFT> &ptr,
+                             bool isForcedToCheck) {
+  const int _ciphertexts_size = _ciphertexts.size();
+  if (isForcedToCheck &&
+      (cipherIdA < 0 || cipherIdA >= _ciphertexts_size || cipherIdB < 0 ||
+       cipherIdB >= _ciphertexts_size || !ptr || ptr->get_N() != _N ||
+       ptr->get_batch_inp() < (_k + 1) * _l * (_k + 2) ||
+       ptr->get_batch_out() != (_k + 1) * _l))
     return false;
-  if (_stddevErrors[cipherIdA] > _stddevErrors[cipherIdB]) {
+  if (_varianceErrors[cipherIdA] > _varianceErrors[cipherIdB])
     std::swap(cipherIdA, cipherIdB);
-  }
-  Trlwe inp, out;
-  setParamTo(inp);
-  inp._ciphertexts.resize((_k + 1) * _l);
-  inp._stddevErrors.resize((_k + 1) * _l);
-  inp._varianceErrors.resize((_k + 1) * _l);
-  std::vector<int> trlweCipherIds((_k + 1) * _l), trgswCipherIds((_k + 1) * _l);
-  for (int i = 0; i < (_k + 1) * _l; i++) {
-    inp._ciphertexts[i].resize(_k + 1);
-    inp._stddevErrors[i] = _stddevErrors[cipherIdB];
-    inp._varianceErrors[i] = _varianceErrors[cipherIdB];
-    for (int j = 0; j <= _k; j++) {
-      inp._ciphertexts[i][j].resize(_N);
-      for (int k = 0; k < _N; k++) {
-        inp._ciphertexts[i][j][k] =
-            _ciphertexts[cipherIdB][i * (_k + 1) + j][k];
-      }
-    }
-    trlweCipherIds[i] = i;
-    trgswCipherIds[i] = cipherIdA;
-  }
-  externalProduct(out, inp, trlweCipherIds, trgswCipherIds);
   cipherIdResult = _ciphertexts.size();
   _ciphertexts.resize(cipherIdResult + 1);
   _stddevErrors.resize(cipherIdResult + 1);
@@ -530,58 +542,106 @@ bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB) {
   _varianceErrors[cipherIdResult] = 0;
   for (int i = 0; i < (_k + 1) * _l * (_k + 1); i++) {
     _ciphertexts[cipherIdResult][i].resize(_N);
-    int c = i % (_k + 1);
-    int r = i / (_k + 1);
-    for (int j = 0; j < _N; j++) {
-      _ciphertexts[cipherIdResult][i][j] = out._ciphertexts[r][c][j];
+    std::memset(_ciphertexts[cipherIdResult][i].data(), 0, sizeof(Torus) * _N);
+    ptr->setTorusInp(_ciphertexts[cipherIdA][i], i, false);
+  }
+  std::vector<std::vector<PolynomialInteger>> decVecs;
+  Trlwe trlweObj;
+  setParamTo(trlweObj);
+  trlweObj._ciphertexts.resize(1);
+  trlweObj._ciphertexts[0].resize(_k + 1);
+  for (int i = 0; i <= _k; i++)
+    trlweObj._ciphertexts[0][i] = std::move(_ciphertexts[cipherIdB][i]);
+  for (int i = 0; i < (_k + 1) * _l; i++) {
+    double s = 0;
+    double s2 = 0;
+    decompositeAll(decVecs, trlweObj, false);
+    for (int j = 0; j < (_k + 1) * _l; j++) {
+      ptr->setIntegerInp(decVecs[0][j], (_k + 1) * _l * (_k + 1) + j, false);
+      for (int k = 0; k < _N; k++) {
+        double temp = decVecs[0][j][k];
+        s += std::abs(temp);
+        s2 += temp * temp;
+      }
     }
-    if (c == 0) {
-      _stddevErrors[cipherIdResult] =
-          std::max(_stddevErrors[cipherIdResult], out._stddevErrors[r]);
-      _varianceErrors[cipherIdResult] =
-          std::max(_varianceErrors[cipherIdResult], out._varianceErrors[r]);
+    _stddevErrors[cipherIdResult] = std::max(_stddevErrors[cipherIdResult], s);
+    _varianceErrors[cipherIdResult] =
+        std::max(_varianceErrors[cipherIdResult], s2);
+    for (int k = 0; k <= _k; k++) {
+      for (int j = 0; j < (_k + 1) * _l; j++)
+        ptr->setMulPair((_k + 1) * _l * (_k + 1) + j, j * (_k + 1) + k, j, false);
+      _ciphertexts[cipherIdB][i * (_k + 1) + k] =
+          std::move(trlweObj._ciphertexts[0][k]);
+      if (i + 1 < (_k + 1) * _l)
+        trlweObj._ciphertexts[0][k] =
+            std::move(_ciphertexts[cipherIdB][(i + 1) * (_k + 1) + k]);
+      ptr->addAllOut(_ciphertexts[cipherIdResult][i * (_k + 1) + k], false);
     }
   }
+  _stddevErrors[cipherIdResult] =
+      _stddevErrors[cipherIdResult] * _stddevErrors[cipherIdA] +
+      (1 + _k * _N) * std::pow(2, -_l * _Bgbit - 1) + _stddevErrors[cipherIdB];
+  _varianceErrors[cipherIdResult] =
+      _varianceErrors[cipherIdResult] * _varianceErrors[cipherIdA] +
+      (1 + _k * _N) * std::pow(2, -_l * _Bgbit * 2 - 2) +
+      _varianceErrors[cipherIdB];
+  ptr->waitAll();
   return true;
 }
-bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
-                 const std::vector<int> &trlweCipherTrueIds,
-                 const std::vector<int> &trlweCipherFalseIds,
-                 const std::vector<int> &trgswCipherIds) const {
-  if (_N != inp._N || _k != inp._k ||
-      trgswCipherIds.size() != trlweCipherTrueIds.size() ||
-      trgswCipherIds.size() != trlweCipherFalseIds.size())
-    return false;
-  int numberOfCMux = trgswCipherIds.size();
-  for (int i = 0; i < numberOfCMux; i++) {
-    if (trlweCipherTrueIds[i] < 0 ||
-        trlweCipherTrueIds[i] >= (signed)inp._ciphertexts.size() ||
-        trlweCipherFalseIds[i] < 0 ||
-        trlweCipherFalseIds[i] >= (signed)inp._ciphertexts.size() ||
-        trgswCipherIds[i] < 0 ||
-        trgswCipherIds[i] >= (signed)_ciphertexts.size())
+bool Trgsw::internalProduct(int &cipherIdResult, int cipherIdA, int cipherIdB,
+                            bool isForcedToCheck) {
+  std::unique_ptr<BatchedFFT> ptr = BatchedFFT::createInstance(
+      _N, (_k + 1) * _l * (_k + 2), (_k + 1) * _l, false);
+  return _internalProduct(cipherIdResult, cipherIdA, cipherIdB, ptr,
+                          isForcedToCheck);
+}
+bool Trgsw::_cMux(Trlwe &out, const Trlwe &inp,
+                  const std::vector<int> &trlweCipherTrueIds,
+                  const std::vector<int> &trlweCipherFalseIds,
+                  const std::vector<int> &trgswCipherIds,
+                  std::unique_ptr<BatchedFFT> &ptr,
+                  bool isForcedToCheck) const {
+  const int numberCMux = trgswCipherIds.size();
+  const int inp_ciphertexts_size = inp._ciphertexts.size();
+  const int _ciphertexts_size = _ciphertexts.size();
+  const int trlweCipherTrueIds_size = trlweCipherTrueIds.size();
+  const int trlweCipherFalseIds_size = trlweCipherFalseIds.size();
+  if (isForcedToCheck) {
+    if (_N != inp._N || _k != inp._k ||
+        trlweCipherTrueIds_size != numberCMux ||
+        trlweCipherFalseIds_size != numberCMux || !ptr ||
+        ptr->get_N() != _N || ptr->get_batch_inp() < (_k + 1) * _l * 2 ||
+        ptr->get_batch_out() != (_k + 1) * _l)
       return false;
-  }
-  if (!_s.empty() && !inp._s.empty()) {
-    for (int i = 0; i < _k; i++) {
-      for (int j = 0; j < _N; j++) {
-        if (_s[i][j] != inp._s[i][j])
-          return false;
+    for (int i = 0; i < numberCMux; i++) {
+      if (trlweCipherTrueIds[i] < 0 ||
+          trlweCipherTrueIds[i] >= inp_ciphertexts_size ||
+          trlweCipherFalseIds[i] < 0 ||
+          trlweCipherFalseIds[i] >= inp_ciphertexts_size ||
+          trgswCipherIds[i] < 0 || trgswCipherIds[i] >= _ciphertexts_size)
+        return false;
+    }
+    if (!_s.empty() && !inp._s.empty()) {
+      for (int i = 0; i < _k; i++) {
+        for (int j = 0; j < _N; j++) {
+          if (_s[i][j] != inp._s[i][j])
+            return false;
+        }
       }
     }
   }
   setParamTo(out);
   if (!inp._s.empty())
     out._s = inp._s;
-  if (numberOfCMux == 0)
+  if (numberCMux == 0)
     return true;
-  std::vector<int> trlweCipherIds(numberOfCMux);
+  std::vector<int> trlweCipherIds(numberCMux);
   Trlwe temp;
   setParamTo(temp);
-  temp._ciphertexts.resize(numberOfCMux);
-  temp._stddevErrors.resize(numberOfCMux);
-  temp._varianceErrors.resize(numberOfCMux);
-  for (int i = 0; i < numberOfCMux; i++) {
+  temp._ciphertexts.resize(numberCMux);
+  temp._stddevErrors.resize(numberCMux);
+  temp._varianceErrors.resize(numberCMux);
+  for (int i = 0; i < numberCMux; i++) {
     temp._ciphertexts[i].resize(_k + 1);
     temp._stddevErrors[i] = std::max(inp._stddevErrors[trlweCipherTrueIds[i]],
                                      inp._stddevErrors[trlweCipherFalseIds[i]]);
@@ -598,8 +658,8 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
     Eigen::Barrier barrier(numberThreads);
     for (int it = 0; it < numberThreads; it++) {
       ThreadPool::get_threadPool().Schedule([&, it]() {
-        int s = (numberOfCMux * (_k + 1) * _N * it) / numberThreads,
-            e = (numberOfCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
+        int s = (numberCMux * (_k + 1) * _N * it) / numberThreads,
+            e = (numberCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
         for (int newIt = s; newIt < e; newIt++) {
           int i = newIt / ((_k + 1) * _N);
           int j = (newIt / _N) % (_k + 1);
@@ -613,14 +673,14 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
     }
     barrier.Wait();
   }
-  externalProduct(out, temp, trlweCipherIds, trgswCipherIds);
+  _externalProduct(out, temp, trlweCipherIds, trgswCipherIds, ptr, false);
   {
     int numberThreads = ThreadPool::get_numberThreads();
     Eigen::Barrier barrier(numberThreads);
     for (int it = 0; it < numberThreads; it++) {
       ThreadPool::get_threadPool().Schedule([&, it]() {
-        int s = (numberOfCMux * (_k + 1) * _N * it) / numberThreads,
-            e = (numberOfCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
+        int s = (numberCMux * (_k + 1) * _N * it) / numberThreads,
+            e = (numberCMux * (_k + 1) * _N * (it + 1)) / numberThreads;
         for (int newIt = s; newIt < e; newIt++) {
           int i = newIt / ((_k + 1) * _N);
           int j = (newIt / _N) % (_k + 1);
@@ -635,6 +695,17 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
   }
   return true;
 }
+bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
+                 const std::vector<int> &trlweCipherTrueIds,
+                 const std::vector<int> &trlweCipherFalseIds,
+                 const std::vector<int> &trgswCipherIds,
+                 bool isForcedToCheck) const {
+  std::unique_ptr<BatchedFFT> ptr =
+      BatchedFFT::createInstance(_N, (_k + 1) * _l * 2, (_k + 1) * _l, false);
+  return _cMux(out, inp, trlweCipherTrueIds, trlweCipherFalseIds, trgswCipherIds,
+               ptr, isForcedToCheck);
+}
+/*
 bool Trgsw::blindRotate(Trlwe &out, const Trlwe &inp,
                         const std::vector<int> &trlweCipherIds,
                         const std::vector<int> &coefficients,
@@ -820,8 +891,7 @@ bool Trgsw::bootstrapTLWE(Tlwe &out, const std::vector<Torus> &constants,
     trlwe_inp._varianceErrors[i] = 0;
     for (int j = 0; j < _k; j++) {
       trlwe_inp._ciphertexts[i][j].resize(_N);
-      std::fill(trlwe_inp._ciphertexts[i][j].begin(),
-                trlwe_inp._ciphertexts[i][j].end(), 0);
+      std::memset(trlwe_inp._ciphertexts[i][j].data(), 0, _N * sizeof(Torus));
     }
     trlwe_inp._ciphertexts[i][_k].resize(_N);
     Torus constant = (constants[i] >> 1);
@@ -846,6 +916,7 @@ bool Trgsw::bootstrapTLWE(Tlwe &out, const std::vector<Torus> &constants,
   }
   return true;
 }
+
 bool Trgsw::gateBootstrap(Tlwe &out, const std::vector<Torus> &constants,
                           const Tlwe &inp, int tlweCipherId,
                           const std::vector<int> &trgswCipherIds,
@@ -867,7 +938,7 @@ bool Trgsw::gateBootstrap(Tlwe &out, const std::vector<Torus> &constants,
   out._varianceErrors.resize(temp_out._ciphertexts.size());
   for (int i = 0; i < (signed)temp_out._ciphertexts.size(); i++) {
     out._ciphertexts[i].resize(ks._n + 1);
-    std::fill(out._ciphertexts[i].begin(), out._ciphertexts[i].end(), 0);
+    std::memset(out._ciphertexts[i].data(), 0, (ks._n + 1) * sizeof(Torus));
     out._ciphertexts[i][ks._n] = temp_out._ciphertexts[i][_k * _N];
     out._stddevErrors[i] = temp_out._stddevErrors[i];
     out._varianceErrors[i] = temp_out._varianceErrors[i];
@@ -909,5 +980,5 @@ bool Trgsw::gateBootstrap(Tlwe &out, const std::vector<Torus> &constants,
   barrier.Wait();
   return true;
 }
-
+*/
 } // namespace thesis

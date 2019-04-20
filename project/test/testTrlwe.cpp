@@ -22,7 +22,7 @@ TEST(Thesis, TrlweEncryptDecrypt) {
   for (int i = 0; i < numberTests; i++) {
     x[i].resize(trlweObj.get_N());
     for (int j = 0; j < trlweObj.get_N(); j++) {
-      x[i][j] = (std::rand() % 2 == 1);
+      x[i][j] = std::rand() & 1;
     }
     trlweObj.addPlaintext(x[i]);
   }
@@ -58,7 +58,7 @@ TEST(Thesis, TrlweExtractAllToTlwe) {
   for (int i = 0; i < numberTests; i++) {
     x[i].resize(trlweObj.get_N());
     for (int j = 0; j < trlweObj.get_N(); j++) {
-      x[i][j] = (std::rand() % 2 == 1);
+      x[i][j] = std::rand() & 1;
     }
     trlweObj.addPlaintext(x[i]);
   }
@@ -100,7 +100,7 @@ TEST(Thesis, TrlweExtractToTlwe) {
   for (int i = 0; i < numberTests; i++) {
     x[i].resize(trlweObj.get_N());
     for (int j = 0; j < trlweObj.get_N(); j++) {
-      x[i][j] = (std::rand() % 2 == 1);
+      x[i][j] = std::rand() & 1;
     }
     trlweObj.addPlaintext(x[i]);
   }

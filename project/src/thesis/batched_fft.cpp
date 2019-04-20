@@ -1,30 +1,18 @@
 #include "thesis/batched_fft.h"
-#include "thesis/threadpool.h"
 
 namespace thesis {
 
 // Constructors
-BatchedFFT::BatchedFFT(int N, int batch, int cache) {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
-  _N = N;
-  _batch = batch;
-  _cache = cache;
-  _multiplication_pair.resize(_batch * 2, 0);
-  _inp.resize(_batch * _N * 2 * mode, 0);
-  _fft_inp.resize((_batch + _cache) * (_N * mode + 1), 0);
-  _out.resize(_batch * _N * 2 * mode, 0);
-}
+BatchedFFT::BatchedFFT(int N, int batch_inp, int batch_out)
+    : _N(N), _batch_inp(batch_inp), _batch_out(batch_out) {}
 
-std::unique_ptr<BatchedFFT>
-BatchedFFT::createInstance(int N, int batch, int cache, bool isForcedToCheck) {
+std::unique_ptr<BatchedFFT> BatchedFFT::createInstance(int N, int batch_inp,
+                                                       int batch_out,
+                                                       bool isForcedToCheck) {
   std::unique_ptr<BatchedFFT> ptr;
   if (!isForcedToCheck ||
-      (N > 1 && (N & (N - 1)) == 0 && batch > 0 && cache >= 0))
-    ptr.reset(newCustomInstance(N, batch, cache));
+      (N > 1 && (N & (N - 1)) == 0 && batch_inp > 0 && batch_out > 0))
+    ptr.reset(_createInstance(N, batch_inp, batch_out));
   return std::move(ptr);
 }
 
@@ -33,209 +21,60 @@ BatchedFFT::~BatchedFFT() {}
 
 // Get params
 int BatchedFFT::get_N() const { return _N; }
-int BatchedFFT::get_batch() const { return _batch; }
-int BatchedFFT::get_cache() const { return _cache; }
+int BatchedFFT::get_batch_inp() const { return _batch_inp; }
+int BatchedFFT::get_batch_out() const { return _batch_out; }
 
 // Utilities
-bool BatchedFFT::setTorusInput(const PolynomialTorus &inp, int pos,
-                               void *eigenBarrierNotifier,
+bool BatchedFFT::setTorusInp(const PolynomialTorus &inp, int pos,
+                             bool isForcedToCheck) {
+  const int inp_size = inp.size();
+  if (isForcedToCheck && (inp_size != _N || pos < 0 || pos >= _batch_inp))
+    return false;
+  _setTorusInp(inp, pos);
+  return true;
+}
+bool BatchedFFT::setIntegerInp(const PolynomialInteger &inp, int pos,
                                bool isForcedToCheck) {
-  Eigen::Barrier *notifier = (Eigen::Barrier *)eigenBarrierNotifier;
   const int inp_size = inp.size();
-  if (isForcedToCheck && (inp_size != _N || pos < 0 || pos >= _batch))
+  if (isForcedToCheck && (inp_size != _N || pos < 0 || pos >= _batch_inp))
     return false;
-  std::function<void()> fn = [this, &inp, pos, notifier]() {
-#if defined(USING_32BIT)
-    const int mode = 4;
-#else
-    const int mode = 8;
-#endif
-    double *ptr = _inp.data() + pos * _N * 2 * mode;
-    std::memset(ptr, 0, _N * 2 * mode * sizeof(double));
-    for (int i = 0; i < _N; i++) {
-      Torus num = inp[i];
-      for (int j = 0; j < mode / 2; j++) {
-        ptr[i * mode + j] = num & 0xFFFF;
-        num >>= 16;
-        ptr[i * mode + j] /= 2;
-        ptr[(i + _N) * mode + j] = -ptr[i * mode + j];
-      }
-    }
-    if (notifier != nullptr)
-      notifier->Notify();
-  };
-  if (notifier != nullptr) {
-    ThreadPool::get_threadPool().Schedule(std::move(fn));
-  } else {
-    fn();
-  }
+  _setIntegerInp(inp, pos);
   return true;
 }
-bool BatchedFFT::setIntegerInput(const PolynomialInteger &inp, int pos,
-                                 void *eigenBarrierNotifier,
-                                 bool isForcedToCheck) {
-  return setTorusInput(inp, pos, eigenBarrierNotifier, isForcedToCheck);
-}
-bool BatchedFFT::setBinaryInput(const PolynomialBinary &inp, int pos,
-                                void *eigenBarrierNotifier,
-                                bool isForcedToCheck) {
-  Eigen::Barrier *notifier = (Eigen::Barrier *)eigenBarrierNotifier;
+bool BatchedFFT::setBinaryInp(const PolynomialBinary &inp, int pos,
+                              bool isForcedToCheck) {
   const int inp_size = inp.size();
-  if (isForcedToCheck && (inp_size != _N || pos < 0 || pos >= _batch))
+  if (isForcedToCheck && (inp_size != _N || pos < 0 || pos >= _batch_inp))
     return false;
-  std::function<void()> fn = [this, &inp, pos, notifier]() {
-#if defined(USING_32BIT)
-    const int mode = 4;
-#else
-    const int mode = 8;
-#endif
-    double *ptr = _inp.data() + pos * _N * 2 * mode;
-    std::memset(ptr, 0, _N * 2 * mode * sizeof(double));
-    for (int i = 0; i < _N; i++) {
-      if (!inp[i])
-        continue;
-      ptr[i * mode] = 0.5;
-      ptr[(i + _N) * mode] = -0.5;
-    }
-    if (notifier != nullptr)
-      notifier->Notify();
-  };
-  if (notifier != nullptr) {
-    ThreadPool::get_threadPool().Schedule(std::move(fn));
-  } else {
-    fn();
-  }
+  _setBinaryInp(inp, pos);
   return true;
 }
-bool BatchedFFT::copyTo(int from, int to, void *eigenBarrierNotifier,
-                        bool isForcedToCheck) {
-  Eigen::Barrier *notifier = (Eigen::Barrier *)eigenBarrierNotifier;
+
+bool BatchedFFT::setMulPair(int left, int right, int result,
+                            bool isForcedToCheck) {
   if (isForcedToCheck &&
-      (from < 0 || from >= _batch + _cache || to < 0 || to >= _batch + _cache))
+      (left < 0 || left >= _batch_inp || right < 0 || right >= _batch_inp ||
+       result < 0 || result >= _batch_out))
     return false;
-  std::function<void()> fn = [this, from, to, notifier]() {
-#if defined(USING_32BIT)
-    const int mode = 4;
-#else
-    const int mode = 8;
-#endif
-    std::memcpy(_fft_inp.data() + to * (_N * mode + 1),
-                _fft_inp.data() + from * (_N * mode + 1),
-                (_N * mode + 1) * sizeof(std::complex<double>));
-    if (notifier != nullptr)
-      notifier->Notify();
-  };
-  if (notifier != nullptr) {
-    ThreadPool::get_threadPool().Schedule(std::move(fn));
-  } else {
-    fn();
-  }
+  _setMulPair(left, right, result);
   return true;
 }
-bool BatchedFFT::setMultiplicationPair(int left, int right, int result,
-                                       bool isForcedToCheck) {
-  if (isForcedToCheck &&
-      (left < 0 || left >= _batch + _cache || right < 0 ||
-       right >= _batch + _cache || result < 0 || result >= _batch))
-    return false;
-  _multiplication_pair[result * 2] = left;
-  _multiplication_pair[result * 2 + 1] = right;
-  return true;
-}
-bool BatchedFFT::getOutput(PolynomialTorus &out, int pos,
-                           void *eigenBarrierNotifier,
-                           bool isForcedToCheck) const {
-  Eigen::Barrier *notifier = (Eigen::Barrier *)eigenBarrierNotifier;
+
+bool BatchedFFT::addAllOut(PolynomialTorus &out, bool isForcedToCheck) {
   const int out_size = out.size();
-  if (isForcedToCheck && (out_size != _N || pos < 0 || pos >= _batch))
+  if (isForcedToCheck && out_size != _N)
     return false;
-  std::function<void()> fn = [this, &out, pos, notifier]() {
-#if defined(USING_32BIT)
-    const int mode = 4;
-#else
-    const int mode = 8;
-#endif
-    const double *ptr = _out.data() + pos * _N * 2 * mode;
-    for (int i = 0; i < _N; i++) {
-      out[i] = 0;
-      for (int j = mode / 2 - 1; j >= 0; j--) {
-        out[i] <<= 16;
-        out[i] += std::llround(ptr[i * mode + j] / (_N * mode));
-      }
-    }
-    if (notifier != nullptr)
-      notifier->Notify();
-  };
-  if (notifier != nullptr) {
-    ThreadPool::get_threadPool().Schedule(std::move(fn));
-  } else {
-    fn();
-  }
+  _addAllOut(out);
   return true;
 }
-bool BatchedFFT::addOutput(PolynomialTorus &out, int pos,
-                           void *eigenBarrierNotifier,
-                           bool isForcedToCheck) const {
-  Eigen::Barrier *notifier = (Eigen::Barrier *)eigenBarrierNotifier;
+bool BatchedFFT::subAllOut(PolynomialTorus &out, bool isForcedToCheck) {
   const int out_size = out.size();
-  if (isForcedToCheck && (out_size != _N || pos < 0 || pos >= _batch))
+  if (isForcedToCheck && out_size != _N)
     return false;
-  std::function<void()> fn = [this, &out, pos, notifier]() {
-#if defined(USING_32BIT)
-    const int mode = 4;
-#else
-    const int mode = 8;
-#endif
-    const double *ptr = _out.data() + pos * _N * 2 * mode;
-    for (int i = 0; i < _N; i++) {
-      Torus num = 0;
-      for (int j = mode / 2 - 1; j >= 0; j--) {
-        num <<= 16;
-        num += std::llround(ptr[i * mode + j] / (_N * mode));
-      }
-      out[i] += num;
-    }
-    if (notifier != nullptr)
-      notifier->Notify();
-  };
-  if (notifier != nullptr) {
-    ThreadPool::get_threadPool().Schedule(std::move(fn));
-  } else {
-    fn();
-  }
+  _subAllOut(out);
   return true;
 }
-bool BatchedFFT::subOutput(PolynomialTorus &out, int pos,
-                           void *eigenBarrierNotifier,
-                           bool isForcedToCheck) const {
-  Eigen::Barrier *notifier = (Eigen::Barrier *)eigenBarrierNotifier;
-  const int out_size = out.size();
-  if (isForcedToCheck && (out_size != _N || pos < 0 || pos >= _batch))
-    return false;
-  std::function<void()> fn = [this, &out, pos, notifier]() {
-#if defined(USING_32BIT)
-    const int mode = 4;
-#else
-    const int mode = 8;
-#endif
-    const double *ptr = _out.data() + pos * _N * 2 * mode;
-    for (int i = 0; i < _N; i++) {
-      Torus num = 0;
-      for (int j = mode / 2 - 1; j >= 0; j--) {
-        num <<= 16;
-        num += std::llround(ptr[i * mode + j] / (_N * mode));
-      }
-      out[i] -= num;
-    }
-    if (notifier != nullptr)
-      notifier->Notify();
-  };
-  if (notifier != nullptr) {
-    ThreadPool::get_threadPool().Schedule(std::move(fn));
-  } else {
-    fn();
-  }
-  return true;
-}
+
+void BatchedFFT::waitAll() { _waitAll(); }
 
 } // namespace thesis

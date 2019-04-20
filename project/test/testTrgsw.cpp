@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "thesis/batched_fft.h"
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
 #include "thesis/trgsw.h"
@@ -20,7 +21,7 @@ TEST(Thesis, TrgswEncryptDecrypt) {
   int numberTests = 100;
   x.resize(numberTests);
   for (int i = 0; i < numberTests; i++) {
-    x[i] = ((std::rand() & 1) == 1);
+    x[i] = std::rand() & 1;
     trgswObj.addPlaintext(x[i]);
   }
   trgswObj.encryptAll();
@@ -53,7 +54,7 @@ TEST(Thesis, Decomposition) {
   for (int i = 0; i < numberTests; i++) {
     x[i].resize(trgswObj.get_N());
     for (int j = 0; j < trgswObj.get_N(); j++) {
-      x[i][j] = (std::rand() % 2 == 1);
+      x[i][j] = std::rand() & 1;
     }
     trlweObj.addPlaintext(x[i]);
   }
@@ -107,7 +108,7 @@ TEST(Thesis, ExternalProduct) {
   for (int i = 0; i < numberTests; i++) {
     x[i].resize(trgswObj.get_N());
     for (int j = 0; j < trgswObj.get_N(); j++) {
-      x[i][j] = (std::rand() % 2 == 1);
+      x[i][j] = std::rand() & 1;
     }
     trlweObj[0].addPlaintext(x[i]);
   }
@@ -133,7 +134,7 @@ TEST(Thesis, ExternalProduct) {
       int res = (i & 1) * ((x[trlweCipherIds[i]][j]) ? 1 : 0);
       int ori_res = (trlweObj[1].get_plaintexts()[i][j]) ? 1 : 0;
       ASSERT_TRUE(res == ori_res);
-      expectedPlaintexts[i][j] = x[trlweCipherIds[i]][j] && ((i & 1) == 1);
+      expectedPlaintexts[i][j] = x[trlweCipherIds[i]][j] && (i & 1);
     }
     double maxStddevError =
         (trgswObj.get_k() + 1) * trgswObj.get_l() * trgswObj.get_N() *
@@ -178,9 +179,13 @@ TEST(Thesis, InternalProduct) {
   }
   trgswObj.encryptAll();
   trgswObj.clear_plaintexts();
+  std::unique_ptr<thesis::BatchedFFT> ptr = thesis::BatchedFFT::createInstance(
+      trgswObj.get_N(),
+      (trgswObj.get_k() + 1) * trgswObj.get_l() * (trgswObj.get_k() + 2),
+      (trgswObj.get_k() + 1) * trgswObj.get_l(), false);
   for (int i = 0; i < numberTests; i++) {
     int temp;
-    trgswObj.internalProduct(temp, (i << 1), (i << 1) + 1);
+    ASSERT_TRUE(trgswObj._internalProduct(temp, (i << 1), (i << 1) + 1, ptr));
   }
   trgswObj.decryptAll();
 
@@ -304,7 +309,7 @@ TEST(Thesis, CMux) {
     ASSERT_TRUE(errors[i] < 0.25);
   }
 }
-
+/*
 TEST(Thesis, BlindRotate) {
   std::srand(std::time(nullptr));
   thesis::Trgsw trgswObj;
@@ -570,3 +575,4 @@ TEST(Thesis, GateBootstrap) {
     ASSERT_TRUE(errors[i] < 0.25);
   }
 }
+*/
