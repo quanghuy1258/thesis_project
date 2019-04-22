@@ -8,17 +8,22 @@ namespace thesis {
 
 class Random {
 private:
-  static bool _isInitSeeds;
-  static std::vector<uint32_t> _seeds;
-  static std::default_random_engine _generator;
-
   static void initSeeds();
 
 public:
   static void addSeed(uint32_t seed);
-  static Torus getUniformTorus();
-  static Torus getNormalTorus(double mean, double stddev);
+
+  static void setUniformTorus(Torus *ptr, size_t len);
+  static void setUniformInteger(Integer *ptr, size_t len);
+  static void setNormalTorus(Torus *ptr, size_t len, double stddev);
+
   static double getErrorProbability(double stddev, double boundary);
+
+  [[deprecated("Will be removed")]]
+  static Torus getUniformTorus();
+  [[deprecated("Will be removed")]]
+  static Torus getNormalTorus(double mean, double stddev);
+  [[deprecated("Will be removed")]]
   static Integer getUniformInteger();
 };
 
