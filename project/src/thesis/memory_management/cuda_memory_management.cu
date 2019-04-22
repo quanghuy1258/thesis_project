@@ -11,7 +11,6 @@ void *MemoryManagement::cudaMallocMM(size_t size) {
   return ptr;
 }
 void MemoryManagement::cudaFreeMM(void *ptr) { cudaFree(ptr); }
-/* TODO: Need these features?
 void MemoryManagement::cudaMemsetMM(void *ptr, int ch, size_t count,
                                     void *stream_ptr) {
   if (stream_ptr) {
@@ -44,7 +43,6 @@ void MemoryManagement::cudaMemcpyMM_d2d(void *dest, void *src, size_t count,
   } else
     cudaMemcpy(dest, src, count, cudaMemcpyDeviceToDevice);
 }
-*/
 
 } // namespace thesis
 

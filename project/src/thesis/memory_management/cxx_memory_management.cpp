@@ -59,7 +59,6 @@ bool MemoryManagement::freeMM(void *ptr) {
   it->second = true;
   return true;
 }
-/* TODO: Need these features?
 bool MemoryManagement::memsetMM(void *ptr, int ch, size_t count,
                                 void *stream_ptr) {
   if (ptr == nullptr)
@@ -122,6 +121,5 @@ bool MemoryManagement::memcpyMM_d2d(void *dest, void *src, size_t count,
 #endif
   return true;
 }
-*/
 
 } // namespace thesis

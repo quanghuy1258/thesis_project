@@ -18,7 +18,6 @@ private:
 #ifdef USING_CUDA
   void *cudaMallocMM(size_t size);
   void cudaFreeMM(void *ptr);
-  /* TODO: Need these features?
   void cudaMemsetMM(void *ptr, int ch, size_t count,
                     void *stream_ptr = nullptr);
   void cudaMemcpyMM_h2d(void *dest, void *src, size_t count,
@@ -27,7 +26,6 @@ private:
                         void *stream_ptr = nullptr);
   void cudaMemcpyMM_d2d(void *dest, void *src, size_t count,
                         void *stream_ptr = nullptr);
-  */
 #endif
 
 public:
@@ -36,7 +34,6 @@ public:
   // VRAM
   void *mallocMM(size_t size);
   bool freeMM(void *ptr);
-  /* TODO: Need these features?
   bool memsetMM(void *ptr, int ch, size_t count, void *stream_ptr = nullptr);
   bool memcpyMM_h2d(void *dest, void *src, size_t count,
                     void *stream_ptr = nullptr);
@@ -44,7 +41,6 @@ public:
                     void *stream_ptr = nullptr);
   bool memcpyMM_d2d(void *dest, void *src, size_t count,
                     void *stream_ptr = nullptr);
-  */
 };
 
 } // namespace thesis

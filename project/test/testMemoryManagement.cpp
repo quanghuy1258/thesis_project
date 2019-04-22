@@ -25,7 +25,6 @@ TEST(Thesis, MemoryManagement) {
     ASSERT_TRUE(p2 != nullptr);
     ASSERT_TRUE(p1 != p2);
   }
-  /* TODO: Need these features?
   {
     std::vector<int> vec1 = {2, 3, 5, 7};
     std::vector<int> vec2(vec1.size());
@@ -48,5 +47,4 @@ TEST(Thesis, MemoryManagement) {
     for (size_t i = 0; i < vec1.size(); i++)
       ASSERT_TRUE(vec1[i] == -1);
   }
-  */
 }
