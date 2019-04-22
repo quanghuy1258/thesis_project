@@ -2,49 +2,27 @@
 
 namespace thesis {
 
-static std::mutex m_ram_mtx;
-static std::map<void *, bool> m_ram;
-
-#ifdef USING_CUDA
-static std::mutex m_vram_mtx;
-static std::map<void *, bool> m_vram;
-#endif
+static std::mutex m_ptr_mtx;
+static std::map<void *, bool> m_ptr;
 
 MemoryManagement::MemoryManagement() {
-  {
-    std::lock_guard<std::mutex> guard(m_ram_mtx);
-    m_ram.clear();
-  }
-#ifdef USING_CUDA
-  {
-    std::lock_guard<std::mutex> guard(m_vram_mtx);
-    m_vram.clear();
-  }
-#endif
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+  m_ptr.clear();
 }
 
 MemoryManagement::~MemoryManagement() {
-  {
-    std::lock_guard<std::mutex> guard(m_ram_mtx);
-    for (auto &x : m_ram) {
-      if (x.second)
-        continue;
-      free(x.first);
-      x.second = true;
-    }
-  }
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+  for (auto &x : m_ptr) {
+    if (x.second)
+      continue;
 #ifdef USING_CUDA
-  {
-    std::lock_guard<std::mutex> guard(m_vram_mtx);
-    for (auto &x : m_vram) {
-      if (x.second)
-        continue;
       // Fixed: CUDA will free this memory area automatically when exiting
-      //_cudaFreeMM(x.first);
-      x.second = true;
-    }
-  }
+      // cudaFreeMM(x.first);
+#else
+    free(x.first);
 #endif
+    x.second = true;
+  }
 }
 
 MemoryManagement &MemoryManagement::getInstance() {
@@ -55,55 +33,95 @@ MemoryManagement &MemoryManagement::getInstance() {
 void *MemoryManagement::mallocMM(size_t size) {
   if (size == 0)
     return nullptr;
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+#ifdef USING_CUDA
+  void *ptr = cudaMallocMM(size);
+#else
   void *ptr = malloc(size);
+#endif
   if (ptr == nullptr)
     return nullptr;
-  {
-    std::lock_guard<std::mutex> guard(m_ram_mtx);
-    m_ram[ptr] = false;
-  }
+  m_ptr[ptr] = false;
   return ptr;
 }
-void MemoryManagement::freeMM(void *ptr) {
+bool MemoryManagement::freeMM(void *ptr) {
   if (ptr == nullptr)
-    return;
-  std::lock_guard<std::mutex> guard(m_ram_mtx);
-  auto it = m_ram.find(ptr);
-  if (it == m_ram.end() || it->second)
-    return;
+    return false;
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+  auto it = m_ptr.find(ptr);
+  if (it == m_ptr.end() || it->second)
+    return false;
+#ifdef USING_CUDA
+  cudaFreeMM(ptr);
+#else
   free(ptr);
-  it->second = true;
-}
-
-void *MemoryManagement::cudaMallocMM(size_t size) {
-#ifdef USING_CUDA
-  if (size == 0)
-    return nullptr;
-  void *ptr = _cudaMallocMM(size);
-  if (ptr == nullptr)
-    return nullptr;
-  {
-    std::lock_guard<std::mutex> guard(m_vram_mtx);
-    m_vram[ptr] = false;
-  }
-  return ptr;
-#else
-  return mallocMM(size);
 #endif
-}
-void MemoryManagement::cudaFreeMM(void *ptr) {
-#ifdef USING_CUDA
-  if (ptr == nullptr)
-    return;
-  std::lock_guard<std::mutex> guard(m_vram_mtx);
-  auto it = m_vram.find(ptr);
-  if (it == m_vram.end() || it->second)
-    return;
-  _cudaFreeMM(ptr);
   it->second = true;
-#else
-  freeMM(ptr);
-#endif
+  return true;
 }
+/* TODO: Need these features?
+bool MemoryManagement::memsetMM(void *ptr, int ch, size_t count,
+                                void *stream_ptr) {
+  if (ptr == nullptr)
+    return false;
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+  auto it = m_ptr.find(ptr);
+  if (it == m_ptr.end() || it->second)
+    return false;
+#ifdef USING_CUDA
+  cudaMemsetMM(ptr, ch, count, stream_ptr);
+#else
+  memset(ptr, ch, count);
+#endif
+  return true;
+}
+bool MemoryManagement::memcpyMM_h2d(void *dest, void *src, size_t count,
+                                    void *stream_ptr) {
+  if (dest == nullptr || src == nullptr)
+    return false;
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+  auto it = m_ptr.find(dest);
+  if (it == m_ptr.end() || it->second)
+    return false;
+#ifdef USING_CUDA
+  cudaMemcpyMM_h2d(dest, src, count, stream_ptr);
+#else
+  memcpy(dest, src, count);
+#endif
+  return true;
+}
+bool MemoryManagement::memcpyMM_d2h(void *dest, void *src, size_t count,
+                                    void *stream_ptr) {
+  if (dest == nullptr || src == nullptr)
+    return false;
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+  auto it = m_ptr.find(src);
+  if (it == m_ptr.end() || it->second)
+    return false;
+#ifdef USING_CUDA
+  cudaMemcpyMM_d2h(dest, src, count, stream_ptr);
+#else
+  memcpy(dest, src, count);
+#endif
+  return true;
+}
+bool MemoryManagement::memcpyMM_d2d(void *dest, void *src, size_t count,
+                                    void *stream_ptr) {
+  if (dest == nullptr || src == nullptr)
+    return false;
+  std::lock_guard<std::mutex> guard(m_ptr_mtx);
+  auto it_src = m_ptr.find(src);
+  auto it_dest = m_ptr.find(dest);
+  if (it_src == m_ptr.end() || it_src->second || it_dest == m_ptr.end() ||
+      it_dest->second)
+    return false;
+#ifdef USING_CUDA
+  cudaMemcpyMM_d2d(dest, src, count, stream_ptr);
+#else
+  memcpy(dest, src, count);
+#endif
+  return true;
+}
+*/
 
 } // namespace thesis
