@@ -11,7 +11,7 @@ private:
   static void initSeeds();
 
 public:
-  static void addSeed(uint32_t seed);
+  static void addSeed(unsigned seed);
 
   static void setUniformTorus(Torus *ptr, size_t len);
   static void setUniformInteger(Integer *ptr, size_t len);

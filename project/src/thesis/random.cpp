@@ -5,7 +5,7 @@ namespace thesis {
 static std::mutex random_mtx;
 static bool isInitSeeds = false;
 static std::vector<unsigned> seeds{
-    std::chrono::system_clock::now().time_since_epoch().count()};
+    (unsigned)std::chrono::system_clock::now().time_since_epoch().count()};
 static std::default_random_engine generator;
 
 void Random::initSeeds() {
@@ -14,7 +14,7 @@ void Random::initSeeds() {
   generator.seed(seed);
 }
 
-void Random::addSeed(uint32_t seed) {
+void Random::addSeed(unsigned seed) {
   std::lock_guard<std::mutex> guard(random_mtx);
   isInitSeeds = false;
   seeds.push_back(seed);
