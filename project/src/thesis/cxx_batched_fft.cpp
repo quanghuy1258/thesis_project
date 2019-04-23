@@ -94,7 +94,7 @@ void BatchedFFT::setInp(TorusInteger *pol, int r, int c) {
     return;
   Stream::synchronizeS(_stream_mul[r * _col + c]);
 #ifdef USING_CUDA
-  cudaSetInp(pol, r, c);
+  cudaSetInp(pol, r, c, mode);
 #else
   Stream::scheduleS(_stream_inp[r * _col + c], [this, pol, r, c, mode]() {
     double *double_ptr = (double *)_data_inp[r * _col + c];
@@ -126,7 +126,7 @@ void BatchedFFT::setInp(TorusInteger *pol, int c) {
   for (int i = 0; i < _row; i++)
     Stream::synchronizeS(_stream_mul[i * _col + c]);
 #ifdef USING_CUDA
-  cudaSetInp(pol, c);
+  cudaSetInp(pol, c, mode);
 #else
   Stream::scheduleS(_stream_inp[_row * _col + c], [this, pol, c, mode]() {
     double *double_ptr = (double *)_data_inp[_row * _col + c];
@@ -159,7 +159,7 @@ void BatchedFFT::setMul(int r, int c) {
   Stream::synchronizeS(_stream_inp[_row * _col + c]);
   Stream::synchronizeS(_stream_out[r]);
 #ifdef USING_CUDA
-  cudaSetMul(pol, r, c);
+  cudaSetMul(r, c, mode);
 #else
   Stream::scheduleS(_stream_mul[r * _col + c], [this, r, c, mode]() {
     std::complex<double> *left =

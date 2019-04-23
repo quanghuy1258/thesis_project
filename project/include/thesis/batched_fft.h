@@ -15,8 +15,8 @@ private:
   std::vector<void *> _data_inp;
   std::vector<void *> _data_mul;
 
-  std::vector<void *>_plan_inp;
-  std::vector<void *>_plan_mul;
+  std::vector<void *> _plan_inp;
+  std::vector<void *> _plan_mul;
 
   std::vector<void *> _stream_inp;
   std::vector<void *> _stream_mul;
@@ -25,9 +25,9 @@ private:
 #ifdef USING_CUDA
   void cudaCreatePlan();
   void cudaDestroyPlan();
-  void cudaSetInp(TorusInteger *pol, int r, int c);
-  void cudaSetInp(TorusInteger *pol, int c);
-  void cudaSetMul(int r, int c);
+  void cudaSetInp(TorusInteger *pol, int r, int c, int mode);
+  void cudaSetInp(TorusInteger *pol, int c, int mode);
+  void cudaSetMul(int r, int c, int mode);
   void cudaAddAllOut(TorusInteger *pol, int r);
   void cudaSubAllOut(TorusInteger *pol, int r);
 #endif
