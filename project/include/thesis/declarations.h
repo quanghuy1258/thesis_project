@@ -6,11 +6,9 @@
 namespace thesis {
 
 #if defined(USING_32BIT)
-typedef int32_t Torus;
-typedef int32_t Integer;
+typedef int32_t TorusInteger;
 #else
-typedef int64_t Torus;
-typedef int64_t Integer;
+typedef int64_t TorusInteger;
 #endif
 
 const double CONST_PI = 4. * std::atan(1.);

@@ -13,9 +13,8 @@ private:
 public:
   static void addSeed(unsigned seed);
 
-  static void setUniformTorus(Torus *ptr, size_t len);
-  static void setUniformInteger(Integer *ptr, size_t len);
-  static void setNormalTorus(Torus *ptr, size_t len, double stddev);
+  static void setUniform(TorusInteger *ptr, size_t len);
+  static void setNormalTorus(TorusInteger *ptr, size_t len, double stddev);
 
   static double getErrorProbability(double stddev, double boundary);
 /*

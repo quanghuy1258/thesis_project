@@ -20,26 +20,18 @@ void Random::addSeed(unsigned seed) {
   seeds.push_back(seed);
 }
 
-void Random::setUniformTorus(Torus *ptr, size_t len) {
-  std::uniform_int_distribution<Torus> distribution(
-      std::numeric_limits<Torus>::min(), std::numeric_limits<Torus>::max());
+void Random::setUniform(TorusInteger *ptr, size_t len) {
+  std::uniform_int_distribution<TorusInteger> distribution(
+      std::numeric_limits<TorusInteger>::min(),
+      std::numeric_limits<TorusInteger>::max());
   std::lock_guard<std::mutex> guard(random_mtx);
   if (!isInitSeeds)
     initSeeds();
   for (size_t i = 0; i < len; i++)
     ptr[i] = distribution(generator);
 }
-void Random::setUniformInteger(Integer *ptr, size_t len) {
-  std::uniform_int_distribution<Integer> distribution(
-      std::numeric_limits<Integer>::min(), std::numeric_limits<Integer>::max());
-  std::lock_guard<std::mutex> guard(random_mtx);
-  if (!isInitSeeds)
-    initSeeds();
-  for (size_t i = 0; i < len; i++)
-    ptr[i] = distribution(generator);
-}
-void Random::setNormalTorus(Torus *ptr, size_t len, double stddev) {
-  const int bitsize_Torus = sizeof(Torus) * 8;
+void Random::setNormalTorus(TorusInteger *ptr, size_t len, double stddev) {
+  const int bitsize_TorusInteger = sizeof(TorusInteger) * 8;
   stddev = std::abs(stddev);
   std::normal_distribution<double> distribution(0., stddev);
   std::lock_guard<std::mutex> guard(random_mtx);
@@ -47,7 +39,7 @@ void Random::setNormalTorus(Torus *ptr, size_t len, double stddev) {
     initSeeds();
   for (size_t i = 0; i < len; i++) {
     double r = distribution(generator);
-    ptr[i] = (r - std::round(r)) * std::pow(2, bitsize_Torus);
+    ptr[i] = (r - std::round(r)) * std::pow(2, bitsize_TorusInteger);
   }
 }
 

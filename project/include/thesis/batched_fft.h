@@ -12,6 +12,26 @@ private:
   int _row;
   int _col;
 
+  std::vector<void *> _data_inp;
+  std::vector<void *> _data_mul;
+
+  std::vector<void *>_plan_inp;
+  std::vector<void *>_plan_mul;
+
+  std::vector<void *> _stream_inp;
+  std::vector<void *> _stream_mul;
+  std::vector<void *> _stream_out;
+
+#ifdef USING_CUDA
+  void cudaCreatePlan();
+  void cudaDestroyPlan();
+  void cudaSetInp(TorusInteger *pol, int r, int c);
+  void cudaSetInp(TorusInteger *pol, int c);
+  void cudaSetMul(int r, int c);
+  void cudaAddAllOut(TorusInteger *pol, int r);
+  void cudaSubAllOut(TorusInteger *pol, int r);
+#endif
+
 public:
   BatchedFFT() = delete;
   BatchedFFT(const BatchedFFT &) = delete;
@@ -20,6 +40,17 @@ public:
   BatchedFFT &operator=(const BatchedFFT &) = delete;
 
   ~BatchedFFT();
+
+  int get_N();
+  int get_row();
+  int get_col();
+
+  void setInp(TorusInteger *pol, int r, int c);
+  void setInp(TorusInteger *pol, int c);
+  void setMul(int r, int c);
+  void addAllOut(TorusInteger *pol, int r);
+  void subAllOut(TorusInteger *pol, int r);
+  void waitAllOut();
   /*
 protected:
   int _N;

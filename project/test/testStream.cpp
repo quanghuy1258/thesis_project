@@ -19,7 +19,7 @@ TEST(Thesis, StreamCPU) {
       std::this_thread::sleep_for(std::chrono::milliseconds(timeSleep[i]));
       tests[i] = (x++);
     });
-    if (!(rand() & 7)) {
+    if (!(rand() & 15)) {
       std::cout << "Synchronizing ... " << std::endl;
       thesis::Stream::synchronizeS(streamPtr);
     }
