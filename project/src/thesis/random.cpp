@@ -58,7 +58,7 @@ double getErrorProbability(double stddev, double boundary) {
     return -1;
   return std::erfc(boundary / (std::sqrt(2) * stddev));
 }
-
+/*
 Torus Random::getUniformTorus() {
   if (!isInitSeeds)
     initSeeds();
@@ -82,5 +82,5 @@ Integer Random::getUniformInteger() {
       std::numeric_limits<Integer>::min(), std::numeric_limits<Integer>::max());
   return distribution(generator);
 }
-
+*/
 } // namespace thesis

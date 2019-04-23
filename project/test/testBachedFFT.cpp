@@ -3,7 +3,7 @@
 #include "thesis/batched_fft.h"
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
-
+/*
 TEST(Thesis, BachedFFT) {
   std::srand(std::time(nullptr));
   std::unique_ptr<thesis::BatchedFFT> ptr =
@@ -57,3 +57,4 @@ TEST(Thesis, BachedFFT) {
     }
   }
 }
+*/

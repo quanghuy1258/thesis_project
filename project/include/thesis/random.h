@@ -18,13 +18,14 @@ public:
   static void setNormalTorus(Torus *ptr, size_t len, double stddev);
 
   static double getErrorProbability(double stddev, double boundary);
-
+/*
   [[deprecated("Will be removed")]]
   static Torus getUniformTorus();
   [[deprecated("Will be removed")]]
   static Torus getNormalTorus(double mean, double stddev);
   [[deprecated("Will be removed")]]
   static Integer getUniformInteger();
+*/
 };
 
 } // namespace thesis

@@ -5,7 +5,7 @@
 #include "thesis/load_lib.h"
 #include "thesis/trgsw.h"
 #include "thesis/trlwe.h"
-
+/*
 TEST(Thesis, TrgswEncryptDecrypt) {
   std::srand(std::time(nullptr));
   thesis::Trgsw trgswObj;
@@ -309,7 +309,7 @@ TEST(Thesis, CMux) {
     ASSERT_TRUE(errors[i] < 0.25);
   }
 }
-/*
+
 TEST(Thesis, BlindRotate) {
   std::srand(std::time(nullptr));
   thesis::Trgsw trgswObj;

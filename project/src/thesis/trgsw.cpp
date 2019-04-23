@@ -5,7 +5,7 @@
 #include "thesis/trlwe.h"
 
 namespace thesis {
-
+/*
 static const double STDDEV_ERROR = std::sqrt(2. / CONST_PI) * pow(2., -30);
 
 // Constructors
@@ -705,7 +705,7 @@ bool Trgsw::cMux(Trlwe &out, const Trlwe &inp,
   return _cMux(out, inp, trlweCipherTrueIds, trlweCipherFalseIds, trgswCipherIds,
                ptr, isForcedToCheck);
 }
-/*
+
 bool Trgsw::blindRotate(Trlwe &out, const Trlwe &inp,
                         const std::vector<int> &trlweCipherIds,
                         const std::vector<int> &coefficients,

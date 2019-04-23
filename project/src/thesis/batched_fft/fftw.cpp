@@ -6,7 +6,7 @@
 #include <fftw3.h>
 
 namespace thesis {
-
+/*
 class FFTW : public BatchedFFT {
 private:
   std::vector<std::complex<double>> _data_inp;
@@ -257,7 +257,7 @@ void FFTW::_waitAll() {
 BatchedFFT *BatchedFFT::_createInstance(int N, int batch_inp, int batch_out) {
   return new FFTW(N, batch_inp, batch_out);
 }
-
+*/
 } // namespace thesis
 
 #endif

@@ -5,7 +5,7 @@
 #include "thesis/load_lib.h"
 
 namespace thesis {
-
+/*
 class Trlwe {
 private:
   int _N;
@@ -72,7 +72,7 @@ public:
                    const std::vector<int> &cipherIDs,
                    bool isForcedToCheck = true) const;
 };
-
+*/
 } // namespace thesis
 
 #endif

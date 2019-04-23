@@ -5,7 +5,7 @@
 #include "thesis/tlwe.h"
 
 namespace thesis {
-
+/*
 static const double STDDEV_ERROR = std::sqrt(2. / CONST_PI) * pow(2., -15);
 
 // Constructors
@@ -411,5 +411,5 @@ bool Trlwe::tlweExtract(Tlwe &out, const std::vector<int> &ps,
   barrier.Wait();
   return true;
 }
-
+*/
 } // namespace thesis

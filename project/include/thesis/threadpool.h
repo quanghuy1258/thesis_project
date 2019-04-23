@@ -4,13 +4,13 @@
 #include <unsupported/Eigen/CXX11/ThreadPool>
 
 namespace thesis {
-
+/*
 class ThreadPool {
 public:
   static int get_numberThreads();
   static Eigen::ThreadPool &get_threadPool();
 };
-
+*/
 } // namespace thesis
 
 #endif

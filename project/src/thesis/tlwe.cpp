@@ -3,7 +3,7 @@
 #include "thesis/threadpool.h"
 
 namespace thesis {
-
+/*
 static const double STDDEV_ERROR = std::sqrt(2. / CONST_PI) * pow(2., -15);
 
 // Constructors
@@ -259,5 +259,5 @@ bool Tlwe::initPublicKeySwitching(const std::vector<bool> &key, int t,
   }
   return true;
 }
-
+*/
 } // namespace thesis

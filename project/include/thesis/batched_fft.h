@@ -7,6 +7,20 @@
 namespace thesis {
 
 class BatchedFFT {
+private:
+  int _N;
+  int _row;
+  int _col;
+
+public:
+  BatchedFFT() = delete;
+  BatchedFFT(const BatchedFFT &) = delete;
+  BatchedFFT(int N, int row, int col);
+
+  BatchedFFT &operator=(const BatchedFFT &) = delete;
+
+  ~BatchedFFT();
+  /*
 protected:
   int _N;
   int _batch_inp;
@@ -62,6 +76,7 @@ public:
   bool subAllOut(PolynomialTorus &out, bool isForcedToCheck = true);
 
   void waitAll();
+  */
 };
 
 } // namespace thesis

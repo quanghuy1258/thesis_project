@@ -5,7 +5,7 @@
 #include "thesis/load_lib.h"
 
 namespace thesis {
-
+/*
 class Tlwe {
 private:
   int _n;
@@ -65,7 +65,7 @@ public:
   bool initPublicKeySwitching(const std::vector<bool> &key, int t,
                               bool isForcedToCheck = true);
 };
-
+*/
 }; // namespace thesis
 
 #endif

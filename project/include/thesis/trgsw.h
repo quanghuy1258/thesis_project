@@ -5,7 +5,7 @@
 #include "thesis/load_lib.h"
 
 namespace thesis {
-
+/*
 class Trgsw {
 private:
   int _l;
@@ -95,7 +95,6 @@ public:
             const std::vector<int> &trlweCipherFalseIds,
             const std::vector<int> &trgswCipherIds,
             bool isForcedToCheck = true) const;
-  /*
   bool blindRotate(Trlwe &out, const Trlwe &inp,
                    const std::vector<int> &trlweCipherIds,
                    const std::vector<int> &coefficients,
@@ -107,9 +106,8 @@ public:
                      const Tlwe &inp, int tlweCipherId,
                      const std::vector<int> &trgswCipherIds, const Tlwe &ks,
                      int ks_t) const;
-                     */
 };
-
+*/
 } // namespace thesis
 
 #endif

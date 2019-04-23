@@ -13,19 +13,25 @@ typedef int64_t Torus;
 typedef int64_t Integer;
 #endif
 
+const double CONST_PI = 4. * std::atan(1.);
+
+class Barrier;
+class MemoryManagement;
+class Random;
+class Stream;
+class ThreadManagement;
+class BatchedFFT;
+/*
 typedef std::vector<bool> PolynomialBinary;
 typedef std::vector<Integer> PolynomialInteger;
 typedef std::vector<Torus> PolynomialTorus;
+*/
 
-const double CONST_PI = 4. * std::atan(1.);
+//class Tlwe;
+//class Trlwe;
+//class Trgsw;
 
-class Tlwe;
-class Trlwe;
-class Trgsw;
-
-class BatchedFFT;
-class Random;
-class ThreadPool;
+//class ThreadPool;
 
 } // namespace thesis
 

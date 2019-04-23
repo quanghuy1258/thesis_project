@@ -6,7 +6,7 @@
 #include <cufft.h>
 
 namespace thesis {
-
+/*
 __global__ void _expand(int N, cuDoubleComplex *data_inp) {
 #if defined(USING_32BIT)
   const int mode = 4;
@@ -339,7 +339,7 @@ BatchedFFT *BatchedFFT::_createInstance(int N, int batch_inp, int batch_out) {
   delete obj;
   return nullptr;
 }
-
+*/
 } // namespace thesis
 
 #endif

@@ -2,6 +2,15 @@
 
 namespace thesis {
 
+BatchedFFT::BatchedFFT(int N, int row, int col) {
+  if (N < 2 || (N & (N - 1)) || row < 1 || col < 1)
+    throw std::invalid_argument("N = 2^k with k > 0 ; row > 0 ; col > 0");
+  _N = N;
+  _row = row;
+  _col = col;
+}
+BatchedFFT::~BatchedFFT() {}
+/*
 // Constructors
 BatchedFFT::BatchedFFT(int N, int batch_inp, int batch_out)
     : _N(N), _batch_inp(batch_inp), _batch_out(batch_out) {}
@@ -76,5 +85,5 @@ bool BatchedFFT::subAllOut(PolynomialTorus &out, bool isForcedToCheck) {
 }
 
 void BatchedFFT::waitAll() { _waitAll(); }
-
+*/
 } // namespace thesis

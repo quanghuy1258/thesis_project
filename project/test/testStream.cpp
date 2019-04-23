@@ -6,11 +6,11 @@
 
 #ifndef USING_CUDA
 TEST(Thesis, StreamCPU) {
-  srand(time(nullptr));
+  std::srand(std::time(nullptr));
   std::vector<int> timeSleep(100);
   std::vector<int> tests(100, 0);
   for (int i = 0; i < 100; i++)
-    timeSleep[i] = (rand() & 15) + 1;
+    timeSleep[i] = (std::rand() & 15) + 1;
 
   void *streamPtr = thesis::Stream::createS();
   int x = 0;

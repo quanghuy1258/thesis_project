@@ -5,9 +5,9 @@
 namespace thesis {
 
 void *Stream::cudaCreateS() {
-  cudaStream_t *streamPtr = (cudaStream_t *)malloc(sizeof(cudaStream_t));
+  cudaStream_t *streamPtr = (cudaStream_t *)std::malloc(sizeof(cudaStream_t));
   if (cudaStreamCreate(streamPtr) != cudaSuccess) {
-    free(streamPtr);
+    std::free(streamPtr);
     return nullptr;
   }
   return streamPtr;
@@ -22,7 +22,7 @@ void Stream::cudaDestroyS(void *streamPtr) {
   if (streamPtr) {
     cudaStream_t *s = (cudaStream_t *)streamPtr;
     cudaStreamDestroy(*s);
-    free(s);
+    std::free(s);
   }
 }
 

@@ -9,7 +9,7 @@ void *MemoryManagement::mallocMM(size_t size) {
 #ifdef USING_CUDA
   void *ptr = cudaMallocMM(size);
 #else
-  void *ptr = malloc(size);
+  void *ptr = std::malloc(size);
 #endif
   return ptr;
 }
@@ -19,7 +19,7 @@ void MemoryManagement::freeMM(void *ptr) {
 #ifdef USING_CUDA
   cudaFreeMM(ptr);
 #else
-  free(ptr);
+  std::free(ptr);
 #endif
 }
 void MemoryManagement::memsetMM(void *ptr, int ch, size_t count,
@@ -29,7 +29,7 @@ void MemoryManagement::memsetMM(void *ptr, int ch, size_t count,
 #ifdef USING_CUDA
   cudaMemsetMM(ptr, ch, count, stream_ptr);
 #else
-  auto f = [ptr, ch, count]() { memset(ptr, ch, count); };
+  auto f = [ptr, ch, count]() { std::memset(ptr, ch, count); };
   if (stream_ptr)
     Stream::scheduleS(stream_ptr, std::move(f));
   else
@@ -43,7 +43,7 @@ void MemoryManagement::memcpyMM_h2d(void *dest, void *src, size_t count,
 #ifdef USING_CUDA
   cudaMemcpyMM_h2d(dest, src, count, stream_ptr);
 #else
-  auto f = [dest, src, count]() { memcpy(dest, src, count); };
+  auto f = [dest, src, count]() { std::memcpy(dest, src, count); };
   if (stream_ptr)
     Stream::scheduleS(stream_ptr, std::move(f));
   else
@@ -57,7 +57,7 @@ void MemoryManagement::memcpyMM_d2h(void *dest, void *src, size_t count,
 #ifdef USING_CUDA
   cudaMemcpyMM_d2h(dest, src, count, stream_ptr);
 #else
-  auto f = [dest, src, count]() { memcpy(dest, src, count); };
+  auto f = [dest, src, count]() { std::memcpy(dest, src, count); };
   if (stream_ptr)
     Stream::scheduleS(stream_ptr, std::move(f));
   else
@@ -71,7 +71,7 @@ void MemoryManagement::memcpyMM_d2d(void *dest, void *src, size_t count,
 #ifdef USING_CUDA
   cudaMemcpyMM_d2d(dest, src, count, stream_ptr);
 #else
-  auto f = [dest, src, count]() { memcpy(dest, src, count); };
+  auto f = [dest, src, count]() { std::memcpy(dest, src, count); };
   if (stream_ptr)
     Stream::scheduleS(stream_ptr, std::move(f));
   else
