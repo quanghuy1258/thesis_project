@@ -75,6 +75,8 @@ BatchedFFT::~BatchedFFT() {
 #else
   {
     fftw_plan *ptr = (fftw_plan *)_plan_inp[0];
+    for (int i = 0; i < (2 * _row + 1) * _col; i++)
+      fftw_destroy_plan(ptr[i]);
     delete[] ptr;
   }
 #endif
