@@ -5,6 +5,28 @@
 #include "thesis/load_lib.h"
 
 namespace thesis {
+
+class TrgswParams {
+public:
+  int _N;
+  int _k;
+  int _l;
+  int _Bgbit;
+  double _sdError;
+  double _varError;
+
+  TrgswParams() = delete;
+  TrgswParams(const TrgswParams &) = delete;
+  TrgswParams(int N, int k, int l, int Bgbit, double sdError, double varError);
+
+  TrgswParams &operator=(const TrgswParams &) = delete;
+
+  ~TrgswParams();
+
+  void gateBootstrap(size_t count, void *tlweCiphers, TorusInteger *constants,
+                     void *BKey, void *KSKey);
+};
+
 /*
 class Trgsw {
 private:

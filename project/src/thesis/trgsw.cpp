@@ -1,10 +1,29 @@
 #include "thesis/trgsw.h"
-#include "thesis/batched_fft.h"
-#include "thesis/random.h"
-#include "thesis/threadpool.h"
-#include "thesis/trlwe.h"
 
 namespace thesis {
+
+TrgswParams::TrgswParams(int N, int k, int l, int Bgbit, double sdError,
+                         double varError) {
+  if (N < 2 || (N & (N - 1)) || k < 1 || l < 1 || Bgbit < 1 || sdError <= 0 ||
+      varError <= 0)
+    throw std::invalid_argument("N = 2^k with k > 0 ; k > 0 ; l > 0 ; Bgbit > "
+                                "1 ; sdError > 0 ; varError > 0");
+  _N = N;
+  _k = k;
+  _l = l;
+  _Bgbit = Bgbit;
+  _sdError = sdError;
+  _varError = _varError;
+}
+TrgswParams::~TrgswParams() {}
+
+void TrgswParams::gateBootstrap(size_t count, void *tlweCiphers,
+                                TorusInteger *constants, void *BKey,
+                                void *KSKey) {
+  if (!count)
+    throw std::invalid_argument("count > 0");
+}
+
 /*
 static const double STDDEV_ERROR = std::sqrt(2. / CONST_PI) * pow(2., -30);
 
