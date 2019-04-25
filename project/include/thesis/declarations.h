@@ -21,6 +21,9 @@ class ThreadManagement;
 class BatchedFFT;
 
 class Cipher;
+class TlweCipher;
+class TrlweCipher;
+class TrgswCipher;
 /*
 typedef std::vector<bool> PolynomialBinary;
 typedef std::vector<Integer> PolynomialInteger;
