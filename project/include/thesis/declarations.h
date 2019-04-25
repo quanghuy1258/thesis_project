@@ -19,6 +19,8 @@ class Random;
 class Stream;
 class ThreadManagement;
 class BatchedFFT;
+
+class Cipher;
 /*
 typedef std::vector<bool> PolynomialBinary;
 typedef std::vector<Integer> PolynomialInteger;
