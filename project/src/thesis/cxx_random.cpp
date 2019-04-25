@@ -50,29 +50,5 @@ double getErrorProbability(double stddev, double boundary) {
     return -1;
   return std::erfc(boundary / (std::sqrt(2) * stddev));
 }
-/*
-Torus Random::getUniformTorus() {
-  if (!isInitSeeds)
-    initSeeds();
-  std::uniform_int_distribution<Torus> distribution(
-      std::numeric_limits<Torus>::min(), std::numeric_limits<Torus>::max());
-  return distribution(generator);
-}
-Torus Random::getNormalTorus(double mean, double stddev) {
-  if (!isInitSeeds)
-    initSeeds();
-  std::normal_distribution<double> distribution(mean, stddev);
-  double randomNumber = distribution(generator);
-  randomNumber = (randomNumber - std::round(randomNumber)) *
-                 std::pow(2, sizeof(Torus) * 8);
-  return (Torus)randomNumber;
-}
-Integer Random::getUniformInteger() {
-  if (!isInitSeeds)
-    initSeeds();
-  std::uniform_int_distribution<Integer> distribution(
-      std::numeric_limits<Integer>::min(), std::numeric_limits<Integer>::max());
-  return distribution(generator);
-}
-*/
+
 } // namespace thesis

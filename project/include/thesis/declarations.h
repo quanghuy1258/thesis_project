@@ -24,17 +24,6 @@ class Cipher;
 class TlweCipher;
 class TrlweCipher;
 class TrgswCipher;
-/*
-typedef std::vector<bool> PolynomialBinary;
-typedef std::vector<Integer> PolynomialInteger;
-typedef std::vector<Torus> PolynomialTorus;
-*/
-
-//class Tlwe;
-//class Trlwe;
-//class Trgsw;
-
-//class ThreadPool;
 
 } // namespace thesis
 
