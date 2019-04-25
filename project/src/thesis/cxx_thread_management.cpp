@@ -5,7 +5,7 @@
 namespace thesis {
 
 static std::mutex mtx;
-static int n_threads = std::thread::hardware_concurrency();
+static int n_threads = std::thread::hardware_concurrency() * 2;
 static Eigen::ThreadPool thread_pool(n_threads);
 
 int ThreadManagement::getNumberThreadsInPool() { return n_threads; }

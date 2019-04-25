@@ -25,6 +25,9 @@ class TlweCipher;
 class TrlweCipher;
 class TrgswCipher;
 
+class Decomposition;
+class Bootstrap;
+
 } // namespace thesis
 
 #endif

@@ -9,14 +9,14 @@ namespace thesis {
 
 class TrlweCipher : public Cipher {
 public:
-  size_t _N;
-  size_t _k;
+  int _N;
+  int _k;
 
   TrlweCipher() = delete;
   TrlweCipher(const TlweCipher &) = delete;
-  TrlweCipher(size_t N, size_t k, double sdError, double varError);
-  TrlweCipher(TorusInteger *data, size_t size, size_t N, size_t k,
-              double sdError, double varError);
+  TrlweCipher(int N, int k, double sdError, double varError);
+  TrlweCipher(TorusInteger *data, int size, int N, int k, double sdError,
+              double varError);
 
   TrlweCipher &operator=(const TlweCipher &) = delete;
 

@@ -9,15 +9,15 @@ namespace thesis {
 class Cipher {
 public:
   TorusInteger *_data;
-  size_t _size;
+  int _size;
   bool _isOwnData;
   double _sdError;
   double _varError;
 
   Cipher() = delete;
   Cipher(const Cipher &) = delete;
-  Cipher(size_t size, double sdError, double varError);
-  Cipher(TorusInteger *data, size_t size, double sdError, double varError);
+  Cipher(int size, double sdError, double varError);
+  Cipher(TorusInteger *data, int size, double sdError, double varError);
 
   Cipher &operator=(const Cipher &) = delete;
 

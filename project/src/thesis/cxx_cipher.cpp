@@ -3,8 +3,8 @@
 
 namespace thesis {
 
-Cipher::Cipher(size_t size, double sdError, double varError) {
-  if (!size || sdError < 0 || varError < 0)
+Cipher::Cipher(int size, double sdError, double varError) {
+  if (size <= 0 || sdError < 0 || varError < 0)
     throw std::invalid_argument("size > 0 ; sdError >= 0 ; varError >= 0");
   _data =
       (TorusInteger *)MemoryManagement::mallocMM(size * sizeof(TorusInteger));
@@ -15,9 +15,8 @@ Cipher::Cipher(size_t size, double sdError, double varError) {
   if (!_data)
     throw std::runtime_error("Cannot malloc data");
 }
-Cipher::Cipher(TorusInteger *data, size_t size, double sdError,
-               double varError) {
-  if (!data || !size || sdError < 0 || varError < 0)
+Cipher::Cipher(TorusInteger *data, int size, double sdError, double varError) {
+  if (!data || size <= 0 || sdError < 0 || varError < 0)
     throw std::invalid_argument(
         "data != NULL ; size > 0 ; sdError >= 0 ; varError >= 0");
   _data = data;
