@@ -1,3 +1,4 @@
+#include "thesis/memory_management.h"
 #include "thesis/random.h"
 
 namespace thesis {
@@ -20,27 +21,38 @@ void Random::addSeed(unsigned seed) {
   seeds.push_back(seed);
 }
 
-void Random::setUniform(TorusInteger *ptr, size_t len) {
+void Random::setUniform(TorusInteger *ptr, size_t len, void *streamPtr) {
   std::uniform_int_distribution<TorusInteger> distribution(
       std::numeric_limits<TorusInteger>::min(),
       std::numeric_limits<TorusInteger>::max());
-  std::lock_guard<std::mutex> guard(random_mtx);
-  if (!isInitSeeds)
-    initSeeds();
-  for (size_t i = 0; i < len; i++)
-    ptr[i] = distribution(generator);
+  std::vector<TorusInteger> vec(len);
+  {
+    std::lock_guard<std::mutex> guard(random_mtx);
+    if (!isInitSeeds)
+      initSeeds();
+    for (size_t i = 0; i < len; i++)
+      vec[i] = distribution(generator);
+  }
+  MemoryManagement::memcpyMM_h2d(ptr, vec.data(), len * sizeof(TorusInteger),
+                                 streamPtr);
 }
-void Random::setNormalTorus(TorusInteger *ptr, size_t len, double stddev) {
+void Random::setNormalTorus(TorusInteger *ptr, size_t len, double stddev,
+                            void *streamPtr) {
   const int bitsize_TorusInteger = sizeof(TorusInteger) * 8;
   stddev = std::abs(stddev);
   std::normal_distribution<double> distribution(0., stddev);
-  std::lock_guard<std::mutex> guard(random_mtx);
-  if (!isInitSeeds)
-    initSeeds();
-  for (size_t i = 0; i < len; i++) {
-    double r = distribution(generator);
-    ptr[i] = (r - std::round(r)) * std::pow(2, bitsize_TorusInteger);
+  std::vector<TorusInteger> vec(len);
+  {
+    std::lock_guard<std::mutex> guard(random_mtx);
+    if (!isInitSeeds)
+      initSeeds();
+    for (size_t i = 0; i < len; i++) {
+      double r = distribution(generator);
+      vec[i] = (r - std::round(r)) * std::pow(2, bitsize_TorusInteger);
+    }
   }
+  MemoryManagement::memcpyMM_h2d(ptr, vec.data(), len * sizeof(TorusInteger),
+                                 streamPtr);
 }
 
 double getErrorProbability(double stddev, double boundary) {
