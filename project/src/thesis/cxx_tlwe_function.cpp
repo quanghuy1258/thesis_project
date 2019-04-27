@@ -16,11 +16,10 @@ void TlweFunction::genkey(TorusInteger *s, int n, void *streamPtr) {
     for (int i = 0; i < n; i++)
       s[i] &= 1;
   };
-  if (streamPtr) {
+  if (streamPtr)
     Stream::scheduleS(streamPtr, std::move(fn));
-  } else {
+  else
     fn();
-  }
 #endif
 }
 void TlweFunction::encrypt(TorusInteger *s, TorusInteger plain,
@@ -40,11 +39,10 @@ void TlweFunction::encrypt(TorusInteger *s, TorusInteger plain,
     bit <<= 8 * sizeof(TorusInteger) - 1;
     cipher->_data[cipher->_n] += plain * bit;
   };
-  if (streamPtr) {
+  if (streamPtr)
     Stream::scheduleS(streamPtr, std::move(fn));
-  } else {
+  else
     fn();
-  }
 #endif
 }
 void TlweFunction::decrypt(TorusInteger *s, TlweCipher *cipher,
@@ -65,11 +63,10 @@ void TlweFunction::decrypt(TorusInteger *s, TlweCipher *cipher,
     if (abs_err)
       *abs_err = (y < 0.25) ? y : (0.5 - y);
   };
-  if (streamPtr) {
+  if (streamPtr)
     Stream::scheduleS(streamPtr, std::move(fn));
-  } else {
+  else
     fn();
-  }
 #endif
 }
 
