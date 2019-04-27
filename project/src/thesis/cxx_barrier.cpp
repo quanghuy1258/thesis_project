@@ -6,11 +6,11 @@ namespace thesis {
 
 Barrier::Barrier() { _data = nullptr; }
 Barrier::~Barrier() {
-  if (_data) {
-    wait();
-    Eigen::Barrier *ptr = (Eigen::Barrier *)_data;
-    delete ptr;
-  }
+  if (!_data)
+    return;
+  wait();
+  Eigen::Barrier *ptr = (Eigen::Barrier *)_data;
+  delete ptr;
 }
 
 void Barrier::reset(size_t count) {
@@ -25,16 +25,16 @@ void Barrier::reset(size_t count) {
     _data = nullptr;
 }
 void Barrier::notify() {
-  if (_data) {
-    Eigen::Barrier *ptr = (Eigen::Barrier *)_data;
-    ptr->Notify();
-  }
+  if (!_data)
+    return;
+  Eigen::Barrier *ptr = (Eigen::Barrier *)_data;
+  ptr->Notify();
 }
 void Barrier::wait() {
-  if (_data) {
-    Eigen::Barrier *ptr = (Eigen::Barrier *)_data;
-    ptr->Wait();
-  }
+  if (!_data)
+    return;
+  Eigen::Barrier *ptr = (Eigen::Barrier *)_data;
+  ptr->Wait();
 }
 
 } // namespace thesis

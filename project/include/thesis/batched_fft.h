@@ -25,9 +25,9 @@ private:
 #ifdef USING_CUDA
   void cudaCreatePlan();
   void cudaDestroyPlan();
-  void cudaSetInp(TorusInteger *pol, int r, int c, int mode);
-  void cudaSetInp(TorusInteger *pol, int c, int mode);
-  void cudaSetMul(int r, int c, int mode);
+  void cudaSetInp(TorusInteger *pol, int r, int c);
+  void cudaSetInp(TorusInteger *pol, int c);
+  void cudaSetMul(int r, int c);
   void cudaAddAllOut(TorusInteger *pol, int r);
   void cudaSubAllOut(TorusInteger *pol, int r);
 #endif

@@ -4,16 +4,25 @@
 
 #ifndef USING_CUDA
 #include <fftw3.h>
+class CleanupFFTW {
+private:
+  CleanupFFTW() {}
+  ~CleanupFFTW() { fftw_cleanup(); }
+
+public:
+  static void cleanup() { static CleanupFFTW obj; }
+};
 #endif
 
 namespace thesis {
 
-BatchedFFT::BatchedFFT(int N, int row, int col) {
 #if defined(USING_32BIT)
-  const int mode = 4;
+const int mode = 4;
 #else
-  const int mode = 8;
+const int mode = 8;
 #endif
+
+BatchedFFT::BatchedFFT(int N, int row, int col) {
   if (N < 2 || (N & (N - 1)) || row < 1 || col < 1)
     throw std::invalid_argument("N = 2^k with k > 0 ; row > 0 ; col > 0");
   _N = N;
@@ -43,22 +52,19 @@ BatchedFFT::BatchedFFT(int N, int row, int col) {
 #ifdef USING_CUDA
   cudaCreatePlan();
 #else
-  {
-    fftw_plan *ptr = new fftw_plan[(2 * row + 1) * col];
-    _plan_inp.resize((row + 1) * col);
-    for (int i = 0; i < (row + 1) * col; i++) {
-      ptr[i] =
-          fftw_plan_dft_r2c_1d(N * 2 * mode, (double *)_data_inp[i],
-                               (fftw_complex *)_data_inp[i], FFTW_ESTIMATE);
-      _plan_inp[i] = ptr + i;
-    }
-    _plan_mul.resize(row * col);
-    for (int i = 0; i < row * col; i++) {
-      ptr[(row + 1) * col + i] =
-          fftw_plan_dft_c2r_1d(N * 2 * mode, (fftw_complex *)_data_mul[i],
-                               (double *)_data_mul[i], FFTW_ESTIMATE);
-      _plan_mul[i] = ptr + (row + 1) * col + i;
-    }
+  fftw_plan *ptr = new fftw_plan[(2 * row + 1) * col];
+  _plan_inp.resize((row + 1) * col);
+  for (int i = 0; i < (row + 1) * col; i++) {
+    ptr[i] = fftw_plan_dft_r2c_1d(N * 2 * mode, (double *)_data_inp[i],
+                                  (fftw_complex *)_data_inp[i], FFTW_ESTIMATE);
+    _plan_inp[i] = ptr + i;
+  }
+  _plan_mul.resize(row * col);
+  for (int i = 0; i < row * col; i++) {
+    ptr[(row + 1) * col + i] =
+        fftw_plan_dft_c2r_1d(N * 2 * mode, (fftw_complex *)_data_mul[i],
+                             (double *)_data_mul[i], FFTW_ESTIMATE);
+    _plan_mul[i] = ptr + (row + 1) * col + i;
   }
 #endif
 }
@@ -73,12 +79,11 @@ BatchedFFT::~BatchedFFT() {
 #ifdef USING_CUDA
   cudaDestroyPlan();
 #else
-  {
-    fftw_plan *ptr = (fftw_plan *)_plan_inp[0];
-    for (int i = 0; i < (2 * _row + 1) * _col; i++)
-      fftw_destroy_plan(ptr[i]);
-    delete[] ptr;
-  }
+  fftw_plan *ptr = (fftw_plan *)_plan_inp[0];
+  for (int i = 0; i < (2 * _row + 1) * _col; i++)
+    fftw_destroy_plan(ptr[i]);
+  delete[] ptr;
+  CleanupFFTW::cleanup();
 #endif
 }
 
@@ -87,18 +92,13 @@ int BatchedFFT::get_row() { return _row; }
 int BatchedFFT::get_col() { return _col; }
 
 void BatchedFFT::setInp(TorusInteger *pol, int r, int c) {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
   if (r < 0 || r >= _row || c < 0 || c >= _col)
     return;
   Stream::synchronizeS(_stream_mul[r * _col + c]);
 #ifdef USING_CUDA
-  cudaSetInp(pol, r, c, mode);
+  cudaSetInp(pol, r, c);
 #else
-  Stream::scheduleS(_stream_inp[r * _col + c], [this, pol, r, c, mode]() {
+  Stream::scheduleS(_stream_inp[r * _col + c], [this, pol, r, c]() {
     double *double_ptr = (double *)_data_inp[r * _col + c];
     for (int i = 0; i < _N; i++) {
       TorusInteger num = pol[i];
@@ -118,19 +118,14 @@ void BatchedFFT::setInp(TorusInteger *pol, int r, int c) {
 #endif
 }
 void BatchedFFT::setInp(TorusInteger *pol, int c) {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
   if (c < 0 || c >= _col)
     return;
   for (int i = 0; i < _row; i++)
     Stream::synchronizeS(_stream_mul[i * _col + c]);
 #ifdef USING_CUDA
-  cudaSetInp(pol, c, mode);
+  cudaSetInp(pol, c);
 #else
-  Stream::scheduleS(_stream_inp[_row * _col + c], [this, pol, c, mode]() {
+  Stream::scheduleS(_stream_inp[_row * _col + c], [this, pol, c]() {
     double *double_ptr = (double *)_data_inp[_row * _col + c];
     for (int i = 0; i < _N; i++) {
       TorusInteger num = pol[i];
@@ -150,20 +145,15 @@ void BatchedFFT::setInp(TorusInteger *pol, int c) {
 #endif
 }
 void BatchedFFT::setMul(int r, int c) {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
   if (r < 0 || r >= _row || c < 0 || c >= _col)
     return;
   Stream::synchronizeS(_stream_inp[r * _col + c]);
   Stream::synchronizeS(_stream_inp[_row * _col + c]);
   Stream::synchronizeS(_stream_out[r]);
 #ifdef USING_CUDA
-  cudaSetMul(r, c, mode);
+  cudaSetMul(r, c);
 #else
-  Stream::scheduleS(_stream_mul[r * _col + c], [this, r, c, mode]() {
+  Stream::scheduleS(_stream_mul[r * _col + c], [this, r, c]() {
     std::complex<double> *left =
         (std::complex<double> *)_data_inp[r * _col + c];
     std::complex<double> *right =

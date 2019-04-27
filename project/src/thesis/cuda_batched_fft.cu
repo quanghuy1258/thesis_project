@@ -7,12 +7,13 @@
 
 namespace thesis {
 
-__global__ void _expand(int N, TorusInteger *pol, void *data_inp) {
 #if defined(USING_32BIT)
-  const int mode = 4;
+const int mode = 4;
 #else
-  const int mode = 8;
+const int mode = 8;
 #endif
+
+__global__ void _expand(int N, TorusInteger *pol, void *data_inp) {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   int m = blockIdx.y * blockDim.y + threadIdx.y;
   if (n < N && m < mode) {
@@ -42,11 +43,6 @@ __global__ void _multiply(int length, void *left, void *right, void *result) {
 }
 
 __global__ void _collapse(int N, void *data_mul) {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
   TorusInteger *torus_ptr = (TorusInteger *)data_mul;
   double *double_ptr = (double *)data_mul;
   for (int i = 0; i < N; i++) {
@@ -60,11 +56,6 @@ __global__ void _collapse(int N, void *data_mul) {
 }
 
 __global__ void _add(int N, int col, TorusInteger *pol, void *data_mul) {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
     cuDoubleComplex *_data_mul = (cuDoubleComplex *)data_mul;
@@ -77,11 +68,6 @@ __global__ void _add(int N, int col, TorusInteger *pol, void *data_mul) {
 }
 
 __global__ void _sub(int N, int col, TorusInteger *pol, void *data_mul) {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
     cuDoubleComplex *_data_mul = (cuDoubleComplex *)data_mul;
@@ -94,11 +80,6 @@ __global__ void _sub(int N, int col, TorusInteger *pol, void *data_mul) {
 }
 
 void BatchedFFT::cudaCreatePlan() {
-#if defined(USING_32BIT)
-  const int mode = 4;
-#else
-  const int mode = 8;
-#endif
   _plan_inp.resize((_row + 1) * _col);
   for (int i = 0; i < (_row + 1) * _col; i++) {
     cufftHandle *cufftHandle_ptr =
@@ -146,7 +127,7 @@ void BatchedFFT::cudaDestroyPlan() {
     }
   }
 }
-void BatchedFFT::cudaSetInp(TorusInteger *pol, int r, int c, int mode) {
+void BatchedFFT::cudaSetInp(TorusInteger *pol, int r, int c) {
   int threadsPerBlock = 512;
   // _N * mode + 512 = (_N * mode + 1) + (512 - 1)
   dim3 numBlocks((_N * mode + 512) / 512, mode);
@@ -157,7 +138,7 @@ void BatchedFFT::cudaSetInp(TorusInteger *pol, int r, int c, int mode) {
                (double *)_data_inp[r * _col + c],
                (cuDoubleComplex *)_data_inp[r * _col + c]);
 }
-void BatchedFFT::cudaSetInp(TorusInteger *pol, int c, int mode) {
+void BatchedFFT::cudaSetInp(TorusInteger *pol, int c) {
   int threadsPerBlock = 512;
   // _N * mode + 512 = (_N * mode + 1) + (512 - 1)
   dim3 numBlocks((_N * mode + 512) / 512, mode);
@@ -168,7 +149,7 @@ void BatchedFFT::cudaSetInp(TorusInteger *pol, int c, int mode) {
                (double *)_data_inp[_row * _col + c],
                (cuDoubleComplex *)_data_inp[_row * _col + c]);
 }
-void BatchedFFT::cudaSetMul(int r, int c, int mode) {
+void BatchedFFT::cudaSetMul(int r, int c) {
   int threadsPerBlock = 512;
   // _N * mode + 512 = (_N * mode + 1) + (512 - 1)
   int numBlocks = (_N * mode + 512) / 512;

@@ -58,7 +58,7 @@ void Random::setNormalTorus(TorusInteger *ptr, size_t len, double stddev,
 double getErrorProbability(double stddev, double boundary) {
   stddev = std::abs(stddev);
   boundary = std::abs(boundary);
-  if (stddev == 0)
+  if (stddev <= 0 || boundary <= 0)
     return -1;
   return std::erfc(boundary / (std::sqrt(2) * stddev));
 }
