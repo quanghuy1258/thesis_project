@@ -25,6 +25,7 @@ class TlweCipher;
 class TrlweCipher;
 class TrgswCipher;
 
+class TlweFunction;
 class Decomposition;
 class Bootstrap;
 

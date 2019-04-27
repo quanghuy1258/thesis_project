@@ -5,7 +5,7 @@ namespace thesis {
 TrgswCipher::TrgswCipher(int N, int k, int l, int Bgbit, double sdError,
                          double varError)
     : Cipher(N * (k + 1) * l * (k + 1), sdError, varError) {
-  if (N < 2 || (N & (N - 1)) || k <= 0 || l <= 0 || Bgbit <= 0)
+  if (N < 2 || (N & (N - 1)) || k < 1 || l < 1 || Bgbit < 1)
     throw std::invalid_argument(
         "N = 2^a with a > 0 ; k > 0 ; l > 0 ; Bgbit > 0");
   _N = N;
@@ -16,7 +16,7 @@ TrgswCipher::TrgswCipher(int N, int k, int l, int Bgbit, double sdError,
 TrgswCipher::TrgswCipher(TorusInteger *data, int size, int N, int k, int l,
                          int Bgbit, double sdError, double varError)
     : Cipher(data, size, sdError, varError) {
-  if (N < 2 || (N & (N - 1)) || k <= 0 || l <= 0 || Bgbit <= 0 ||
+  if (N < 2 || (N & (N - 1)) || k < 1 || l < 1 || Bgbit < 1 ||
       size < N * (k + 1) * l * (k + 1))
     throw std::invalid_argument("N = 2^a with a > 0 ; k > 0 ; l > 0 ; Bgbit > "
                                 "0 ; size >= N * (k + 1) * l * (k + 1)");

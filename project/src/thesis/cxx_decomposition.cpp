@@ -4,8 +4,7 @@
 namespace thesis {
 
 Decomposition::Decomposition(int N, int k, int l, int Bgbit, int num_stream) {
-  if (N < 2 || (N & (N - 1)) || k <= 0 || l <= 0 || Bgbit <= 0 ||
-      num_stream <= 0)
+  if (N < 2 || (N & (N - 1)) || k < 1 || l < 1 || Bgbit < 1 || num_stream < 1)
     throw std::invalid_argument(
         "N = 2^a with a > 0 ; k > 0 ; l > 0 ; Bgbit > 0 ; num_stream > 0");
   _N = N;
