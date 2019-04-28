@@ -29,6 +29,7 @@ public:
 
   TorusInteger *get_trlwe_data(int r);
   TorusInteger *get_pol_data(int r, int c);
+  TrlweCipher get_trlwe(int r);
 };
 
 } // namespace thesis

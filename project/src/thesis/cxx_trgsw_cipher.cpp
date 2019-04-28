@@ -1,4 +1,5 @@
 #include "thesis/trgsw_cipher.h"
+#include "thesis/trlwe_cipher.h"
 
 namespace thesis {
 
@@ -57,6 +58,12 @@ TorusInteger *TrgswCipher::get_pol_data(int r, int c) {
   if (r < 0 || r >= (_k + 1) * _l || c < 0 || c > _k)
     return nullptr;
   return _data + ((_k + 1) * r + c) * _N;
+}
+TrlweCipher TrgswCipher::get_trlwe(int r) {
+  if (r < 0 || r >= (_k + 1) * _l)
+    throw std::invalid_argument("0 <= r < (_k + 1) * _l");
+  return TrlweCipher(get_trlwe_data(r), (_k + 1) * _N, _N, _k, _sdError,
+                     _varError);
 }
 
 } // namespace thesis
