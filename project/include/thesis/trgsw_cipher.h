@@ -22,7 +22,13 @@ public:
 
   TrgswCipher &operator=(const TrgswCipher &) = delete;
 
+  TrgswCipher(TrgswCipher &&obj);
+  TrgswCipher &operator=(TrgswCipher &&obj);
+
   ~TrgswCipher();
+
+  TorusInteger *get_trlwe_data(int r);
+  TorusInteger *get_pol_data(int r, int c);
 };
 
 } // namespace thesis

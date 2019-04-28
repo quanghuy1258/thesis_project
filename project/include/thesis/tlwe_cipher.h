@@ -19,6 +19,9 @@ public:
 
   TlweCipher &operator=(const TlweCipher &);
 
+  TlweCipher(TlweCipher &&obj);
+  TlweCipher &operator=(TlweCipher &&obj);
+
   ~TlweCipher();
 };
 

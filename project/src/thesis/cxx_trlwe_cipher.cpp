@@ -18,6 +18,25 @@ TrlweCipher::TrlweCipher(TorusInteger *data, int size, int N, int k,
   _N = N;
   _k = k;
 }
+TrlweCipher::TrlweCipher(TrlweCipher &&obj) : Cipher(std::move(obj)) {
+  _N = obj._N;
+  _k = obj._k;
+  obj._N = 0;
+  obj._k = 0;
+}
+TrlweCipher &TrlweCipher::operator=(TrlweCipher &&obj) {
+  Cipher::operator=(std::move(obj));
+  _N = obj._N;
+  _k = obj._k;
+  obj._N = 0;
+  obj._k = 0;
+  return *this;
+}
 TrlweCipher::~TrlweCipher() {}
+TorusInteger *TrlweCipher::get_pol_data(int i) {
+  if (i < 0 || i > _k)
+    return nullptr;
+  return _data + _N * i;
+}
 
 } // namespace thesis

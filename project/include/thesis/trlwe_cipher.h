@@ -20,7 +20,12 @@ public:
 
   TrlweCipher &operator=(const TlweCipher &) = delete;
 
+  TrlweCipher(TrlweCipher &&obj);
+  TrlweCipher &operator=(TrlweCipher &&obj);
+
   ~TrlweCipher();
+
+  TorusInteger *get_pol_data(int i);
 };
 
 } // namespace thesis

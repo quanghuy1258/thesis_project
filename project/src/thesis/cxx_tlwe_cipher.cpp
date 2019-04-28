@@ -15,6 +15,16 @@ TlweCipher::TlweCipher(TorusInteger *data, int size, int n, double sdError,
     throw std::invalid_argument("n > 0 ; n + 1 >= size");
   _n = n;
 }
+TlweCipher::TlweCipher(TlweCipher &&obj) : Cipher(std::move(obj)) {
+  _n = obj._n;
+  obj._n = 0;
+}
+TlweCipher &TlweCipher::operator=(TlweCipher &&obj) {
+  Cipher::operator=(std::move(obj));
+  _n = obj._n;
+  obj._n = 0;
+  return *this;
+}
 TlweCipher::~TlweCipher() {}
 
 } // namespace thesis

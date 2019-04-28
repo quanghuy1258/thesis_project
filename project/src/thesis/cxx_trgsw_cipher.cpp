@@ -25,6 +25,38 @@ TrgswCipher::TrgswCipher(TorusInteger *data, int size, int N, int k, int l,
   _l = l;
   _Bgbit = Bgbit;
 }
+TrgswCipher::TrgswCipher(TrgswCipher &&obj) : Cipher(std::move(obj)) {
+  _N = obj._N;
+  _k = obj._k;
+  _l = obj._l;
+  _Bgbit = obj._Bgbit;
+  obj._N = 0;
+  obj._k = 0;
+  obj._l = 0;
+  obj._Bgbit = 0;
+}
+TrgswCipher &TrgswCipher::operator=(TrgswCipher &&obj) {
+  Cipher::operator=(std::move(obj));
+  _N = obj._N;
+  _k = obj._k;
+  _l = obj._l;
+  _Bgbit = obj._Bgbit;
+  obj._N = 0;
+  obj._k = 0;
+  obj._l = 0;
+  obj._Bgbit = 0;
+  return *this;
+}
 TrgswCipher::~TrgswCipher() {}
+TorusInteger *TrgswCipher::get_trlwe_data(int r) {
+  if (r < 0 || r >= (_k + 1) * _l)
+    return nullptr;
+  return _data + (_k + 1) * r * _N;
+}
+TorusInteger *TrgswCipher::get_pol_data(int r, int c) {
+  if (r < 0 || r >= (_k + 1) * _l || c < 0 || c > _k)
+    return nullptr;
+  return _data + ((_k + 1) * r + c) * _N;
+}
 
 } // namespace thesis

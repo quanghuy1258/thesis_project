@@ -21,6 +21,9 @@ public:
 
   Cipher &operator=(const Cipher &) = delete;
 
+  Cipher(Cipher &&obj);
+  virtual Cipher &operator=(Cipher &&obj);
+
   virtual ~Cipher();
 };
 
