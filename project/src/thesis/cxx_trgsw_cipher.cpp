@@ -3,6 +3,8 @@
 
 namespace thesis {
 
+const int bitsize_Torus = 8 * sizeof(TorusInteger);
+
 TrgswCipher::TrgswCipher(int N, int k, int l, int Bgbit, double sdError,
                          double varError)
     : Cipher(N * (k + 1) * l * (k + 1), sdError, varError) {
@@ -13,6 +15,19 @@ TrgswCipher::TrgswCipher(int N, int k, int l, int Bgbit, double sdError,
   _k = k;
   _l = l;
   _Bgbit = Bgbit;
+  _Bg = 1;
+  _Bg <<= _Bgbit;
+  _halfBg = _Bg >> 1;
+  _maskMod = _Bg - 1;
+  _offset = 0;
+  for (int i = 0; i <= l; i++) {
+    if (bitsize_Torus < _Bgbit * (i + 1))
+      break;
+    TorusInteger val = 1;
+    val <<= bitsize_Torus - _Bgbit * (i + 1);
+    _offset += val;
+  }
+  _offset *= _halfBg;
 }
 TrgswCipher::TrgswCipher(TorusInteger *data, int size, int N, int k, int l,
                          int Bgbit, double sdError, double varError)
@@ -25,16 +40,37 @@ TrgswCipher::TrgswCipher(TorusInteger *data, int size, int N, int k, int l,
   _k = k;
   _l = l;
   _Bgbit = Bgbit;
+  _Bg = 1;
+  _Bg <<= _Bgbit;
+  _halfBg = _Bg >> 1;
+  _maskMod = _Bg - 1;
+  _offset = 0;
+  for (int i = 0; i <= l; i++) {
+    if (bitsize_Torus < _Bgbit * (i + 1))
+      break;
+    TorusInteger val = 1;
+    val <<= bitsize_Torus - _Bgbit * (i + 1);
+    _offset += val;
+  }
+  _offset *= _halfBg;
 }
 TrgswCipher::TrgswCipher(TrgswCipher &&obj) : Cipher(std::move(obj)) {
   _N = obj._N;
   _k = obj._k;
   _l = obj._l;
   _Bgbit = obj._Bgbit;
+  _Bg = obj._Bg;
+  _halfBg = obj._halfBg;
+  _maskMod = obj._maskMod;
+  _offset = obj._offset;
   obj._N = 0;
   obj._k = 0;
   obj._l = 0;
   obj._Bgbit = 0;
+  obj._Bg = 0;
+  obj._halfBg = 0;
+  obj._maskMod = 0;
+  obj._offset = 0;
 }
 TrgswCipher &TrgswCipher::operator=(TrgswCipher &&obj) {
   Cipher::operator=(std::move(obj));
@@ -42,10 +78,18 @@ TrgswCipher &TrgswCipher::operator=(TrgswCipher &&obj) {
   _k = obj._k;
   _l = obj._l;
   _Bgbit = obj._Bgbit;
+  _Bg = obj._Bg;
+  _halfBg = obj._halfBg;
+  _maskMod = obj._maskMod;
+  _offset = obj._offset;
   obj._N = 0;
   obj._k = 0;
   obj._l = 0;
   obj._Bgbit = 0;
+  obj._Bg = 0;
+  obj._halfBg = 0;
+  obj._maskMod = 0;
+  obj._offset = 0;
   return *this;
 }
 TrgswCipher::~TrgswCipher() {}

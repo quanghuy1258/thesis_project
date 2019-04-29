@@ -11,8 +11,13 @@ class TrgswCipher : public Cipher {
 public:
   int _N;
   int _k;
-  int _l;
-  int _Bgbit;
+  int _l;                // decomp length
+  int _Bgbit;            // log_2(Bg)
+  TorusInteger _Bg;      // decomposition base (must be a power of 2)
+  TorusInteger _halfBg;  // Bg / 2
+  TorusInteger _maskMod; // Bg - 1
+  TorusInteger
+      _offset; // Bg/2 * (1/Bg + 1/(Bg^2) + ... + 1/(Bg^l) + 1/(Bg^(l+1)))
 
   TrgswCipher() = delete;
   TrgswCipher(const TrgswCipher &) = delete;
