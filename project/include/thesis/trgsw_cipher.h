@@ -13,6 +13,7 @@ public:
   int _k;
   int _l;                // decomp length
   int _Bgbit;            // log_2(Bg)
+  int _kpl;              // number of rows = (k+1)*l
   TorusInteger _Bg;      // decomposition base (must be a power of 2)
   TorusInteger _halfBg;  // Bg / 2
   TorusInteger _maskMod; // Bg - 1

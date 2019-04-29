@@ -15,6 +15,7 @@ TrgswCipher::TrgswCipher(int N, int k, int l, int Bgbit, double sdError,
   _k = k;
   _l = l;
   _Bgbit = Bgbit;
+  _kpl = (_k + 1) * _l;
   _Bg = 1;
   _Bg <<= _Bgbit;
   _halfBg = _Bg >> 1;
@@ -40,6 +41,7 @@ TrgswCipher::TrgswCipher(TorusInteger *data, int size, int N, int k, int l,
   _k = k;
   _l = l;
   _Bgbit = Bgbit;
+  _kpl = (_k + 1) * _l;
   _Bg = 1;
   _Bg <<= _Bgbit;
   _halfBg = _Bg >> 1;
@@ -59,6 +61,7 @@ TrgswCipher::TrgswCipher(TrgswCipher &&obj) : Cipher(std::move(obj)) {
   _k = obj._k;
   _l = obj._l;
   _Bgbit = obj._Bgbit;
+  _kpl = obj._kpl;
   _Bg = obj._Bg;
   _halfBg = obj._halfBg;
   _maskMod = obj._maskMod;
@@ -67,6 +70,7 @@ TrgswCipher::TrgswCipher(TrgswCipher &&obj) : Cipher(std::move(obj)) {
   obj._k = 0;
   obj._l = 0;
   obj._Bgbit = 0;
+  obj._kpl = 0;
   obj._Bg = 0;
   obj._halfBg = 0;
   obj._maskMod = 0;
@@ -78,6 +82,7 @@ TrgswCipher &TrgswCipher::operator=(TrgswCipher &&obj) {
   _k = obj._k;
   _l = obj._l;
   _Bgbit = obj._Bgbit;
+  _kpl = obj._kpl;
   _Bg = obj._Bg;
   _halfBg = obj._halfBg;
   _maskMod = obj._maskMod;
@@ -86,6 +91,7 @@ TrgswCipher &TrgswCipher::operator=(TrgswCipher &&obj) {
   obj._k = 0;
   obj._l = 0;
   obj._Bgbit = 0;
+  obj._kpl = 0;
   obj._Bg = 0;
   obj._halfBg = 0;
   obj._maskMod = 0;
@@ -94,17 +100,17 @@ TrgswCipher &TrgswCipher::operator=(TrgswCipher &&obj) {
 }
 TrgswCipher::~TrgswCipher() {}
 TorusInteger *TrgswCipher::get_trlwe_data(int r) {
-  if (r < 0 || r >= (_k + 1) * _l)
+  if (r < 0 || r >= _kpl)
     return nullptr;
   return _data + (_k + 1) * r * _N;
 }
 TorusInteger *TrgswCipher::get_pol_data(int r, int c) {
-  if (r < 0 || r >= (_k + 1) * _l || c < 0 || c > _k)
+  if (r < 0 || r >= _kpl || c < 0 || c > _k)
     return nullptr;
   return _data + ((_k + 1) * r + c) * _N;
 }
 TrlweCipher TrgswCipher::get_trlwe(int r) {
-  if (r < 0 || r >= (_k + 1) * _l)
+  if (r < 0 || r >= _kpl)
     throw std::invalid_argument("0 <= r < (_k + 1) * _l");
   return TrlweCipher(get_trlwe_data(r), (_k + 1) * _N, _N, _k, _sdError,
                      _varError);
