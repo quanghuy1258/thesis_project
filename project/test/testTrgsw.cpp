@@ -3,39 +3,113 @@
 #include "thesis/batched_fft.h"
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
-#include "thesis/trgsw.h"
-#include "thesis/trlwe.h"
-/*
+#include "thesis/memory_management.h"
+#include "thesis/stream.h"
+#include "thesis/thread_management.h"
+#include "thesis/trgsw_cipher.h"
+#include "thesis/trgsw_function.h"
+#include "thesis/trlwe_cipher.h"
+#include "thesis/trlwe_function.h"
+
+using namespace thesis;
+
 TEST(Thesis, TrgswEncryptDecrypt) {
   std::srand(std::time(nullptr));
-  thesis::Trgsw trgswObj;
-  std::vector<double> errors;
-
-  trgswObj.clear_s();
-  trgswObj.clear_ciphertexts();
-  trgswObj.clear_plaintexts();
-  trgswObj.generate_s();
-
-  std::vector<bool> x;
-
-  int numberTests = 100;
-  x.resize(numberTests);
+  const int N = 1024;
+  const int k = 1;
+  const int l = 3;
+  const int Bgbit = 10;
+  const double sd = std::sqrt(2. / CONST_PI) * pow(2., -30);
+  const int msgSize = 13;
+  const int numberTests = 100;
+  const int parallel = ThreadManagement::getNumberThreadsInPool();
+  BatchedFFT fft(N, parallel, k);
+  TorusInteger *s =
+      (TorusInteger *)MemoryManagement::mallocMM(N * k * sizeof(TorusInteger));
+  // >>> Generate TRLWE key -> Generate TRGSW key
+  TrlweFunction::genkey(s, N, k);
+  TrlweFunction::keyToFFT(s, N, k, &fft);
+  // <<<
+  std::vector<void *> streams(parallel);
+  for (int i = 0; i < parallel; i++)
+    streams[i] = Stream::createS();
+  TorusInteger *dPlain = (TorusInteger *)MemoryManagement::mallocMM(
+      N * sizeof(TorusInteger) * numberTests);
+  std::vector<TorusInteger> oriPlain(N * numberTests),
+      calPlain(N * numberTests);
+  std::vector<TrgswCipher *> ciphers(numberTests);
+  std::vector<std::vector<TrlweCipher *>> trlwe_ciphers(numberTests);
   for (int i = 0; i < numberTests; i++) {
-    x[i] = std::rand() & 1;
-    trgswObj.addPlaintext(x[i]);
+    ciphers[i] = new TrgswCipher(N, k, l, Bgbit, sd, sd * sd);
+    trlwe_ciphers[i].resize((k + 1) * l);
+    for (int j = 0; j < (k + 1) * l; j++) {
+      trlwe_ciphers[i][j] = new TrlweCipher(ciphers[i]->get_trlwe(j));
+      // >>> Create TRLWE samples for each row of TRGSW samples
+      TrlweFunction::createSample(&fft, ((k + 1) * l * i + j) % parallel,
+                                  trlwe_ciphers[i][j]);
+      // <<<
+    }
+    // >>> Create random plaintexts
+    const int mask = (1 << msgSize) - 1;
+    for (int j = 0; j < N; j++)
+      oriPlain[N * i + j] = std::rand() & mask;
+    // <<<
   }
-  trgswObj.encryptAll();
-  trgswObj.clear_plaintexts();
-  trgswObj.decryptAll();
+  // >>> Move plaintexts form host to device
+  MemoryManagement::memcpyMM_h2d(dPlain, oriPlain.data(),
+                                 N * sizeof(TorusInteger) * numberTests);
+  // <<<
+  fft.waitAllOut();
+  // >>> Put plaintexts to TRGSW samples -> TRGSW ciphers
+  for (int i = 0; i < numberTests; i++)
+    TrgswFunction::addMuGadget(dPlain + N * i, ciphers[i],
+                               streams[i % parallel]);
+  // <<<
+  // >>> Decrypt: Get plaintexts with error
   for (int i = 0; i < numberTests; i++) {
-    ASSERT_TRUE(x[i] == trgswObj.get_plaintexts()[i]);
+    Stream::synchronizeS(streams[i % parallel]);
+    for (int j = 0; j < l; j++)
+      TrlweFunction::getPlain(&fft, (l * i + j) % parallel,
+                              trlwe_ciphers[i][k * l + j],
+                              trlwe_ciphers[i][k * l + j]->get_pol_data(k));
   }
-  trgswObj.getAllErrorsForDebugging(errors, x);
+  // <<<
+  // >>> Clean buffer (we will place calculated plaintexts here)
+  MemoryManagement::memsetMM(dPlain, 0, N * sizeof(TorusInteger) * numberTests);
+  // <<<
+  fft.waitAllOut();
+  // >>> Decrypt last l rows of each TRGSW ciphers: PartDecrypt
   for (int i = 0; i < numberTests; i++) {
-    ASSERT_TRUE(errors[i] < std::pow(2, -trgswObj.get_Bgbit() - 1));
+    for (int j = 0; j < l; j++)
+      TrgswFunction::partDecrypt(
+          ciphers[i], trlwe_ciphers[i][k * l + j]->get_pol_data(k), j, msgSize,
+          dPlain + N * i, streams[i % parallel]);
   }
+  // <<<
+  // >>> Remove error and round the plaintexts
+  for (int i = 0; i < numberTests; i++)
+    TrgswFunction::finalDecrypt(dPlain + N * i, N, msgSize,
+                                streams[i % parallel]);
+  // <<<
+  for (int i = 0; i < parallel; i++)
+    Stream::synchronizeS(streams[i]);
+  // >>> Move plaintexts from device to host
+  MemoryManagement::memcpyMM_d2h(calPlain.data(), dPlain,
+                                 N * sizeof(TorusInteger) * numberTests);
+  // <<<
+  for (int i = 0; i < numberTests; i++) {
+    for (int j = 0; j < (k + 1) * l; j++)
+      delete trlwe_ciphers[i][j];
+    delete ciphers[i];
+  }
+  MemoryManagement::freeMM(dPlain);
+  for (int i = 0; i < parallel; i++)
+    Stream::destroyS(streams[i]);
+  MemoryManagement::freeMM(s);
+  for (int i = 0; i < N * numberTests; i++)
+    ASSERT_TRUE(oriPlain[i] == calPlain[i]);
 }
-
+/*
 TEST(Thesis, Decomposition) {
   std::srand(std::time(nullptr));
   thesis::Trgsw trgswObj;
