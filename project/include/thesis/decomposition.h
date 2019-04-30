@@ -8,25 +8,14 @@ namespace thesis {
 
 class Decomposition {
 private:
-  int _N;
-  int _k;
-  int _l;
-  int _Bgbit;
-  std::vector<void *> _stream;
+#ifdef USING_CUDA
+  static void cudaOnlyDecomp(TrlweCipher *inp, TrgswCipher *param,
+                             TorusInteger *out, void *streamPtr = nullptr);
+#endif
 
 public:
-  Decomposition() = delete;
-  Decomposition(const Decomposition &) = delete;
-  Decomposition(int N, int k, int l, int Bgbit, int num_stream);
-
-  Decomposition &operator=(const Decomposition &) = delete;
-
-  ~Decomposition();
-
-  void product(TorusInteger *out, TorusInteger *inp,
-               int streamID); // Only decomposition
-  void bootstrap(TorusInteger *out, TorusInteger *inp, int oefficient,
-                 int streamID); // Rotate --> True - False --> Decomposition
+  static void onlyDecomp(TrlweCipher *inp, TrgswCipher *param,
+                         TorusInteger *out, void *streamPtr = nullptr);
 };
 
 } // namespace thesis
