@@ -36,6 +36,9 @@ public:
   TorusInteger *get_trlwe_data(int r);
   TorusInteger *get_pol_data(int r, int c);
   TrlweCipher get_trlwe(int r);
+  void clear_trgsw_data(void *streamPtr = nullptr);
+  void clear_trlwe_data(int r, void *streamPtr = nullptr);
+  void clear_pol_data(int r, int c, void *streamPtr = nullptr);
 };
 
 } // namespace thesis

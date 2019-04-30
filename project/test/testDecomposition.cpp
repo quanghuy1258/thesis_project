@@ -91,8 +91,7 @@ TEST(Thesis, Decomposition) {
       for (int c = 0; c < (k + 1) * l; c++)
         decomp.setMul(mulArg[a] * (k + 1) + b, c);
     }
-    MemoryManagement::memsetMM(ciphers[a]->_data, 0,
-                               N * (k + 1) * sizeof(TorusInteger));
+    ciphers[a]->clear_trlwe_data();
     for (int b = 0; b <= k; b++)
       decomp.addAllOut(ciphers[a]->get_pol_data(b), mulArg[a] * (k + 1) + b);
   }

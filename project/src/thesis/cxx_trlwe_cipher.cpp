@@ -1,3 +1,4 @@
+#include "thesis/memory_management.h"
 #include "thesis/trlwe_cipher.h"
 
 namespace thesis {
@@ -37,6 +38,16 @@ TorusInteger *TrlweCipher::get_pol_data(int i) {
   if (i < 0 || i > _k)
     return nullptr;
   return _data + _N * i;
+}
+void TrlweCipher::clear_trlwe_data(void *streamPtr) {
+  MemoryManagement::memsetMM(_data, 0, _N * (_k + 1) * sizeof(TorusInteger),
+                             streamPtr);
+}
+void TrlweCipher::clear_pol_data(int i, void *streamPtr) {
+  if (i < 0 || i > _k)
+    return;
+  MemoryManagement::memsetMM(_data + _N * i, 0, _N * sizeof(TorusInteger),
+                             streamPtr);
 }
 
 } // namespace thesis

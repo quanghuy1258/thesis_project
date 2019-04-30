@@ -1,3 +1,4 @@
+#include "thesis/memory_management.h"
 #include "thesis/trgsw_cipher.h"
 #include "thesis/trlwe_cipher.h"
 
@@ -114,6 +115,22 @@ TrlweCipher TrgswCipher::get_trlwe(int r) {
     throw std::invalid_argument("0 <= r < (_k + 1) * _l");
   return TrlweCipher(get_trlwe_data(r), (_k + 1) * _N, _N, _k, _sdError,
                      _varError);
+}
+void TrgswCipher::clear_trgsw_data(void *streamPtr) {
+  MemoryManagement::memsetMM(
+      _data, 0, _N * _kpl * (_k + 1) * sizeof(TorusInteger), streamPtr);
+}
+void TrgswCipher::clear_trlwe_data(int r, void *streamPtr) {
+  if (r < 0 || r >= _kpl)
+    return;
+  MemoryManagement::memsetMM(_data + (_k + 1) * r * _N, 0,
+                             _N * (_k + 1) * sizeof(TorusInteger), streamPtr);
+}
+void TrgswCipher::clear_pol_data(int r, int c, void *streamPtr) {
+  if (r < 0 || r >= _kpl || c < 0 || c > _k)
+    return;
+  MemoryManagement::memsetMM(_data + ((_k + 1) * r + c) * _N, 0,
+                             _N * sizeof(TorusInteger), streamPtr);
 }
 
 } // namespace thesis
