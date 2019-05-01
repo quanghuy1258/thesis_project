@@ -44,7 +44,7 @@ TEST(Thesis, Extraction) {
     TrlweFunction::createSample(&fft, i % parallel, oriCiphers[i]);
     for (int j = 0; j < N; j++)
       oriPlain[N * i + j] = std::rand() & 1;
-    randDeg[i] = std::rand() % N;
+    randDeg[i] = std::abs(std::rand()) % N;
   }
   MemoryManagement::memcpyMM_h2d(dPlain, oriPlain.data(),
                                  N * sizeof(TorusInteger) * numberTests);
