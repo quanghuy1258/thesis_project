@@ -30,7 +30,6 @@ class TrlweFunction;
 class TrgswFunction;
 class Extraction;
 class Decomposition;
-class Bootstrap;
 
 } // namespace thesis
 
