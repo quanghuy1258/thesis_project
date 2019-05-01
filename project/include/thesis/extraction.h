@@ -8,17 +8,14 @@ namespace thesis {
 
 class Extraction {
 private:
-  int _N;
-  int _k;
+#ifdef USING_CUDA
+  static void cudaExtract(TrlweCipher *inp, int deg, TlweCipher *out,
+                          void *streamPtr = nullptr);
+#endif
 
 public:
-  Extraction() = delete;
-  Extraction(const Extraction &) = delete;
-  Extraction(int N, int k);
-
-  Extraction &operator=(const Extraction &) = delete;
-
-  ~Extraction();
+  static void extract(TrlweCipher *inp, int deg, TlweCipher *out,
+                      void *streamPtr = nullptr);
 };
 
 } // namespace thesis

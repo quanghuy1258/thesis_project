@@ -58,15 +58,12 @@ TEST(Thesis, Decomposition) {
   // >>> Prepare multiplication
   BatchedFFT decomp(N, 4 * (k + 1), (k + 1) * l);
   TrgswCipher *mul[4];
-  std::vector<TrlweCipher *> trlwe_mul[4];
   for (int i = 0; i < 4; i++) {
     mul[i] = new TrgswCipher(N, k, l, Bgbit, sd, sd * sd);
-    trlwe_mul[i].resize((k + 1) * l);
-    for (int j = 0; j < (k + 1) * l; j++) {
-      trlwe_mul[i][j] = new TrlweCipher(mul[i]->get_trlwe(j));
+    for (int j = 0; j < (k + 1) * l; j++)
       TrlweFunction::createSample(&fft, ((k + 1) * l * i + j) % parallel,
-                                  trlwe_mul[i][j]);
-    }
+                                  mul[i]->get_trlwe_data(j), mul[i]->_N,
+                                  mul[i]->_k, mul[i]->_sdError);
   }
   fft.waitAllOut();
   for (int i = 0; i < 4; i++)
@@ -120,11 +117,8 @@ TEST(Thesis, Decomposition) {
   Stream::synchronizeS(streams[1]);
   // <<<
   MemoryManagement::freeMM(dDecomp);
-  for (int i = 0; i < 4; i++) {
-    for (int j = 0; j < (k + 1) * l; j++)
-      delete trlwe_mul[i][j];
+  for (int i = 0; i < 4; i++)
     delete mul[i];
-  }
   for (int i = 0; i < numberTests; i++)
     delete ciphers[i];
   for (int i = 0; i < parallel; i++)

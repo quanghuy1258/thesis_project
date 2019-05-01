@@ -34,6 +34,21 @@ void TrlweFunction::createSample(BatchedFFT *fftWithS, int rowFFT,
     fftWithS->setMul(rowFFT, i);
   fftWithS->addAllOut(cipher->_data + cipher->_N * cipher->_k, rowFFT);
 }
+void TrlweFunction::createSample(BatchedFFT *fftWithS, int rowFFT,
+                                 TorusInteger *data, int N, int k,
+                                 double sdError) {
+  if (!fftWithS || rowFFT < 0 || rowFFT >= fftWithS->get_row() || !data ||
+      N < 2 || (N & (N - 1)) || k < 1 || sdError < 0 ||
+      N != fftWithS->get_N() || k != fftWithS->get_col())
+    return;
+  Random::setUniform(data, N * k);
+  Random::setNormalTorus(data + N * k, N, sdError);
+  for (int i = 0; i < k; i++)
+    fftWithS->setInp(data + N * i, rowFFT, i);
+  for (int i = 0; i < k; i++)
+    fftWithS->setMul(rowFFT, i);
+  fftWithS->addAllOut(data + N * k, rowFFT);
+}
 void TrlweFunction::putPlain(TrlweCipher *sample, TorusInteger *plain,
                              void *streamPtr) {
   if (!sample || !plain)

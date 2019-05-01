@@ -21,6 +21,8 @@ public:
   // Encrypt
   static void createSample(BatchedFFT *fftWithS, int rowFFT,
                            TrlweCipher *cipher);
+  static void createSample(BatchedFFT *fftWithS, int rowFFT, TorusInteger *data,
+                           int N, int k, double sdError);
   static void putPlain(TrlweCipher *sample, TorusInteger *plain,
                        void *streamPtr = nullptr);
   // Decrypt
