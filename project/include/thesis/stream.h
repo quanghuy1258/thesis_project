@@ -20,7 +20,9 @@ public:
   static void destroyS(void *streamPtr);
 
 #ifndef USING_CUDA
-  static void scheduleS(void *streamPtr, std::function<void()> fn);
+  static void scheduleS(std::function<void()> fn, void *streamPtr = nullptr);
+  static void scheduleS(std::function<void(int, int)> fn, int parallel,
+                        void *streamPtr = nullptr);
 #endif
 };
 

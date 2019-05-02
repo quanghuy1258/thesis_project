@@ -29,11 +29,8 @@ void MemoryManagement::memsetMM(void *ptr, int ch, size_t count,
 #ifdef USING_CUDA
   cudaMemsetMM(ptr, ch, count, stream_ptr);
 #else
-  auto f = [ptr, ch, count]() { std::memset(ptr, ch, count); };
-  if (stream_ptr)
-    Stream::scheduleS(stream_ptr, std::move(f));
-  else
-    f();
+  Stream::scheduleS([ptr, ch, count]() { std::memset(ptr, ch, count); },
+                    stream_ptr);
 #endif
 }
 void MemoryManagement::memcpyMM_h2d(void *dest, void *src, size_t count,
@@ -43,11 +40,8 @@ void MemoryManagement::memcpyMM_h2d(void *dest, void *src, size_t count,
 #ifdef USING_CUDA
   cudaMemcpyMM_h2d(dest, src, count, stream_ptr);
 #else
-  auto f = [dest, src, count]() { std::memcpy(dest, src, count); };
-  if (stream_ptr)
-    Stream::scheduleS(stream_ptr, std::move(f));
-  else
-    f();
+  Stream::scheduleS([dest, src, count]() { std::memcpy(dest, src, count); },
+                    stream_ptr);
 #endif
 }
 void MemoryManagement::memcpyMM_d2h(void *dest, void *src, size_t count,
@@ -57,11 +51,8 @@ void MemoryManagement::memcpyMM_d2h(void *dest, void *src, size_t count,
 #ifdef USING_CUDA
   cudaMemcpyMM_d2h(dest, src, count, stream_ptr);
 #else
-  auto f = [dest, src, count]() { std::memcpy(dest, src, count); };
-  if (stream_ptr)
-    Stream::scheduleS(stream_ptr, std::move(f));
-  else
-    f();
+  Stream::scheduleS([dest, src, count]() { std::memcpy(dest, src, count); },
+                    stream_ptr);
 #endif
 }
 void MemoryManagement::memcpyMM_d2d(void *dest, void *src, size_t count,
@@ -71,11 +62,8 @@ void MemoryManagement::memcpyMM_d2d(void *dest, void *src, size_t count,
 #ifdef USING_CUDA
   cudaMemcpyMM_d2d(dest, src, count, stream_ptr);
 #else
-  auto f = [dest, src, count]() { std::memcpy(dest, src, count); };
-  if (stream_ptr)
-    Stream::scheduleS(stream_ptr, std::move(f));
-  else
-    f();
+  Stream::scheduleS([dest, src, count]() { std::memcpy(dest, src, count); },
+                    stream_ptr);
 #endif
 }
 

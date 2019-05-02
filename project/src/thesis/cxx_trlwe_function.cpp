@@ -56,16 +56,14 @@ void TrlweFunction::putPlain(TrlweCipher *sample, TorusInteger *plain,
 #ifdef USING_CUDA
   cudaPutPlain(sample, plain, streamPtr);
 #else
-  auto fn = [sample, plain]() {
-    TorusInteger bit = 1;
-    bit <<= 8 * sizeof(TorusInteger) - 1;
-    for (int i = 0; i < sample->_N; i++)
-      sample->_data[sample->_N * sample->_k + i] += plain[i] * bit;
-  };
-  if (streamPtr)
-    Stream::scheduleS(streamPtr, std::move(fn));
-  else
-    fn();
+  Stream::scheduleS(
+      [sample, plain]() {
+        TorusInteger bit = 1;
+        bit <<= 8 * sizeof(TorusInteger) - 1;
+        for (int i = 0; i < sample->_N; i++)
+          sample->_data[sample->_N * sample->_k + i] += plain[i] * bit;
+      },
+      streamPtr);
 #endif
 }
 void TrlweFunction::getPlain(BatchedFFT *fftWithS, int rowFFT,
@@ -91,18 +89,16 @@ void TrlweFunction::roundPlain(TorusInteger *plain, double *abs_err, int N,
 #ifdef USING_CUDA
   cudaRoundPlain(plain, abs_err, N, streamPtr);
 #else
-  auto fn = [plain, abs_err, N]() {
-    for (int i = 0; i < N; i++) {
-      double x = std::abs(plain[i] / std::pow(2, 8 * sizeof(TorusInteger)));
-      plain[i] = (x < 0.25) ? 0 : 1;
-      if (abs_err)
-        abs_err[i] = (x < 0.25) ? x : (0.5 - x);
-    }
-  };
-  if (streamPtr)
-    Stream::scheduleS(streamPtr, std::move(fn));
-  else
-    fn();
+  Stream::scheduleS(
+      [plain, abs_err, N]() {
+        for (int i = 0; i < N; i++) {
+          double x = std::abs(plain[i] / std::pow(2, 8 * sizeof(TorusInteger)));
+          plain[i] = (x < 0.25) ? 0 : 1;
+          if (abs_err)
+            abs_err[i] = (x < 0.25) ? x : (0.5 - x);
+        }
+      },
+      streamPtr);
 #endif
 }
 

@@ -13,23 +13,16 @@ void TrgswFunction::addMuGadget(TorusInteger *pol, TrgswCipher *sample,
 #ifdef USING_CUDA
   cudaAddMuGadget(pol, sample, streamPtr);
 #else
-  auto fn = [pol, sample]() {
-    for (int i = 0; i < sample->_l; i++) {
-      if (bitsize_Torus < sample->_Bgbit * (i + 1))
-        break;
-      TorusInteger H = 1;
-      H <<= bitsize_Torus - sample->_Bgbit * (i + 1);
-      for (int j = 0; j <= sample->_k; j++) {
-        for (int k = 0; k < sample->_N; k++) {
-          sample->get_pol_data(j * sample->_l + i, j)[k] += H * pol[k];
-        }
-      }
-    }
-  };
-  if (streamPtr)
-    Stream::scheduleS(streamPtr, std::move(fn));
-  else
-    fn();
+  Stream::scheduleS(
+      [pol, sample](int parallelId, int parallel) {
+        int l = parallelId / (sample->_k + 1);
+        int k = parallelId % (sample->_k + 1);
+        TorusInteger H = 1;
+        H <<= bitsize_Torus - sample->_Bgbit * (l + 1);
+        for (int i = 0; i < sample->_N; i++)
+          sample->get_pol_data(k * sample->_l + l, k)[i] += H * pol[i];
+      },
+      sample->_kpl, streamPtr);
 #endif
 }
 void TrgswFunction::addMuGadget(TorusInteger scalar, TrgswCipher *sample,
@@ -39,20 +32,18 @@ void TrgswFunction::addMuGadget(TorusInteger scalar, TrgswCipher *sample,
 #ifdef USING_CUDA
   cudaAddMuGadget(scalar, sample, streamPtr);
 #else
-  auto fn = [scalar, sample]() {
-    for (int i = 0; i < sample->_l; i++) {
-      if (bitsize_Torus < sample->_Bgbit * (i + 1))
-        break;
-      TorusInteger H = 1;
-      H <<= bitsize_Torus - sample->_Bgbit * (i + 1);
-      for (int j = 0; j <= sample->_k; j++)
-        sample->get_pol_data(j * sample->_l + i, j)[0] += H * scalar;
-    }
-  };
-  if (streamPtr)
-    Stream::scheduleS(streamPtr, std::move(fn));
-  else
-    fn();
+  Stream::scheduleS(
+      [scalar, sample]() {
+        for (int i = 0; i < sample->_l; i++) {
+          if (bitsize_Torus < sample->_Bgbit * (i + 1))
+            break;
+          TorusInteger H = 1;
+          H <<= bitsize_Torus - sample->_Bgbit * (i + 1);
+          for (int j = 0; j <= sample->_k; j++)
+            sample->get_pol_data(j * sample->_l + i, j)[0] += H * scalar;
+        }
+      },
+      streamPtr);
 #endif
 }
 void TrgswFunction::partDecrypt(TrgswCipher *cipher,
@@ -75,14 +66,12 @@ void TrgswFunction::partDecrypt(TrgswCipher *cipher,
 #ifdef USING_CUDA
   cudaPartDecrypt(decomp, plainWithError, N, outPol, streamPtr);
 #else
-  auto fn = [decomp, plainWithError, N, outPol]() {
-    for (int i = 0; i < N; i++)
-      outPol[i] += plainWithError[i] * decomp;
-  };
-  if (streamPtr)
-    Stream::scheduleS(streamPtr, std::move(fn));
-  else
-    fn();
+  Stream::scheduleS(
+      [decomp, plainWithError, N, outPol]() {
+        for (int i = 0; i < N; i++)
+          outPol[i] += plainWithError[i] * decomp;
+      },
+      streamPtr);
 #endif
 }
 void TrgswFunction::finalDecrypt(TorusInteger *outPol, int N, int msgSize,
@@ -93,21 +82,19 @@ void TrgswFunction::finalDecrypt(TorusInteger *outPol, int N, int msgSize,
 #ifdef USING_CUDA
   cudaFinalDecrypt(outPol, N, msgSize);
 #else
-  auto fn = [outPol, N, msgSize]() {
-    TorusInteger mask = 1;
-    mask <<= msgSize;
-    mask -= 1;
-    for (int i = 0; i < N; i++) {
-      double x = outPol[i];
-      x /= std::pow(2, bitsize_Torus - msgSize);
-      outPol[i] = std::llround(x);
-      outPol[i] &= mask;
-    }
-  };
-  if (streamPtr)
-    Stream::scheduleS(streamPtr, std::move(fn));
-  else
-    fn();
+  Stream::scheduleS(
+      [outPol, N, msgSize]() {
+        TorusInteger mask = 1;
+        mask <<= msgSize;
+        mask -= 1;
+        for (int i = 0; i < N; i++) {
+          double x = outPol[i];
+          x /= std::pow(2, bitsize_Torus - msgSize);
+          outPol[i] = std::llround(x);
+          outPol[i] &= mask;
+        }
+      },
+      streamPtr);
 #endif
 }
 

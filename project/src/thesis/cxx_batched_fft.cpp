@@ -98,23 +98,25 @@ void BatchedFFT::setInp(TorusInteger *pol, int r, int c) {
 #ifdef USING_CUDA
   cudaSetInp(pol, r, c);
 #else
-  Stream::scheduleS(_stream_inp[r * _col + c], [this, pol, r, c]() {
-    double *double_ptr = (double *)_data_inp[r * _col + c];
-    for (int i = 0; i < _N; i++) {
-      TorusInteger num = pol[i];
-      for (int j = 0; j < mode / 2; j++) {
-        double_ptr[i * mode + j] = num & 0xFFFF;
-        num >>= 16;
-        double_ptr[i * mode + j] /= 2.0;
-        double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
-      }
-      for (int j = mode / 2; j < mode; j++) {
-        double_ptr[i * mode + j] = 0;
-        double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
-      }
-    }
-    fftw_execute(*(fftw_plan *)_plan_inp[r * _col + c]);
-  });
+  Stream::scheduleS(
+      [this, pol, r, c]() {
+        double *double_ptr = (double *)_data_inp[r * _col + c];
+        for (int i = 0; i < _N; i++) {
+          TorusInteger num = pol[i];
+          for (int j = 0; j < mode / 2; j++) {
+            double_ptr[i * mode + j] = num & 0xFFFF;
+            num >>= 16;
+            double_ptr[i * mode + j] /= 2.0;
+            double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
+          }
+          for (int j = mode / 2; j < mode; j++) {
+            double_ptr[i * mode + j] = 0;
+            double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
+          }
+        }
+        fftw_execute(*(fftw_plan *)_plan_inp[r * _col + c]);
+      },
+      _stream_inp[r * _col + c]);
 #endif
 }
 void BatchedFFT::setInp(TorusInteger *pol, int c) {
@@ -125,23 +127,25 @@ void BatchedFFT::setInp(TorusInteger *pol, int c) {
 #ifdef USING_CUDA
   cudaSetInp(pol, c);
 #else
-  Stream::scheduleS(_stream_inp[_row * _col + c], [this, pol, c]() {
-    double *double_ptr = (double *)_data_inp[_row * _col + c];
-    for (int i = 0; i < _N; i++) {
-      TorusInteger num = pol[i];
-      for (int j = 0; j < mode / 2; j++) {
-        double_ptr[i * mode + j] = num & 0xFFFF;
-        num >>= 16;
-        double_ptr[i * mode + j] /= 2.0;
-        double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
-      }
-      for (int j = mode / 2; j < mode; j++) {
-        double_ptr[i * mode + j] = 0;
-        double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
-      }
-    }
-    fftw_execute(*(fftw_plan *)_plan_inp[_row * _col + c]);
-  });
+  Stream::scheduleS(
+      [this, pol, c]() {
+        double *double_ptr = (double *)_data_inp[_row * _col + c];
+        for (int i = 0; i < _N; i++) {
+          TorusInteger num = pol[i];
+          for (int j = 0; j < mode / 2; j++) {
+            double_ptr[i * mode + j] = num & 0xFFFF;
+            num >>= 16;
+            double_ptr[i * mode + j] /= 2.0;
+            double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
+          }
+          for (int j = mode / 2; j < mode; j++) {
+            double_ptr[i * mode + j] = 0;
+            double_ptr[(i + _N) * mode + j] = -double_ptr[i * mode + j];
+          }
+        }
+        fftw_execute(*(fftw_plan *)_plan_inp[_row * _col + c]);
+      },
+      _stream_inp[_row * _col + c]);
 #endif
 }
 void BatchedFFT::setMul(int r, int c) {
@@ -153,27 +157,29 @@ void BatchedFFT::setMul(int r, int c) {
 #ifdef USING_CUDA
   cudaSetMul(r, c);
 #else
-  Stream::scheduleS(_stream_mul[r * _col + c], [this, r, c]() {
-    std::complex<double> *left =
-        (std::complex<double> *)_data_inp[r * _col + c];
-    std::complex<double> *right =
-        (std::complex<double> *)_data_inp[_row * _col + c];
-    std::complex<double> *result =
-        (std::complex<double> *)_data_mul[r * _col + c];
-    for (int i = 0; i <= _N * mode; i++)
-      result[i] = left[i] * right[i];
-    fftw_execute(*(fftw_plan *)_plan_mul[r * _col + c]);
-    TorusInteger *torus_ptr = (TorusInteger *)result;
-    double *double_ptr = (double *)result;
-    for (int i = 0; i < _N; i++) {
-      TorusInteger num = 0;
-      for (int j = mode - 1; j >= 0; j--) {
-        num <<= 16;
-        num += std::llround(double_ptr[i * mode + j] / (_N * mode));
-      }
-      torus_ptr[i] = num;
-    }
-  });
+  Stream::scheduleS(
+      [this, r, c]() {
+        std::complex<double> *left =
+            (std::complex<double> *)_data_inp[r * _col + c];
+        std::complex<double> *right =
+            (std::complex<double> *)_data_inp[_row * _col + c];
+        std::complex<double> *result =
+            (std::complex<double> *)_data_mul[r * _col + c];
+        for (int i = 0; i <= _N * mode; i++)
+          result[i] = left[i] * right[i];
+        fftw_execute(*(fftw_plan *)_plan_mul[r * _col + c]);
+        TorusInteger *torus_ptr = (TorusInteger *)result;
+        double *double_ptr = (double *)result;
+        for (int i = 0; i < _N; i++) {
+          TorusInteger num = 0;
+          for (int j = mode - 1; j >= 0; j--) {
+            num <<= 16;
+            num += std::llround(double_ptr[i * mode + j] / (_N * mode));
+          }
+          torus_ptr[i] = num;
+        }
+      },
+      _stream_mul[r * _col + c]);
 #endif
 }
 void BatchedFFT::addAllOut(TorusInteger *pol, int r) {
@@ -184,13 +190,15 @@ void BatchedFFT::addAllOut(TorusInteger *pol, int r) {
 #ifdef USING_CUDA
   cudaAddAllOut(pol, r);
 #else
-  Stream::scheduleS(_stream_out[r], [this, pol, r]() {
-    for (int i = 0; i < _col; i++) {
-      TorusInteger *torus_ptr = (TorusInteger *)_data_mul[r * _col + i];
-      for (int j = 0; j < _N; j++)
-        pol[j] += torus_ptr[j];
-    }
-  });
+  Stream::scheduleS(
+      [this, pol, r]() {
+        for (int i = 0; i < _col; i++) {
+          TorusInteger *torus_ptr = (TorusInteger *)_data_mul[r * _col + i];
+          for (int j = 0; j < _N; j++)
+            pol[j] += torus_ptr[j];
+        }
+      },
+      _stream_out[r]);
 #endif
 }
 void BatchedFFT::subAllOut(TorusInteger *pol, int r) {
@@ -201,13 +209,15 @@ void BatchedFFT::subAllOut(TorusInteger *pol, int r) {
 #ifdef USING_CUDA
   cudaSubAllOut(pol, r);
 #else
-  Stream::scheduleS(_stream_out[r], [this, pol, r]() {
-    for (int i = 0; i < _col; i++) {
-      TorusInteger *torus_ptr = (TorusInteger *)_data_mul[r * _col + i];
-      for (int j = 0; j < _N; j++)
-        pol[j] -= torus_ptr[j];
-    }
-  });
+  Stream::scheduleS(
+      [this, pol, r]() {
+        for (int i = 0; i < _col; i++) {
+          TorusInteger *torus_ptr = (TorusInteger *)_data_mul[r * _col + i];
+          for (int j = 0; j < _N; j++)
+            pol[j] -= torus_ptr[j];
+        }
+      },
+      _stream_out[r]);
 #endif
 }
 void BatchedFFT::waitOut(int r) {

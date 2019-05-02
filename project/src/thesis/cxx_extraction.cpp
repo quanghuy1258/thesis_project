@@ -12,24 +12,22 @@ void Extraction::extract(TrlweCipher *inp, int deg, TlweCipher *out,
 #ifdef USING_CUDA
   cudaExtract(inp, deg, out, streamPtr);
 #else
-  auto fn = [inp, deg, out]() {
-    for (int i = 0; i < inp->_k; i++) {
-      for (int j = 0; j < inp->_N; j++) {
-        if (j > deg)
-          out->_data[inp->_N * i + j] =
-              -inp->get_pol_data(i)[deg - j + inp->_N];
-        else
-          out->_data[inp->_N * i + j] = inp->get_pol_data(i)[deg - j];
-      }
-    }
-    out->_data[out->_n] = inp->get_pol_data(inp->_k)[deg];
-    out->_sdError = inp->_sdError;
-    out->_varError = inp->_varError;
-  };
-  if (streamPtr)
-    Stream::scheduleS(streamPtr, std::move(fn));
-  else
-    fn();
+  Stream::scheduleS(
+      [inp, deg, out]() {
+        for (int i = 0; i < inp->_k; i++) {
+          for (int j = 0; j < inp->_N; j++) {
+            if (j > deg)
+              out->_data[inp->_N * i + j] =
+                  -inp->get_pol_data(i)[deg - j + inp->_N];
+            else
+              out->_data[inp->_N * i + j] = inp->get_pol_data(i)[deg - j];
+          }
+        }
+        out->_data[out->_n] = inp->get_pol_data(inp->_k)[deg];
+        out->_sdError = inp->_sdError;
+        out->_varError = inp->_varError;
+      },
+      streamPtr);
 #endif
 }
 

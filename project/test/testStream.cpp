@@ -15,10 +15,12 @@ TEST(Thesis, StreamCPU) {
   void *streamPtr = thesis::Stream::createS();
   int x = 0;
   for (int i = 0; i < 100; i++) {
-    thesis::Stream::scheduleS(streamPtr, [&tests, &timeSleep, &x, i]() {
-      std::this_thread::sleep_for(std::chrono::milliseconds(timeSleep[i]));
-      tests[i] = (x++);
-    });
+    thesis::Stream::scheduleS(
+        [&tests, &timeSleep, &x, i]() {
+          std::this_thread::sleep_for(std::chrono::milliseconds(timeSleep[i]));
+          tests[i] = (x++);
+        },
+        streamPtr);
     if (!(rand() & 15)) {
       std::cout << "Synchronizing ... " << std::endl;
       thesis::Stream::synchronizeS(streamPtr);
