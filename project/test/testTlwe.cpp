@@ -3,6 +3,7 @@
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
 #include "thesis/memory_management.h"
+#include "thesis/profiling_timer.h"
 #include "thesis/stream.h"
 #include "thesis/thread_management.h"
 #include "thesis/tlwe_cipher.h"
@@ -29,6 +30,8 @@ TEST(Thesis, TlweEncryptDecrypt) {
   for (int i = 0; i < parallel; i++)
     streams[i] = Stream::createS();
   TlweFunction::genkey(s, n, streams[0]);
+  DECLARE_TIMING(EncDec);
+  START_TIMING(EncDec);
   for (int i = 0; i < numberTests; i++) {
     ciphers[i] = new TlweCipher(n, sd, sd * sd);
     oriPlains[i] = std::rand() & 1;
@@ -36,6 +39,7 @@ TEST(Thesis, TlweEncryptDecrypt) {
     TlweFunction::decrypt(s, ciphers[i], dCalPlains + i, dErrors + i,
                           streams[i % parallel]);
   }
+  STOP_TIMING(EncDec);
   for (int i = 0; i < parallel; i++)
     Stream::synchronizeS(streams[i]);
   MemoryManagement::memcpyMM_d2h(calPlains.data(), dCalPlains,
@@ -58,4 +62,5 @@ TEST(Thesis, TlweEncryptDecrypt) {
     sumError += errors[i];
   }
   std::cout << "Avg error = " << sumError / numberTests << std::endl;
+  PRINT_TIMING(EncDec);
 }

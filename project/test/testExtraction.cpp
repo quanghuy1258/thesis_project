@@ -5,6 +5,7 @@
 #include "thesis/extraction.h"
 #include "thesis/load_lib.h"
 #include "thesis/memory_management.h"
+#include "thesis/profiling_timer.h"
 #include "thesis/stream.h"
 #include "thesis/thread_management.h"
 #include "thesis/tlwe_cipher.h"
@@ -49,6 +50,8 @@ TEST(Thesis, Extraction) {
   MemoryManagement::memcpyMM_h2d(dPlain, oriPlain.data(),
                                  N * sizeof(TorusInteger) * numberTests);
   fft.waitAllOut();
+  DECLARE_TIMING(Extraction);
+  START_TIMING(Extraction);
   for (int i = 0; i < numberTests; i++) {
     TrlweFunction::putPlain(oriCiphers[i], dPlain + N * i,
                             streams[i % parallel]);
@@ -59,6 +62,7 @@ TEST(Thesis, Extraction) {
   }
   for (int i = 0; i < parallel; i++)
     Stream::synchronizeS(streams[i]);
+  STOP_TIMING(Extraction);
   MemoryManagement::memcpyMM_d2h(
       calPlain.data(), dPlain, numberTests * sizeof(TorusInteger), streams[0]);
   MemoryManagement::memcpyMM_d2h(errors.data(), dError,
@@ -80,4 +84,5 @@ TEST(Thesis, Extraction) {
     sumError += errors[i];
   }
   std::cout << "Avg error = " << sumError / numberTests << std::endl;
+  PRINT_TIMING(Extraction);
 }

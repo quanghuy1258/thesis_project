@@ -4,6 +4,7 @@
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
 #include "thesis/memory_management.h"
+#include "thesis/profiling_timer.h"
 #include "thesis/stream.h"
 #include "thesis/thread_management.h"
 #include "thesis/trgsw_cipher.h"
@@ -60,6 +61,8 @@ TEST(Thesis, TrgswEncryptDecrypt) {
                                  N * sizeof(TorusInteger) * numberTests);
   // <<<
   fft.waitAllOut();
+  DECLARE_TIMING(EncDec);
+  START_TIMING(EncDec);
   // >>> Put plaintexts to TRGSW samples -> TRGSW ciphers
   for (int i = 0; i < numberTests; i++)
     TrgswFunction::addMuGadget(dPlain + N * i, ciphers[i],
@@ -94,6 +97,7 @@ TEST(Thesis, TrgswEncryptDecrypt) {
   for (int i = 0; i < parallel; i++)
     Stream::synchronizeS(streams[i]);
   // >>> Move plaintexts from device to host
+  STOP_TIMING(EncDec);
   MemoryManagement::memcpyMM_d2h(calPlain.data(), dPlain,
                                  N * sizeof(TorusInteger) * numberTests);
   // <<<
@@ -108,6 +112,7 @@ TEST(Thesis, TrgswEncryptDecrypt) {
   MemoryManagement::freeMM(s);
   for (int i = 0; i < N * numberTests; i++)
     ASSERT_TRUE(oriPlain[i] == calPlain[i]);
+  PRINT_TIMING(EncDec);
 }
 /*
 TEST(Thesis, Decomposition) {

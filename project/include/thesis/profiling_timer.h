@@ -1,7 +1,8 @@
 #ifndef PROFILING_TIMER_H
 #define PROFILING_TIMER_H
 
-#include "thesis/load_lib.h"
+#include <chrono>
+#include <iostream>
 
 #define GET_CURRENT_TIME std::chrono::system_clock::now
 #define DECLARE_TIMING(s)                                                      \

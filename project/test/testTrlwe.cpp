@@ -4,6 +4,7 @@
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
 #include "thesis/memory_management.h"
+#include "thesis/profiling_timer.h"
 #include "thesis/stream.h"
 #include "thesis/thread_management.h"
 #include "thesis/trlwe_cipher.h"
@@ -42,6 +43,8 @@ TEST(Thesis, TrlweEncryptDecrypt) {
   }
   MemoryManagement::memcpyMM_h2d(dPlain, oriPlain.data(),
                                  N * sizeof(TorusInteger) * numberTests);
+  DECLARE_TIMING(EncDec);
+  START_TIMING(EncDec);
   for (int i = 0; i < numberTests; i++)
     TrlweFunction::putPlain(ciphers[i], dPlain + N * i, streams[i % parallel]);
   for (int i = 0; i < numberTests; i++) {
@@ -55,6 +58,7 @@ TEST(Thesis, TrlweEncryptDecrypt) {
   }
   for (int i = 0; i < parallel; i++)
     Stream::synchronizeS(streams[i]);
+  STOP_TIMING(EncDec);
   MemoryManagement::memcpyMM_d2h(calPlain.data(), dPlain,
                                  N * sizeof(TorusInteger) * numberTests,
                                  streams[0]);
@@ -75,6 +79,7 @@ TEST(Thesis, TrlweEncryptDecrypt) {
     sumError += error[i];
   }
   std::cout << "Avg error = " << sumError / (N * numberTests) << std::endl;
+  PRINT_TIMING(EncDec);
 }
 /*
 TEST(Thesis, TrlweExtractAllToTlwe) {

@@ -5,6 +5,7 @@
 #include "thesis/decomposition.h"
 #include "thesis/load_lib.h"
 #include "thesis/memory_management.h"
+#include "thesis/profiling_timer.h"
 #include "thesis/stream.h"
 #include "thesis/thread_management.h"
 #include "thesis/trgsw_cipher.h"
@@ -68,6 +69,8 @@ TEST(Thesis, Decomposition) {
   fft.waitAllOut();
   for (int i = 0; i < 4; i++)
     TrgswFunction::addMuGadget(i, mul[i], streams[i % parallel]);
+  DECLARE_TIMING(Decomp);
+  START_TIMING(Decomp);
   for (int a = 0; a < 4; a++) {
     Stream::synchronizeS(streams[a % parallel]);
     for (int b = 0; b <= k; b++) {
@@ -94,6 +97,7 @@ TEST(Thesis, Decomposition) {
   }
   decomp.waitAllOut();
   // <<<
+  STOP_TIMING(Decomp);
   // >>> Decrypt
   for (int i = 0; i < numberTests; i++) {
     Stream::synchronizeS(streams[i % parallel]);
@@ -132,6 +136,7 @@ TEST(Thesis, Decomposition) {
     sumError += error[i];
   }
   std::cout << "Avg error = " << sumError / (N * numberTests) << std::endl;
+  PRINT_TIMING(Decomp);
 }
 
 TEST(Thesis, DecompositionForBlindRotate) {
@@ -190,6 +195,8 @@ TEST(Thesis, DecompositionForBlindRotate) {
   fft.waitAllOut();
   for (int i = 0; i < 4; i++)
     TrgswFunction::addMuGadget(i, mul[i], streams[i % parallel]);
+  DECLARE_TIMING(BlindRotate);
+  START_TIMING(BlindRotate);
   for (int a = 0; a < 4; a++) {
     Stream::synchronizeS(streams[a % parallel]);
     for (int b = 0; b <= k; b++) {
@@ -216,6 +223,7 @@ TEST(Thesis, DecompositionForBlindRotate) {
   }
   decomp.waitAllOut();
   // <<<
+  STOP_TIMING(BlindRotate);
   // >>> Decrypt
   for (int i = 0; i < numberTests; i++) {
     Stream::synchronizeS(streams[i % parallel]);
@@ -265,4 +273,5 @@ TEST(Thesis, DecompositionForBlindRotate) {
     }
   }
   std::cout << "Avg error = " << sumError / (N * numberTests) << std::endl;
+  PRINT_TIMING(BlindRotate);
 }

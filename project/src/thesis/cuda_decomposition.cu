@@ -17,12 +17,13 @@ __global__ void _cudaOnlyDecomp(int N, int k, int l, int Bgbit,
   int _N = blockIdx.x * blockDim.x + threadIdx.x;
   int _l = blockIdx.y * blockDim.y + threadIdx.y;
   int _k = blockIdx.z * blockDim.z + threadIdx.z;
-  if (_N < N || _k < k || _l < l) {
+  if (_N < N && _k <= k && _l < l) {
     assert(bitsize_Torus >= Bgbit * (_l + 1));
     TorusInteger decomp = inp[N * _k + _N] + offset;
-    out[N * (l * _k + _l) + _N] = decomp >> (bitsize_Torus - Bgbit * (_l + 1));
-    out[N * (l * _k + _l) + _N] &= maskMod;
-    out[N * (l * _k + _l) + _N] -= halfBg;
+    decomp >>= bitsize_Torus - Bgbit * (_l + 1);
+    decomp &= maskMod;
+    decomp -= halfBg;
+    out[N * (l * _k + _l) + _N] = decomp;
   }
 }
 
@@ -33,7 +34,7 @@ __global__ void _cudaForBlindRotate(int N, int k, int l, int Bgbit, int deg,
   int _N = blockIdx.x * blockDim.x + threadIdx.x;
   int _l = blockIdx.y * blockDim.y + threadIdx.y;
   int _k = blockIdx.z * blockDim.z + threadIdx.z;
-  if (_N < N || _k < k || _l < l) {
+  if (_N < N && _k <= k && _l < l) {
     assert(bitsize_Torus >= Bgbit * (_l + 1));
     TorusInteger decomp = 0;
     if (_N >= deg)
@@ -44,9 +45,10 @@ __global__ void _cudaForBlindRotate(int N, int k, int l, int Bgbit, int deg,
       decomp += inp[N * _k + _N + N * 2 - deg];
     decomp -= inp[N * _k + _N];
     decomp += offset;
-    out[N * (l * _k + _l) + _N] = decomp >> (bitsize_Torus - Bgbit * (_l + 1));
-    out[N * (l * _k + _l) + _N] &= maskMod;
-    out[N * (l * _k + _l) + _N] -= halfBg;
+    decomp >>= bitsize_Torus - Bgbit * (_l + 1);
+    decomp &= maskMod;
+    decomp -= halfBg;
+    out[N * (l * _k + _l) + _N] = decomp;
   }
 }
 
@@ -54,7 +56,7 @@ void Decomposition::cudaOnlyDecomp(TrlweCipher *inp, TrgswCipher *param,
                                    TorusInteger *out, void *streamPtr) {
   int threadsPerBlock = 512;
   // _N + 511 = _N + (512 - 1)
-  dim3 numBlocks((param->_N + 511) / 512, param->_l, param->_k);
+  dim3 numBlocks((param->_N + 511) / 512, param->_l, param->_k + 1);
   if (streamPtr) {
     cudaStream_t *s = (cudaStream_t *)streamPtr;
     _cudaOnlyDecomp<<<numBlocks, threadsPerBlock, 0, *s>>>(
@@ -70,7 +72,7 @@ void Decomposition::cudaForBlindRotate(TrlweCipher *inp, TrgswCipher *param,
                                        void *streamPtr) {
   int threadsPerBlock = 512;
   // _N + 511 = _N + (512 - 1)
-  dim3 numBlocks((param->_N + 511) / 512, param->_l, param->_k);
+  dim3 numBlocks((param->_N + 511) / 512, param->_l, param->_k + 1);
   if (streamPtr) {
     cudaStream_t *s = (cudaStream_t *)streamPtr;
     _cudaForBlindRotate<<<numBlocks, threadsPerBlock, 0, *s>>>(

@@ -22,10 +22,10 @@ void Decomposition::onlyDecomp(TrlweCipher *inp, TrgswCipher *param,
           throw std::runtime_error("Cannot implement decomposition here");
         for (int i = 0; i < param->_N; i++) {
           TorusInteger decomp = inp->get_pol_data(k)[i] + param->_offset;
-          out[(k * param->_l + l) * param->_N + i] =
-              decomp >> (bitsize_Torus - param->_Bgbit * (l + 1));
-          out[(k * param->_l + l) * param->_N + i] &= param->_maskMod;
-          out[(k * param->_l + l) * param->_N + i] -= param->_halfBg;
+          decomp >>= bitsize_Torus - param->_Bgbit * (l + 1);
+          decomp &= param->_maskMod;
+          decomp -= param->_halfBg;
+          out[(k * param->_l + l) * param->_N + i] = decomp;
         }
       },
       param->_kpl, streamPtr);
@@ -57,10 +57,10 @@ void Decomposition::forBlindRotate(TrlweCipher *inp, TrgswCipher *param,
             decomp += inp->get_pol_data(k)[i + param->_N * 2 - deg];
           decomp -= inp->get_pol_data(k)[i];
           decomp += param->_offset;
-          out[(k * param->_l + l) * param->_N + i] =
-              decomp >> (bitsize_Torus - param->_Bgbit * (l + 1));
-          out[(k * param->_l + l) * param->_N + i] &= param->_maskMod;
-          out[(k * param->_l + l) * param->_N + i] -= param->_halfBg;
+          decomp >>= bitsize_Torus - param->_Bgbit * (l + 1);
+          decomp &= param->_maskMod;
+          decomp -= param->_halfBg;
+          out[(k * param->_l + l) * param->_N + i] = decomp;
         }
       },
       param->_kpl, streamPtr);
