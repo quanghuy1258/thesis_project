@@ -43,15 +43,16 @@ __global__ void _multiply(int length, void *left, void *right, void *result) {
 }
 
 __global__ void _collapse(int N, void *data_mul) {
-  TorusInteger *torus_ptr = (TorusInteger *)data_mul;
-  double *double_ptr = (double *)data_mul;
-  for (int i = 0; i < N; i++) {
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    TorusInteger *torus_ptr = (TorusInteger *)data_mul;
+    double *double_ptr = (double *)data_mul;
     TorusInteger num = 0;
-    for (int j = mode - 1; j >= 0; j--) {
+    for (int i = mode / 2 - 1; i >= 0; i--) {
       num <<= 16;
-      num += llround(double_ptr[i * mode + j] / (N * mode));
+      num += llround(-double_ptr[(n + N) * mode + i] / (N * mode));
     }
-    torus_ptr[i] = num;
+    torus_ptr[n] = num;
   }
 }
 
@@ -160,7 +161,8 @@ void BatchedFFT::cudaSetMul(int r, int c) {
   cufftExecZ2D(*(cufftHandle *)_plan_mul[r * _col + c],
                (cuDoubleComplex *)_data_mul[r * _col + c],
                (double *)_data_mul[r * _col + c]);
-  _collapse<<<1, 1, 0, *cudaStream_t_ptr>>>(_N, _data_mul[r * _col + c]);
+  _collapse<<<numBlocks, threadsPerBlock, 0, *cudaStream_t_ptr>>>(
+      _N, _data_mul[r * _col + c]);
 }
 void BatchedFFT::cudaAddAllOut(TorusInteger *pol, int r) {
   int threadsPerBlock = 512;
