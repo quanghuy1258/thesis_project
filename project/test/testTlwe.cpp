@@ -29,7 +29,7 @@ TEST(Thesis, TlweEncryptDecrypt) {
       (double *)MemoryManagement::mallocMM(numberTests * sizeof(double));
   for (int i = 0; i < parallel; i++)
     streams[i] = Stream::createS();
-  TlweFunction::genkey(s, n, streams[0]);
+  TlweFunction::genkey(s, n);
   DECLARE_TIMING(EncDec);
   START_TIMING(EncDec);
   for (int i = 0; i < numberTests; i++) {
