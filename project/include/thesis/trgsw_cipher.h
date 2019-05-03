@@ -26,6 +26,7 @@ public:
   TrgswCipher(TorusInteger *data, int size, int N, int k, int l, int Bgbit,
               double sdError, double varError);
 
+  using Cipher::operator=;
   TrgswCipher &operator=(const TrgswCipher &) = delete;
 
   TrgswCipher(TrgswCipher &&obj);

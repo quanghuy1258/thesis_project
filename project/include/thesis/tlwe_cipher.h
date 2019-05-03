@@ -17,7 +17,8 @@ public:
   TlweCipher(TorusInteger *data, int size, int n, double sdError,
              double varError);
 
-  TlweCipher &operator=(const TlweCipher &);
+  using Cipher::operator=;
+  TlweCipher &operator=(const TlweCipher &) = delete;
 
   TlweCipher(TlweCipher &&obj);
   TlweCipher &operator=(TlweCipher &&obj);

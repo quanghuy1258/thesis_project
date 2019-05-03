@@ -18,6 +18,7 @@ public:
   TrlweCipher(TorusInteger *data, int size, int N, int k, double sdError,
               double varError);
 
+  using Cipher::operator=;
   TrlweCipher &operator=(const TlweCipher &) = delete;
 
   TrlweCipher(TrlweCipher &&obj);
