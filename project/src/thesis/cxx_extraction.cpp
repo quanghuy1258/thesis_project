@@ -9,6 +9,8 @@ void Extraction::extract(TrlweCipher *inp, int deg, TlweCipher *out,
                          void *streamPtr) {
   if (!inp || !out || deg < 0 || deg >= inp->_N || inp->_N * inp->_k != out->_n)
     return;
+  out->_sdError = inp->_sdError;
+  out->_varError = inp->_varError;
 #ifdef USING_CUDA
   cudaExtract(inp, deg, out, streamPtr);
 #else
@@ -24,8 +26,6 @@ void Extraction::extract(TrlweCipher *inp, int deg, TlweCipher *out,
           }
         }
         out->_data[out->_n] = inp->get_pol_data(inp->_k)[deg];
-        out->_sdError = inp->_sdError;
-        out->_varError = inp->_varError;
       },
       streamPtr);
 #endif

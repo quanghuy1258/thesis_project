@@ -17,6 +17,8 @@ void TrgswFunction::addMuGadget(TorusInteger *pol, TrgswCipher *sample,
       [pol, sample](int parallelId, int parallel) {
         int l = parallelId / (sample->_k + 1);
         int k = parallelId % (sample->_k + 1);
+        if (bitsize_Torus < sample->_Bgbit * (l + 1))
+          throw std::runtime_error("Cannot implement addMuGadget here");
         TorusInteger H = 1;
         H <<= bitsize_Torus - sample->_Bgbit * (l + 1);
         for (int i = 0; i < sample->_N; i++)
@@ -36,7 +38,7 @@ void TrgswFunction::addMuGadget(TorusInteger scalar, TrgswCipher *sample,
       [scalar, sample]() {
         for (int i = 0; i < sample->_l; i++) {
           if (bitsize_Torus < sample->_Bgbit * (i + 1))
-            break;
+            throw std::runtime_error("Cannot implement addMuGadget here");
           TorusInteger H = 1;
           H <<= bitsize_Torus - sample->_Bgbit * (i + 1);
           for (int j = 0; j <= sample->_k; j++)
