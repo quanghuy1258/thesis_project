@@ -1,8 +1,12 @@
-#include "mpc_application.h"
+#include "thesis/batched_fft.h"
 #include "thesis/memory_management.h"
-#include "thesis/trgsw_cipher.h"
+#include "thesis/trlwe_cipher.h"
+#include "thesis/trlwe_function.h"
 
-MpcApplication::MpcApplication(int numParty, int partyId, int N, int m) {
+#include "mpc_application.h"
+
+MpcApplication::MpcApplication(int numParty, int partyId, int N, int m)
+    : _fft_pubkey(N, 2, 1) {
   if (numParty < 1 || partyId < 0 || partyId >= numParty || N < 2 ||
       (N & (N - 1)) || m < 1)
     throw std::invalid_argument(
@@ -15,11 +19,59 @@ MpcApplication::MpcApplication(int numParty, int partyId, int N, int m) {
       N * sizeof(thesis::TorusInteger));
   _pubkey.resize(m, nullptr);
 }
-
 MpcApplication::~MpcApplication() {
   thesis::MemoryManagement::freeMM(_privkey);
   for (int i = 0; i < _m; i++) {
-    if (_pubkey[i])
-      delete _pubkey[i];
+    if (!_pubkey[i])
+      continue;
+    delete _pubkey[i];
+  }
+}
+void MpcApplication::createPrivkey() {
+  thesis::TrlweFunction::genkey(_privkey, _N, 1);
+  thesis::TrlweFunction::keyToFFT(_privkey, _N, 1, &_fft_pubkey);
+}
+void MpcApplication::importPrivkey(void *hPrivkey) {
+  if (!hPrivkey)
+    return;
+  thesis::MemoryManagement::memcpyMM_h2d(_privkey, hPrivkey,
+                                         _N * sizeof(thesis::TorusInteger));
+  thesis::TrlweFunction::keyToFFT(_privkey, _N, 1, &_fft_pubkey);
+}
+void MpcApplication::exportPrivkey(void *hPrivkey) {
+  if (!hPrivkey)
+    return;
+  thesis::MemoryManagement::memcpyMM_d2h(hPrivkey, _privkey,
+                                         _N * sizeof(thesis::TorusInteger));
+}
+void MpcApplication::createPubkey() {
+  for (int i = 0; i < _m; i++) {
+    if (!_pubkey[i])
+      continue;
+    thesis::TrlweFunction::createSample(&_fft_pubkey, i & 1, _pubkey[i]);
+  }
+}
+void MpcApplication::importPubkey(void *hPubkey) {
+  if (!hPubkey)
+    return;
+  thesis::TorusInteger *ptr = (thesis::TorusInteger *)hPubkey;
+  for (int i = 0; i < _m; i++) {
+    if (!_pubkey[i])
+      continue;
+    thesis::MemoryManagement::memcpyMM_h2d(_pubkey[i]->_data, ptr + _N * 2 * i,
+                                           _N * 2 *
+                                               sizeof(thesis::TorusInteger));
+  }
+}
+void MpcApplication::exportPubkey(void *hPubkey) {
+  if (!hPubkey)
+    return;
+  thesis::TorusInteger *ptr = (thesis::TorusInteger *)hPubkey;
+  for (int i = 0; i < _m; i++) {
+    if (!_pubkey[i])
+      continue;
+    thesis::MemoryManagement::memcpyMM_d2h(ptr + _N * 2 * i, _pubkey[i]->_data,
+                                           _N * 2 *
+                                               sizeof(thesis::TorusInteger));
   }
 }
