@@ -11,6 +11,8 @@ private:
   int _N;
   // int _k; --> k = 1 (fixed)
   int _m; // pubkey: number of samples
+  int _l;
+  double _sdFresh;
 
   thesis::TorusInteger *_privkey;
   std::vector<thesis::TrlweCipher *> _pubkey;
@@ -19,7 +21,8 @@ private:
 public:
   MpcApplication() = delete;
   MpcApplication(const MpcApplication &) = delete;
-  MpcApplication(int numParty, int partyId, int N, int m);
+  MpcApplication(int numParty, int partyId, int N, int m, int l,
+                 double sdFresh);
 
   MpcApplication &operator=(const MpcApplication &) = delete;
 
@@ -31,6 +34,7 @@ public:
       void *hPrivkey); // hPrivkey: private key pointer in host memory (RAM)
   void exportPrivkey(
       void *hPrivkey); // hPrivkey: private key pointer in host memory (RAM)
+  size_t getSizePrivkey();
 
   // Public key
   void createPubkey(); // throw exception if private key is null
@@ -38,6 +42,7 @@ public:
       void *hPubkey); // hPubkey: public key pointer in host memory (RAM)
   void exportPubkey(
       void *hPubkey); // hPubkey: public key pointer in host memory (RAM)
+  size_t getSizePubkey();
 };
 
 #endif

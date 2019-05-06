@@ -5,19 +5,24 @@
 
 #include "mpc_application.h"
 
-MpcApplication::MpcApplication(int numParty, int partyId, int N, int m)
+MpcApplication::MpcApplication(int numParty, int partyId, int N, int m, int l,
+                               double sdFresh)
     : _fft_pubkey(N, 2, 1) {
   if (numParty < 1 || partyId < 0 || partyId >= numParty || N < 2 ||
-      (N & (N - 1)) || m < 1)
-    throw std::invalid_argument(
-        "numParty > 0 ; 0 <= partyId < numParty ; N = 2^a with a > 0 ; m > 0");
+      (N & (N - 1)) || m < 1 || l < 1 || sdFresh <= 0)
+    throw std::invalid_argument("numParty > 0 ; 0 <= partyId < numParty ; N = "
+                                "2^a with a > 0 ; m > 0 ; l > 0 ; sdFresh > 0");
   _numParty = numParty;
   _partyId = partyId;
   _N = N;
   _m = m;
+  _l = l;
+  _sdFresh = sdFresh;
   _privkey = (thesis::TorusInteger *)thesis::MemoryManagement::mallocMM(
       N * sizeof(thesis::TorusInteger));
   _pubkey.resize(m, nullptr);
+  for (int i = 0; i < _m; i++)
+    _pubkey[i] = new thesis::TrlweCipher(N, 1, sdFresh, sdFresh * sdFresh);
 }
 MpcApplication::~MpcApplication() {
   thesis::MemoryManagement::freeMM(_privkey);
@@ -34,15 +39,16 @@ void MpcApplication::createPrivkey() {
 void MpcApplication::importPrivkey(void *hPrivkey) {
   if (!hPrivkey)
     return;
-  thesis::MemoryManagement::memcpyMM_h2d(_privkey, hPrivkey,
-                                         _N * sizeof(thesis::TorusInteger));
+  thesis::MemoryManagement::memcpyMM_h2d(_privkey, hPrivkey, getSizePrivkey());
   thesis::TrlweFunction::keyToFFT(_privkey, _N, 1, &_fft_pubkey);
 }
 void MpcApplication::exportPrivkey(void *hPrivkey) {
   if (!hPrivkey)
     return;
-  thesis::MemoryManagement::memcpyMM_d2h(hPrivkey, _privkey,
-                                         _N * sizeof(thesis::TorusInteger));
+  thesis::MemoryManagement::memcpyMM_d2h(hPrivkey, _privkey, getSizePrivkey());
+}
+size_t MpcApplication::getSizePrivkey() {
+  return _N * sizeof(thesis::TorusInteger);
 }
 void MpcApplication::createPubkey() {
   for (int i = 0; i < _m; i++) {
@@ -74,4 +80,7 @@ void MpcApplication::exportPubkey(void *hPubkey) {
                                            _N * 2 *
                                                sizeof(thesis::TorusInteger));
   }
+}
+size_t MpcApplication::getSizePubkey() {
+  return _N * 2 * sizeof(thesis::TorusInteger) * _m;
 }
