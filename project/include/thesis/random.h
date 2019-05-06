@@ -14,7 +14,9 @@ public:
   static void addSeed(unsigned seed);
 
   static void setUniform(TorusInteger *ptr, size_t len,
-                         void *streamPtr = nullptr);
+                         void *streamPtr = nullptr,
+                         std::function<TorusInteger(TorusInteger)> transformFn =
+                             [](TorusInteger x) -> TorusInteger { return x; });
   static void setNormalTorus(TorusInteger *ptr, size_t len, double stddev,
                              void *streamPtr = nullptr);
 

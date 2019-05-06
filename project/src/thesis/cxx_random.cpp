@@ -21,7 +21,8 @@ void Random::addSeed(unsigned seed) {
   seeds.push_back(seed);
 }
 
-void Random::setUniform(TorusInteger *ptr, size_t len, void *streamPtr) {
+void Random::setUniform(TorusInteger *ptr, size_t len, void *streamPtr,
+                        std::function<TorusInteger(TorusInteger)> transformFn) {
   std::uniform_int_distribution<TorusInteger> distribution(
       std::numeric_limits<TorusInteger>::min(),
       std::numeric_limits<TorusInteger>::max());
@@ -31,7 +32,7 @@ void Random::setUniform(TorusInteger *ptr, size_t len, void *streamPtr) {
     if (!isInitSeeds)
       initSeeds();
     for (size_t i = 0; i < len; i++)
-      vec[i] = distribution(generator);
+      vec[i] = transformFn(distribution(generator));
   }
   MemoryManagement::memcpyMM_h2d(ptr, vec.data(), len * sizeof(TorusInteger),
                                  streamPtr);
