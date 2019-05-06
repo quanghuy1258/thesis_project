@@ -9,7 +9,6 @@ namespace thesis {
 class TlweFunction {
 private:
 #ifdef USING_CUDA
-  static void cudaGenkey(TorusInteger *s, int n, void *streamPtr = nullptr);
   static void cudaEncrypt(TorusInteger *s, TorusInteger plain,
                           TlweCipher *cipher, void *streamPtr = nullptr);
   static void cudaDecrypt(TorusInteger *s, TlweCipher *cipher,

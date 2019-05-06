@@ -8,17 +8,8 @@ namespace thesis {
 void TlweFunction::genkey(TorusInteger *s, int n, void *streamPtr) {
   if (!s || n < 1)
     return;
-  Random::setUniform(s, n, streamPtr);
-#ifdef USING_CUDA
-  cudaGenkey(s, n, streamPtr);
-#else
-  Stream::scheduleS(
-      [s, n]() {
-        for (int i = 0; i < n; i++)
-          s[i] &= 1;
-      },
-      streamPtr);
-#endif
+  Random::setUniform(s, n, streamPtr,
+                     [](TorusInteger x) -> TorusInteger { return x & 1; });
 }
 void TlweFunction::encrypt(TorusInteger *s, TorusInteger plain,
                            TlweCipher *cipher, void *streamPtr) {

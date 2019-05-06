@@ -5,12 +5,6 @@
 
 namespace thesis {
 
-__global__ void _cudaGenkey(int n, TorusInteger *s) {
-  int _n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (_n < n)
-    s[_n] &= 1;
-}
-
 __global__ void _cudaEncrypt(int n, TorusInteger *s, TorusInteger plain,
                              TorusInteger *cipher) {
   for (int i = 0; i < n; i++)
@@ -32,16 +26,6 @@ __global__ void _cudaDecrypt(int n, TorusInteger *s, TorusInteger *cipher,
     *abs_err = (y < 0.25) ? y : (0.5 - y);
 }
 
-void TlweFunction::cudaGenkey(TorusInteger *s, int n, void *streamPtr) {
-  int threadsPerBlock = 512;
-  // n + 511 = n + (512 - 1)
-  int numBlocks = (n + 511) / 512;
-  if (streamPtr) {
-    cudaStream_t *str = (cudaStream_t *)streamPtr;
-    _cudaGenkey<<<numBlocks, threadsPerBlock, 0, *str>>>(n, s);
-  } else
-    _cudaGenkey<<<numBlocks, threadsPerBlock>>>(n, s);
-}
 void TlweFunction::cudaEncrypt(TorusInteger *s, TorusInteger plain,
                                TlweCipher *cipher, void *streamPtr) {
   if (streamPtr) {
