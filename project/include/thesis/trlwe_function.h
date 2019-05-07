@@ -16,7 +16,7 @@ private:
 #endif
 
 public:
-  static void genkey(TorusInteger *s, int N, int k, void *streamPtr = nullptr);
+  static void genkey(TorusInteger *s, int N, int k);
   static void keyToFFT(TorusInteger *s, int N, int k, BatchedFFT *fft);
   // Encrypt
   static void createSample(BatchedFFT *fftWithS, int rowFFT,

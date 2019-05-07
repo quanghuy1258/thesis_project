@@ -17,7 +17,7 @@ private:
 #endif
 
 public:
-  static void genkey(TorusInteger *s, int n, void *streamPtr = nullptr);
+  static void genkey(TorusInteger *s, int n);
   static void encrypt(TorusInteger *s, TorusInteger plain, TlweCipher *cipher,
                       void *streamPtr = nullptr);
   static void decrypt(TorusInteger *s, TlweCipher *cipher, TorusInteger *plain,

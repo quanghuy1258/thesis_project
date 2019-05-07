@@ -8,10 +8,10 @@
 
 namespace thesis {
 
-void TrlweFunction::genkey(TorusInteger *s, int N, int k, void *streamPtr) {
+void TrlweFunction::genkey(TorusInteger *s, int N, int k) {
   if (!s || N < 2 || (N & (N - 1)) || k < 1)
     return;
-  TlweFunction::genkey(s, N * k, streamPtr);
+  TlweFunction::genkey(s, N * k);
 }
 void TrlweFunction::keyToFFT(TorusInteger *s, int N, int k, BatchedFFT *fft) {
   if (!s || N < 2 || (N & (N - 1)) || k < 1 || !fft || fft->get_N() != N ||

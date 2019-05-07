@@ -5,19 +5,18 @@
 
 namespace thesis {
 
-void TlweFunction::genkey(TorusInteger *s, int n, void *streamPtr) {
+void TlweFunction::genkey(TorusInteger *s, int n) {
   if (!s || n < 1)
     return;
-  Random::setUniform(s, n, streamPtr,
+  Random::setUniform(s, n,
                      [](TorusInteger x) -> TorusInteger { return x & 1; });
 }
 void TlweFunction::encrypt(TorusInteger *s, TorusInteger plain,
                            TlweCipher *cipher, void *streamPtr) {
   if (!s || !cipher)
     return;
-  Random::setUniform(cipher->_data, cipher->_n, streamPtr);
-  Random::setNormalTorus(cipher->_data + cipher->_n, 1, cipher->_sdError,
-                         streamPtr);
+  Random::setUniform(cipher->_data, cipher->_n);
+  Random::setNormalTorus(cipher->_data + cipher->_n, 1, cipher->_sdError);
 #ifdef USING_CUDA
   cudaEncrypt(s, plain, cipher, streamPtr);
 #else
