@@ -19,6 +19,7 @@ class Random;
 class Stream;
 class ThreadManagement;
 class BatchedFFT;
+class TorusUtility;
 
 class Cipher;
 class TlweCipher;
