@@ -17,7 +17,7 @@ __global__ void _cudaSubVector(TorusInteger *dest, TorusInteger *src, int len) {
 }
 
 void TorusUtility::cudaAddVector(TorusInteger *dest, TorusInteger *src,
-                                 size_t len, void *streamPtr) {
+                                 int len, void *streamPtr) {
   int threadsPerBlock = 512;
   // len + 511 = len + (512 - 1)
   int numBlocks = (len + 511) / 512;
@@ -28,7 +28,7 @@ void TorusUtility::cudaAddVector(TorusInteger *dest, TorusInteger *src,
     _cudaAddVector<<<numBlocks, threadsPerBlock>>>(dest, src, len);
 }
 void TorusUtility::cudaSubVector(TorusInteger *dest, TorusInteger *src,
-                                 size_t len, void *streamPtr) {
+                                 int len, void *streamPtr) {
   int threadsPerBlock = 512;
   // len + 511 = len + (512 - 1)
   int numBlocks = (len + 511) / 512;

@@ -8,15 +8,15 @@ namespace thesis {
 
 class TorusUtility {
 private:
-  static void cudaAddVector(TorusInteger *dest, TorusInteger *src, size_t len,
+  static void cudaAddVector(TorusInteger *dest, TorusInteger *src, int len,
                             void *streamPtr = nullptr);
-  static void cudaSubVector(TorusInteger *dest, TorusInteger *src, size_t len,
+  static void cudaSubVector(TorusInteger *dest, TorusInteger *src, int len,
                             void *streamPtr = nullptr);
 
 public:
-  static void addVector(TorusInteger *dest, TorusInteger *src, size_t len,
+  static void addVector(TorusInteger *dest, TorusInteger *src, int len,
                         void *streamPtr = nullptr);
-  static void subVector(TorusInteger *dest, TorusInteger *src, size_t len,
+  static void subVector(TorusInteger *dest, TorusInteger *src, int len,
                         void *streamPtr = nullptr);
 };
 

@@ -37,7 +37,7 @@ public:
       void *hPrivkey); // hPrivkey: private key pointer in host memory (RAM)
   void exportPrivkey(
       void *hPrivkey); // hPrivkey: private key pointer in host memory (RAM)
-  size_t getSizePrivkey();
+  int getSizePrivkey();
 
   // Public key
   void createPubkey(); // throw exception if private key is null
@@ -45,19 +45,19 @@ public:
       void *hPubkey); // hPubkey: public key pointer in host memory (RAM)
   void exportPubkey(
       void *hPubkey); // hPubkey: public key pointer in host memory (RAM)
-  size_t getSizePubkey();
+  int getSizePubkey();
 
   // Encrypt
   void
   encrypt(bool msg,
           void *hCipher); // hCipher: ciphertext pointer in host memory (RAM)
-  size_t getSizeCipher();
+  int getSizeCipher();
 
-  //Expand
+  // Expand
   void preExpand(void *hPubkey,     // hPubkey: public key of another party
                  void *hPreExpand); // hPreExpand: pre expand ciphertext pointer
                                     // in host memory (RAM)
-  size_t getSizePreExpand();
+  int getSizePreExpand();
 };
 
 #endif

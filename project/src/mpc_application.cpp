@@ -61,7 +61,7 @@ void MpcApplication::exportPrivkey(void *hPrivkey) {
     return;
   MemoryManagement::memcpyMM_d2h(hPrivkey, _privkey, getSizePrivkey());
 }
-size_t MpcApplication::getSizePrivkey() { return _N * sizeof(TorusInteger); }
+int MpcApplication::getSizePrivkey() { return _N * sizeof(TorusInteger); }
 void MpcApplication::createPubkey() {
   for (int i = 0; i < _m; i++) {
     TrlweFunction::createSample(&_fft_with_privkey, i & 1, _pubkey[i]);
@@ -84,7 +84,7 @@ void MpcApplication::exportPubkey(void *hPubkey) {
     return;
   MemoryManagement::memcpyMM_d2h(hPubkey, _pubkey[0]->_data, getSizePubkey());
 }
-size_t MpcApplication::getSizePubkey() {
+int MpcApplication::getSizePubkey() {
   return _N * 2 * sizeof(TorusInteger) * _m;
 }
 void MpcApplication::encrypt(bool msg, void *hCipher) {
@@ -145,7 +145,7 @@ void MpcApplication::encrypt(bool msg, void *hCipher) {
   for (int i = 0; i <= 2 * _l * _m; i++)
     delete cipher[i];
 }
-size_t MpcApplication::getSizeCipher() {
+int MpcApplication::getSizeCipher() {
   return (2 * _l * _m * 2 + 4) * _l * _N * sizeof(TorusInteger);
 }
 void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
@@ -173,6 +173,6 @@ void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
   MemoryManagement::freeMM(pubkey_ptr);
   MemoryManagement::freeMM(preExpand_ptr);
 }
-size_t MpcApplication::getSizePreExpand() {
+int MpcApplication::getSizePreExpand() {
   return _m * _N * sizeof(TorusInteger);
 }
