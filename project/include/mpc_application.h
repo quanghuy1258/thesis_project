@@ -16,7 +16,10 @@ private:
 
   thesis::TorusInteger *_privkey;
   std::vector<thesis::TrlweCipher *> _pubkey;
-  thesis::BatchedFFT _fft_pubkey;
+  thesis::BatchedFFT _fft_with_privkey;
+  thesis::BatchedFFT _fft_with_pubkey;
+  thesis::BatchedFFT _fft_with_preExpand;
+  std::vector<void *> _stream;
 
 public:
   MpcApplication() = delete;
@@ -43,6 +46,18 @@ public:
   void exportPubkey(
       void *hPubkey); // hPubkey: public key pointer in host memory (RAM)
   size_t getSizePubkey();
+
+  // Encrypt
+  void
+  encrypt(bool msg,
+          void *hCipher); // hCipher: ciphertext pointer in host memory (RAM)
+  size_t getSizeCipher();
+
+  //Expand
+  void preExpand(void *hPubkey,     // hPubkey: public key of another party
+                 void *hPreExpand); // hPreExpand: pre expand ciphertext pointer
+                                    // in host memory (RAM)
+  size_t getSizePreExpand();
 };
 
 #endif
