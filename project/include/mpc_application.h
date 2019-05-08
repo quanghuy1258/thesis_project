@@ -16,10 +16,14 @@ private:
 
   thesis::TorusInteger *_privkey;
   std::vector<thesis::TrlweCipher *> _pubkey;
-  thesis::BatchedFFT _fft_with_privkey;
-  thesis::BatchedFFT _fft_with_pubkey;
-  thesis::BatchedFFT _fft_with_preExpand;
+  thesis::BatchedFFT _fft_privkey;
+  thesis::BatchedFFT _fft_pubkey;
+  thesis::BatchedFFT _fft_preExpand;
+  thesis::BatchedFFT _fft_preExpandRandom;
   std::vector<void *> _stream;
+
+  thesis::TorusInteger *_decompPreExpand(void *hPreExpand, int id,
+                                         thesis::TrgswCipher *param);
 
 public:
   MpcApplication() = delete;
@@ -50,7 +54,8 @@ public:
   // Encrypt
   void
   encrypt(bool msg,
-          void *hCipher); // hCipher: ciphertext pointer in host memory (RAM)
+          void *hCipher, // hCipher: ciphertext pointer in host memory (RAM)
+          void *hRandom = nullptr); // hRandom: output random in hCipher
   int getSizeCipher();
 
   // Expand
@@ -58,6 +63,16 @@ public:
                  void *hPreExpand); // hPreExpand: pre expand ciphertext pointer
                                     // in host memory (RAM)
   int getSizePreExpand();
+  void extend(void *hPreExpand, // hPreExpand: pointer to pre expand ciphertext
+                                // in host memory (RAM), reuse it if null
+              int partyId,      // partyId: id of party
+              void *hCipher,    // hCipher: cipher associated with id of party
+              thesis::TrgswCipher *out);
+  void extendWithPlainRandom(
+      void *hPreExpand, // hPreExpand: pointer to pre expand ciphertext
+      int partyId,      // partyId: id of party
+      void *hRandom,    // hRandom: cipher associated with id of party
+      thesis::TrgswCipher *out);
 };
 
 #endif
