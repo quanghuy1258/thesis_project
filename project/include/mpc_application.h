@@ -6,11 +6,19 @@
 
 class MpcApplication {
 private:
-  int _numParty; // number of parties
-  int _partyId;  // id of current party
+  /**
+   * @attribute _numParty: number of parties
+   * @attribute _partyId: id of current party
+   * @attribute _N: R[X] / (X^N + 1)
+   * @attribute _k: _k = 1 (fixed)
+   * @attribute _m: number of samples (pubkey)
+   * @attribute _l: decomp length
+   * @attribute _sdFresh: sd of noise in fresh cipher
+   */
+  int _numParty;
+  int _partyId;
   int _N;
-  // int _k; --> k = 1 (fixed)
-  int _m; // pubkey: number of samples
+  int _m;
   int _l;
   double _sdFresh;
 
@@ -22,8 +30,25 @@ private:
   thesis::BatchedFFT _fft_preExpandRandom;
   std::vector<void *> _stream;
 
+  // Extend
   thesis::TorusInteger *_decompPreExpand(void *hPreExpand, int id,
                                          thesis::TrgswCipher *param);
+  /**
+   * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM),
+   *                    reuse it if null
+   * @param partyId: id of party
+   * @param cipher: cipher associated with id of party in device memory (VRAM)
+   */
+  thesis::TrgswCipher *_extend(void *hPreExpand, int partyId,
+                               thesis::TorusInteger *cipher);
+  /**
+   * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM),
+   *                    reuse it if null
+   * @param partyId: id of party
+   * @param random: random associated with id of party in device memory (VRAM)
+   */
+  thesis::TrgswCipher *_extendWithPlainRandom(void *hPreExpand, int partyId,
+                                              thesis::TorusInteger *random);
 
 public:
   MpcApplication() = delete;
@@ -37,42 +62,58 @@ public:
 
   // Private key
   void createPrivkey();
-  void importPrivkey(
-      void *hPrivkey); // hPrivkey: private key pointer in host memory (RAM)
-  void exportPrivkey(
-      void *hPrivkey); // hPrivkey: private key pointer in host memory (RAM)
+  /**
+   * @param hPrivkey: private key pointer in host memory (RAM)
+   */
+  void importPrivkey(void *hPrivkey);
+  /**
+   * @param hPrivkey: private key pointer in host memory (RAM)
+   */
+  void exportPrivkey(void *hPrivkey);
   int getSizePrivkey();
 
   // Public key
-  void createPubkey(); // throw exception if private key is null
-  void importPubkey(
-      void *hPubkey); // hPubkey: public key pointer in host memory (RAM)
-  void exportPubkey(
-      void *hPubkey); // hPubkey: public key pointer in host memory (RAM)
+  /**
+   * throw exception if private key is null
+   */
+  void createPubkey();
+  /**
+   * @param hPubkey: public key pointer in host memory (RAM)
+   */
+  void importPubkey(void *hPubkey);
+  /**
+   * @param hPubkey: public key pointer in host memory (RAM)
+   */
+  void exportPubkey(void *hPubkey);
   int getSizePubkey();
 
   // Encrypt
-  void
-  encrypt(bool msg,
-          void *hCipher, // hCipher: ciphertext pointer in host memory (RAM)
-          void *hRandom = nullptr); // hRandom: output random in hCipher
+  /**
+   * @param msg: one bit message
+   * @param hCipher: ciphertext pointer in host memory (RAM)
+   * @param hRandom: output random in hCipher if necessary
+   */
+  void encrypt(bool msg, void *hCipher, void *hRandom = nullptr);
   int getSizeCipher();
 
   // Expand
-  void preExpand(void *hPubkey,     // hPubkey: public key of another party
-                 void *hPreExpand); // hPreExpand: pre expand ciphertext pointer
-                                    // in host memory (RAM)
+  /**
+   * @param hPubkey: public key of another party
+   * @param hPreExpand: pre expand ciphertext pointer in host memory (RAM)
+   */
+  void preExpand(void *hPubkey, void *hPreExpand);
   int getSizePreExpand();
-  void extend(void *hPreExpand, // hPreExpand: pointer to pre expand ciphertext
-                                // in host memory (RAM), reuse it if null
-              int partyId,      // partyId: id of party
-              void *hCipher,    // hCipher: cipher associated with id of party
-              thesis::TrgswCipher *out);
-  void extendWithPlainRandom(
-      void *hPreExpand, // hPreExpand: pointer to pre expand ciphertext
-      int partyId,      // partyId: id of party
-      void *hRandom,    // hRandom: cipher associated with id of party
-      thesis::TrgswCipher *out);
+  /**
+   * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM)
+   * @param freeFnPreExpand: free hPreExpand after use because hPreExpand will
+   *                         be cached
+   * @param partyId: id of party
+   * @param hCipher: cipher associated with id of party
+   */
+  std::vector<thesis::TrgswCipher *>
+  expand(std::vector<void *> &hPreExpand,
+         std::function<void(void *)> freeFnPreExpand, int partyId,
+         void *hCipher);
 };
 
 #endif

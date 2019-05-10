@@ -184,7 +184,9 @@ int MpcApplication::getSizePreExpand() {
 }
 TorusInteger *MpcApplication::_decompPreExpand(void *hPreExpand, int id,
                                                TrgswCipher *param) {
-  TrlweCipher preExpandCipher(_N, _m, _sdFresh, _sdFresh * _sdFresh);
+  // preExpandCipher for only decomposition -> choosing any value for sd and var
+  // is ok
+  TrlweCipher preExpandCipher(_N, _m, 1, 1);
   MemoryManagement::memcpyMM_h2d(preExpandCipher._data, hPreExpand,
                                  getSizePreExpand());
   TorusInteger *decompPreExpand = (TorusInteger *)MemoryManagement::mallocMM(
@@ -197,36 +199,33 @@ TorusInteger *MpcApplication::_decompPreExpand(void *hPreExpand, int id,
   }
   return decompPreExpand;
 }
-void MpcApplication::extend(void *hPreExpand, int partyId, void *hCipher,
-                            TrgswCipher *out) {
-  if (partyId < 0 || partyId >= _numParty || partyId == _partyId || !hCipher ||
-      !out)
-    return;
+TrgswCipher *MpcApplication::_extend(void *hPreExpand, int partyId,
+                                     TorusInteger *cipher) {
+  // Create output trgsw cipher
+  double e_dec = std::pow(2, -_l - 1);
+  TrgswCipher *out = new TrgswCipher(
+      _N, 1, _l, 1, _m * ((_l + 1) * _N * _sdFresh + _N * (1 + _N) * e_dec),
+      _m * ((_l + 1) * _N * _sdFresh * _sdFresh +
+            _N * (1 + _N) * e_dec * e_dec));
   // Determine the position of partyId in _fft_with_preExpand
   int id = (partyId < _partyId) ? partyId : (partyId - 1);
   // Do decomposition if hPreExpand is not null
   TorusInteger *decompPreExpand = nullptr;
   if (hPreExpand)
     decompPreExpand = _decompPreExpand(hPreExpand, id, out);
-  // Move UniEnc in hCipher from host to device
-  TorusInteger *cipherPtr = (TorusInteger *)MemoryManagement::mallocMM(
-      2 * _l * _m * 2 * _l * _N * sizeof(TorusInteger));
-  MemoryManagement::memcpyMM_h2d(
-      cipherPtr, hCipher, 2 * _l * _m * 2 * _l * _N * sizeof(TorusInteger));
   // Clear data of out
   out->clear_trgsw_data();
   // Calculate extend cipher
   for (int i = 0; i < 2 * _l; i++) {
     for (int j = 0; j < _m; j++) {
       for (int k = 0; k < _l; k++)
-        _fft_preExpand.setInp(cipherPtr + ((i * _m + j) * 2 * _l + 2 * k) * _N,
-                              k);
+        _fft_preExpand.setInp(cipher + ((i * _m + j) * 2 * _l + 2 * k) * _N, k);
       for (int k = 0; k < _l; k++)
         _fft_preExpand.setMul(id * _m + j, k);
       _fft_preExpand.addAllOut(out->get_pol_data(i, 0), id * _m + j);
       for (int k = 0; k < _l; k++)
-        _fft_preExpand.setInp(
-            cipherPtr + ((i * _m + j) * 2 * _l + 2 * k + 1) * _N, k);
+        _fft_preExpand.setInp(cipher + ((i * _m + j) * 2 * _l + 2 * k + 1) * _N,
+                              k);
       for (int k = 0; k < _l; k++)
         _fft_preExpand.setMul(id * _m + j, k);
       _fft_preExpand.addAllOut(out->get_pol_data(i, 1), id * _m + j);
@@ -234,15 +233,16 @@ void MpcApplication::extend(void *hPreExpand, int partyId, void *hCipher,
   }
   _fft_preExpand.waitAllOut();
   // Free all allocated memory
-  MemoryManagement::freeMM(cipherPtr);
   if (hPreExpand)
     MemoryManagement::freeMM(decompPreExpand);
+  return out;
 }
-void MpcApplication::extendWithPlainRandom(void *hPreExpand, int partyId,
-                                           void *hRandom, TrgswCipher *out) {
-  if (partyId < 0 || partyId >= _numParty || partyId == _partyId || !hRandom ||
-      !out)
-    return;
+TrgswCipher *MpcApplication::_extendWithPlainRandom(void *hPreExpand,
+                                                    int partyId,
+                                                    TorusInteger *random) {
+  // Create output trgsw cipher
+  TrgswCipher *out = new TrgswCipher(_N, 1, _l, 1, (1 + _m * _N) * _sdFresh,
+                                     (1 + _m * _N) * _sdFresh * _sdFresh);
   // Determine the position of partyId in _fft_with_preExpand
   int id = (partyId < _partyId) ? partyId : (partyId - 1);
   // Move preExpand from host to device if possible
@@ -255,11 +255,6 @@ void MpcApplication::extendWithPlainRandom(void *hPreExpand, int partyId,
     for (int i = 0; i < _m; i++)
       _fft_preExpandRandom.setInp(preExpandCipher + i * _N, id, i);
   }
-  // Move random from host to device
-  TorusInteger *randomPtr = (TorusInteger *)MemoryManagement::mallocMM(
-      2 * _l * _m * _N * sizeof(TorusInteger));
-  MemoryManagement::memcpyMM_h2d(randomPtr, hRandom,
-                                 2 * _l * _m * _N * sizeof(TorusInteger));
   // Clear data of out
   out->clear_trgsw_data();
   // Calculate extend cipher
@@ -269,7 +264,7 @@ void MpcApplication::extendWithPlainRandom(void *hPreExpand, int partyId,
   _fft_privkey.waitAllOut();
   for (int i = 0; i < 2 * _l; i++) {
     for (int j = 0; j < _m; j++)
-      _fft_preExpandRandom.setInp(randomPtr + (i * _m + j) * _N, j);
+      _fft_preExpandRandom.setInp(random + (i * _m + j) * _N, j);
     for (int j = 0; j < _m; j++)
       _fft_preExpandRandom.setMul(id, j);
     _fft_preExpandRandom.addAllOut(out->get_pol_data(i, 1), id);
@@ -278,5 +273,40 @@ void MpcApplication::extendWithPlainRandom(void *hPreExpand, int partyId,
   // Free all allocated memory
   if (hPreExpand)
     MemoryManagement::freeMM(preExpandCipher);
-  MemoryManagement::freeMM(randomPtr);
+  return out;
+}
+std::vector<TrgswCipher *>
+MpcApplication::expand(std::vector<void *> &hPreExpand,
+                       std::function<void(void *)> freeFnPreExpand, int partyId,
+                       void *hCipher) {
+  std::vector<TrgswCipher *> out(_numParty * _numParty, nullptr);
+  if (partyId < 0 || partyId >= _numParty || !hCipher)
+    return out;
+  // Copy cipher from host to device
+  TorusInteger *cipher =
+      (TorusInteger *)MemoryManagement::mallocMM(getSizeCipher());
+  MemoryManagement::memcpyMM_h2d(cipher, hCipher, getSizeCipher());
+  // Copy main cipher
+  for (int i = 0; i < _numParty; i++) {
+    out[i * _numParty + i] = new TrgswCipher(_N, 1, _l, 1, _m * _N * _sdFresh,
+                                             _m * _N * _sdFresh * _sdFresh);
+    MemoryManagement::memcpyMM_d2d(out[i * _numParty + i]->_data,
+                                   cipher + 2 * _l * _m * 2 * _l * _N,
+                                   4 * _l * _N * sizeof(TorusInteger));
+  }
+  // Create extend cipher
+  int sizePreExpandVec = hPreExpand.size();
+  for (int i = 0; i < _numParty; i++) {
+    void *hPreExpandPtr = nullptr;
+    if (i < sizePreExpandVec)
+      hPreExpandPtr = hPreExpand[i];
+    out[i * _numParty + partyId] = _extend(hPreExpandPtr, partyId, cipher);
+    if (hPreExpandPtr != nullptr && freeFnPreExpand != nullptr) {
+      freeFnPreExpand(hPreExpand[i]);
+      hPreExpand[i] = nullptr;
+    }
+  }
+  // Free all allocated memory
+  MemoryManagement::freeMM(cipher);
+  return out;
 }
