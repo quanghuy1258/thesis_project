@@ -95,6 +95,7 @@ public:
    */
   void encrypt(bool msg, void *hCipher, void *hRandom = nullptr);
   int getSizeCipher();
+  int getSizeRandom();
 
   // Expand
   /**
@@ -114,6 +115,18 @@ public:
   expand(std::vector<void *> &hPreExpand,
          std::function<void(void *)> freeFnPreExpand, int partyId,
          void *hCipher);
+  /**
+   * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM)
+   * @param freeFnPreExpand: free hPreExpand after use because hPreExpand will
+   *                         be cached
+   * @param partyId: id of party
+   * @param hCipher: cipher associated with id of party
+   * @param hRandom: plain random associated with cipher
+   */
+  std::vector<thesis::TrgswCipher *>
+  expand(std::vector<void *> &hPreExpand,
+         std::function<void(void *)> freeFnPreExpand, int partyId,
+         void *hCipher, void *hRandom);
 };
 
 #endif
