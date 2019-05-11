@@ -127,6 +127,19 @@ public:
   expand(std::vector<void *> &hPreExpand,
          std::function<void(void *)> freeFnPreExpand, int partyId,
          void *hCipher, void *hRandom);
+
+  // Decrypt
+  /**
+   * @param cipher: expanded cipher
+   */
+  thesis::TorusInteger partDec(std::vector<thesis::TrgswCipher *> &cipher);
+  /**
+   * @param partDecPlain: list of outputs of partDec
+   * @param outError: pointer absolute value of error (null if not want to get
+   *                  error)
+   */
+  static bool finDec(std::vector<thesis::TorusInteger> partDecPlain,
+                     double *outError);
 };
 
 #endif
