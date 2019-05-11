@@ -39,15 +39,13 @@ TEST(Thesis, TrgswEncryptDecrypt) {
   std::vector<TorusInteger> oriPlain(N * numberTests),
       calPlain(N * numberTests);
   std::vector<TrgswCipher *> ciphers(numberTests);
-  std::vector<std::vector<TrlweCipher *>> trlwe_ciphers(numberTests);
   for (int i = 0; i < numberTests; i++) {
     ciphers[i] = new TrgswCipher(N, k, l, Bgbit, sd, sd * sd);
-    trlwe_ciphers[i].resize((k + 1) * l);
     for (int j = 0; j < (k + 1) * l; j++) {
-      trlwe_ciphers[i][j] = new TrlweCipher(ciphers[i]->get_trlwe(j));
       // >>> Create TRLWE samples for each row of TRGSW samples
       TrlweFunction::createSample(&fft, ((k + 1) * l * i + j) % parallel,
-                                  trlwe_ciphers[i][j]);
+                                  ciphers[i]->get_trlwe_data(j), ciphers[i]->_N,
+                                  ciphers[i]->_k, ciphers[i]->_sdError);
       // <<<
     }
     // >>> Create random plaintexts
@@ -73,8 +71,9 @@ TEST(Thesis, TrgswEncryptDecrypt) {
     Stream::synchronizeS(streams[i % parallel]);
     for (int j = 0; j < l; j++)
       TrlweFunction::getPlain(&fft, (l * i + j) % parallel,
-                              trlwe_ciphers[i][k * l + j],
-                              trlwe_ciphers[i][k * l + j]->get_pol_data(k));
+                              ciphers[i]->get_trlwe_data(k * l + j),
+                              ciphers[i]->_N, ciphers[i]->_k,
+                              ciphers[i]->get_pol_data(k * l + j, k));
   }
   // <<<
   // >>> Clean buffer (we will place calculated plaintexts here)
@@ -85,7 +84,7 @@ TEST(Thesis, TrgswEncryptDecrypt) {
   for (int i = 0; i < numberTests; i++) {
     for (int j = 0; j < l; j++)
       TrgswFunction::partDecrypt(
-          ciphers[i], trlwe_ciphers[i][k * l + j]->get_pol_data(k), j, msgSize,
+          ciphers[i], ciphers[i]->get_pol_data(k * l + j, k), j, msgSize,
           dPlain + N * i, streams[i % parallel]);
   }
   // <<<
@@ -101,11 +100,8 @@ TEST(Thesis, TrgswEncryptDecrypt) {
   MemoryManagement::memcpyMM_d2h(calPlain.data(), dPlain,
                                  N * sizeof(TorusInteger) * numberTests);
   // <<<
-  for (int i = 0; i < numberTests; i++) {
-    for (int j = 0; j < (k + 1) * l; j++)
-      delete trlwe_ciphers[i][j];
+  for (int i = 0; i < numberTests; i++)
     delete ciphers[i];
-  }
   MemoryManagement::freeMM(dPlain);
   for (int i = 0; i < parallel; i++)
     Stream::destroyS(streams[i]);

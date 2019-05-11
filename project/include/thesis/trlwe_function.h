@@ -28,6 +28,8 @@ public:
   // Decrypt
   static void getPlain(BatchedFFT *fftWithS, int rowFFT, TrlweCipher *cipher,
                        TorusInteger *plainWithError);
+  static void getPlain(BatchedFFT *fftWithS, int rowFFT, TorusInteger *data,
+                       int N, int k, TorusInteger *plainWithError);
   static void roundPlain(TorusInteger *plain, double *abs_err, int N,
                          void *streamPtr = nullptr);
 };

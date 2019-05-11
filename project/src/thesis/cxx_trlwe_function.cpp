@@ -22,17 +22,10 @@ void TrlweFunction::keyToFFT(TorusInteger *s, int N, int k, BatchedFFT *fft) {
 }
 void TrlweFunction::createSample(BatchedFFT *fftWithS, int rowFFT,
                                  TrlweCipher *cipher) {
-  if (!fftWithS || rowFFT < 0 || rowFFT >= fftWithS->get_row() || !cipher ||
-      cipher->_N != fftWithS->get_N() || cipher->_k != fftWithS->get_col())
+  if (!cipher)
     return;
-  Random::setUniform(cipher->_data, cipher->_N * cipher->_k);
-  Random::setNormalTorus(cipher->_data + cipher->_N * cipher->_k, cipher->_N,
-                         cipher->_sdError);
-  for (int i = 0; i < cipher->_k; i++)
-    fftWithS->setInp(cipher->_data + cipher->_N * i, rowFFT, i);
-  for (int i = 0; i < cipher->_k; i++)
-    fftWithS->setMul(rowFFT, i);
-  fftWithS->addAllOut(cipher->_data + cipher->_N * cipher->_k, rowFFT);
+  createSample(fftWithS, rowFFT, cipher->_data, cipher->_N, cipher->_k,
+               cipher->_sdError);
 }
 void TrlweFunction::createSample(BatchedFFT *fftWithS, int rowFFT,
                                  TorusInteger *data, int N, int k,
@@ -69,17 +62,23 @@ void TrlweFunction::putPlain(TrlweCipher *sample, TorusInteger *plain,
 void TrlweFunction::getPlain(BatchedFFT *fftWithS, int rowFFT,
                              TrlweCipher *cipher,
                              TorusInteger *plainWithError) {
-  if (!fftWithS || rowFFT < 0 || rowFFT >= fftWithS->get_row() || !cipher ||
-      cipher->_N != fftWithS->get_N() || cipher->_k != fftWithS->get_col() ||
-      !plainWithError)
+  if (!cipher)
     return;
-  for (int i = 0; i < cipher->_k; i++)
-    fftWithS->setInp(cipher->_data + cipher->_N * i, rowFFT, i);
-  for (int i = 0; i < cipher->_k; i++)
+  getPlain(fftWithS, rowFFT, cipher->_data, cipher->_N, cipher->_k,
+           plainWithError);
+}
+void TrlweFunction::getPlain(BatchedFFT *fftWithS, int rowFFT,
+                             TorusInteger *data, int N, int k,
+                             TorusInteger *plainWithError) {
+  if (!fftWithS || rowFFT < 0 || rowFFT >= fftWithS->get_row() || !data ||
+      N != fftWithS->get_N() || k != fftWithS->get_col() || !plainWithError)
+    return;
+  for (int i = 0; i < k; i++)
+    fftWithS->setInp(data + N * i, rowFFT, i);
+  for (int i = 0; i < k; i++)
     fftWithS->setMul(rowFFT, i);
-  MemoryManagement::memcpyMM_d2d(plainWithError,
-                                 cipher->_data + cipher->_N * cipher->_k,
-                                 cipher->_N * sizeof(TorusInteger));
+  MemoryManagement::memcpyMM_d2d(plainWithError, data + N * k,
+                                 N * sizeof(TorusInteger));
   fftWithS->subAllOut(plainWithError, rowFFT);
 }
 void TrlweFunction::roundPlain(TorusInteger *plain, double *abs_err, int N,
