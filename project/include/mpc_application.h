@@ -1,6 +1,7 @@
 #ifndef MPC_APPLICATION_H
 #define MPC_APPLICATION_H
 
+#include "thesis/batched_fft.h"
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
 
