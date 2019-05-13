@@ -167,11 +167,11 @@ void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
   Random::setNormalTorus(preExpand_ptr, _m * _N, _sdFresh);
   // preExpand_ptr -= hPubkey * privkey
   for (int i = 0; i < _m; i++) {
-    _fft_pubkey.setInp(pubkey_ptr + 2 * _N * i, i & 1, 0);
-    _fft_pubkey.setMul(i & 1, 0);
+    _fft_privkey.setInp(pubkey_ptr + 2 * _N * i, i & 1, 0);
+    _fft_privkey.setMul(i & 1, 0);
     TorusUtility::subVector(preExpand_ptr + _N * i,
                             pubkey_ptr + (2 * i + 1) * _N, _N);
-    _fft_pubkey.addAllOut(preExpand_ptr + _N * i, i & 1);
+    _fft_privkey.addAllOut(preExpand_ptr + _N * i, i & 1);
   }
   _fft_pubkey.waitAllOut();
   // Copy preExpand_ptr from device to host
