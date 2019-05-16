@@ -173,7 +173,7 @@ void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
                             pubkey_ptr + (2 * i + 1) * _N, _N);
     _fft_privkey.addAllOut(preExpand_ptr + _N * i, i & 1);
   }
-  _fft_pubkey.waitAllOut();
+  _fft_privkey.waitAllOut();
   // Copy preExpand_ptr from device to host
   MemoryManagement::memcpyMM_d2h(hPreExpand, preExpand_ptr, getSizePreExpand());
   // Delete pubkey and preExpand
