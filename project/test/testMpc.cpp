@@ -30,10 +30,13 @@ bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *cipher,
                   void *random);
 bool encrypt();
 
+bool expand_partDec();
+
 TEST(Mpc, Full) {
   ASSERT_TRUE(genkey());
   ASSERT_TRUE(pre_expand());
   ASSERT_TRUE(encrypt());
+  ASSERT_TRUE(expand_partDec());
 }
 
 bool is_file_exist(const char *fileName) {
@@ -454,4 +457,75 @@ bool encrypt() {
       return false;
   }
   return true;
+}
+bool expand_partDec() {
+  // Create parties
+  MpcApplication party_0(numParty, 0, N, m, l, sdFresh);
+  MpcApplication party_1(numParty, 1, N, m, l, sdFresh);
+  MpcApplication party_2(numParty, 2, N, m, l, sdFresh);
+  // Import keys
+  {
+    void *privKey = std::malloc(party_0.getSizePrivkey());
+    void *pubKey = std::malloc(party_0.getSizePubkey());
+    load_data("PrivKey_0_3", privKey, party_0.getSizePrivkey());
+    party_0.importPrivkey(privKey);
+    load_data("PubKey_0_3", pubKey, party_0.getSizePubkey());
+    party_0.importPubkey(pubKey);
+    std::free(privKey);
+    std::free(pubKey);
+  }
+  {
+    void *privKey = std::malloc(party_1.getSizePrivkey());
+    void *pubKey = std::malloc(party_1.getSizePubkey());
+    load_data("PrivKey_1_3", privKey, party_1.getSizePrivkey());
+    party_1.importPrivkey(privKey);
+    load_data("PubKey_1_3", pubKey, party_1.getSizePubkey());
+    party_1.importPubkey(pubKey);
+    std::free(privKey);
+    std::free(pubKey);
+  }
+  {
+    void *privKey = std::malloc(party_2.getSizePrivkey());
+    void *pubKey = std::malloc(party_2.getSizePubkey());
+    load_data("PrivKey_2_3", privKey, party_2.getSizePrivkey());
+    party_2.importPrivkey(privKey);
+    load_data("PubKey_2_3", pubKey, party_2.getSizePubkey());
+    party_2.importPubkey(pubKey);
+    std::free(privKey);
+    std::free(pubKey);
+  }
+  // Expand and Decrypt
+  bool chk = true;
+  std::vector<void *> preExpand(3);
+  std::vector<TorusInteger> partPlain(3);
+  bool plain, oriPlain;
+  double error;
+  {
+    preExpand[0] = nullptr;
+    preExpand[1] = std::malloc(party_1.getSizePreExpand());
+    load_data("PreExpand_1_0_3", preExpand[1], party_1.getSizePreExpand());
+    preExpand[2] = std::malloc(party_2.getSizePreExpand());
+    load_data("PreExpand_2_0_3", preExpand[2], party_2.getSizePreExpand());
+    void *cipher = std::malloc(party_0.getSizeCipher());
+    void *random = std::malloc(party_0.getSizeRandom());
+    load_data("Cipher_0", cipher, party_0.getSizeCipher());
+    load_data("Random_0", random, party_0.getSizeRandom());
+    auto expandCipher = party_0.expand(
+        preExpand, [](void *ptr) { std::free(ptr); }, 0, cipher, random);
+    partPlain[0] = party_0.partDec(expandCipher);
+    partPlain[1] = party_1.partDec(expandCipher);
+    partPlain[2] = party_2.partDec(expandCipher);
+    plain = MpcApplication::finDec(partPlain, &error);
+    load_data("Plain_0", &oriPlain, sizeof(bool));
+    chk = (plain == oriPlain) && chk;
+    chk = (error < 0.125) && chk;
+    std::cout << plain << " " << oriPlain << " " << error << std::endl;
+    for (auto &it : expandCipher) {
+      delete it;
+      it = nullptr;
+    }
+    std::free(cipher);
+    std::free(random);
+  }
+  return chk;
 }
