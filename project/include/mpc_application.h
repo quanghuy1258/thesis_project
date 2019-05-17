@@ -139,7 +139,7 @@ public:
    * @param outError: pointer absolute value of error (null if not want to get
    *                  error)
    */
-  static bool finDec(std::vector<thesis::TorusInteger> partDecPlain,
+  static bool finDec(std::vector<thesis::TorusInteger> &partDecPlain,
                      double *outError);
 };
 

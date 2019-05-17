@@ -374,7 +374,7 @@ TorusInteger MpcApplication::partDec(std::vector<TrgswCipher *> &cipher) {
   MemoryManagement::freeMM(plainWithError);
   return out;
 }
-bool MpcApplication::finDec(std::vector<TorusInteger> partDecPlain,
+bool MpcApplication::finDec(std::vector<TorusInteger> &partDecPlain,
                             double *outError) {
   TorusInteger x = 0;
   for (auto p : partDecPlain)
