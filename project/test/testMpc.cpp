@@ -30,13 +30,13 @@ bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *mainCipher,
                   void *randCipher, void *random);
 bool encrypt();
 
-//bool expand_partDec();
+bool expand_partDec();
 
 TEST(Mpc, Full) {
   ASSERT_TRUE(genkey());
   ASSERT_TRUE(pre_expand());
   ASSERT_TRUE(encrypt());
-  //ASSERT_TRUE(expand_partDec());
+  ASSERT_TRUE(expand_partDec());
 }
 
 bool is_file_exist(const char *fileName) {
@@ -477,7 +477,6 @@ bool encrypt() {
   }
   return true;
 }
-/*
 bool expand_partDec() {
   // Create parties
   MpcApplication party_0(numParty, 0, N, m, l, sdFresh);
@@ -521,9 +520,11 @@ bool expand_partDec() {
   bool plain, oriPlain;
   double error;
   {
-    void *cipher = std::malloc(party_0.getSizeCipher());
+    void *mainCipher = std::malloc(party_0.getSizeMainCipher());
+    void *randCipher = std::malloc(party_0.getSizeRandCipher());
     void *random = std::malloc(party_0.getSizeRandom());
-    load_data("Cipher_0", cipher, party_0.getSizeCipher());
+    load_data("MainCipher_0", mainCipher, party_0.getSizeMainCipher());
+    load_data("RandCipher_0", randCipher, party_0.getSizeRandCipher());
     load_data("Random_0", random, party_0.getSizeRandom());
     load_data("Plain_0", &oriPlain, sizeof(bool));
     preExpand[0] = nullptr;
@@ -532,7 +533,8 @@ bool expand_partDec() {
     preExpand[2] = std::malloc(party_0.getSizePreExpand());
     load_data("PreExpand_2_0_3", preExpand[2], party_0.getSizePreExpand());
     {
-      auto expandCipher = party_0.expand(preExpand, nullptr, 0, cipher, random);
+      auto expandCipher = party_0.expandWithPlainRandom(preExpand, nullptr, 0,
+                                                        mainCipher, random);
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
@@ -546,7 +548,8 @@ bool expand_partDec() {
       }
     }
     {
-      auto expandCipher = party_0.expand(preExpand, nullptr, 0, cipher);
+      auto expandCipher =
+          party_0.expand(preExpand, nullptr, 0, mainCipher, randCipher);
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
@@ -564,13 +567,16 @@ bool expand_partDec() {
     preExpand[1] = nullptr;
     std::free(preExpand[2]);
     preExpand[2] = nullptr;
-    std::free(cipher);
+    std::free(mainCipher);
+    std::free(randCipher);
     std::free(random);
   }
   {
-    void *cipher = std::malloc(party_1.getSizeCipher());
+    void *mainCipher = std::malloc(party_1.getSizeMainCipher());
+    void *randCipher = std::malloc(party_1.getSizeRandCipher());
     void *random = std::malloc(party_1.getSizeRandom());
-    load_data("Cipher_1", cipher, party_1.getSizeCipher());
+    load_data("MainCipher_1", mainCipher, party_1.getSizeMainCipher());
+    load_data("RandCipher_1", randCipher, party_1.getSizeRandCipher());
     load_data("Random_1", random, party_1.getSizeRandom());
     load_data("Plain_1", &oriPlain, sizeof(bool));
     preExpand[0] = std::malloc(party_1.getSizePreExpand());
@@ -579,7 +585,8 @@ bool expand_partDec() {
     preExpand[2] = std::malloc(party_1.getSizePreExpand());
     load_data("PreExpand_2_1_3", preExpand[2], party_1.getSizePreExpand());
     {
-      auto expandCipher = party_1.expand(preExpand, nullptr, 1, cipher, random);
+      auto expandCipher = party_1.expandWithPlainRandom(preExpand, nullptr, 1,
+                                                        mainCipher, random);
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
@@ -593,7 +600,8 @@ bool expand_partDec() {
       }
     }
     {
-      auto expandCipher = party_1.expand(preExpand, nullptr, 1, cipher);
+      auto expandCipher =
+          party_1.expand(preExpand, nullptr, 1, mainCipher, randCipher);
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
@@ -611,13 +619,16 @@ bool expand_partDec() {
     preExpand[1] = nullptr;
     std::free(preExpand[2]);
     preExpand[2] = nullptr;
-    std::free(cipher);
+    std::free(mainCipher);
+    std::free(randCipher);
     std::free(random);
   }
   {
-    void *cipher = std::malloc(party_2.getSizeCipher());
+    void *mainCipher = std::malloc(party_2.getSizeMainCipher());
+    void *randCipher = std::malloc(party_2.getSizeRandCipher());
     void *random = std::malloc(party_2.getSizeRandom());
-    load_data("Cipher_2", cipher, party_2.getSizeCipher());
+    load_data("MainCipher_2", mainCipher, party_2.getSizeMainCipher());
+    load_data("RandCipher_2", randCipher, party_2.getSizeRandCipher());
     load_data("Random_2", random, party_2.getSizeRandom());
     load_data("Plain_2", &oriPlain, sizeof(bool));
     preExpand[0] = std::malloc(party_2.getSizePreExpand());
@@ -626,7 +637,8 @@ bool expand_partDec() {
     load_data("PreExpand_1_2_3", preExpand[1], party_2.getSizePreExpand());
     preExpand[2] = nullptr;
     {
-      auto expandCipher = party_2.expand(preExpand, nullptr, 2, cipher, random);
+      auto expandCipher = party_2.expandWithPlainRandom(preExpand, nullptr, 2,
+                                                        mainCipher, random);
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
@@ -640,7 +652,8 @@ bool expand_partDec() {
       }
     }
     {
-      auto expandCipher = party_2.expand(preExpand, nullptr, 2, cipher);
+      auto expandCipher =
+          party_2.expand(preExpand, nullptr, 2, mainCipher, randCipher);
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
@@ -658,9 +671,9 @@ bool expand_partDec() {
     std::free(preExpand[1]);
     preExpand[1] = nullptr;
     preExpand[2] = nullptr;
-    std::free(cipher);
+    std::free(mainCipher);
+    std::free(randCipher);
     std::free(random);
   }
   return chk;
 }
-*/

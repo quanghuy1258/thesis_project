@@ -90,20 +90,11 @@ public:
   // Encrypt
   /**
    * @param msg: one bit message
-   * @param hCipher: ciphertext pointer in host memory (RAM)
-   * @param hRandom: output random in hCipher if necessary
-   */
-  [[deprecated]]
-  void encrypt(bool msg, void *hCipher, void *hRandom = nullptr);
-  /**
-   * @param msg: one bit message
    * @param hMainCipher: main ciphertext in RAM (Not NULL)
    * @param hRandCipher: random ciphertext in RAM (NULL = not get)
    * @param hRandom: random plaintext in RAM (NULL = not get)
    */
   void encrypt(bool msg, void *hMainCipher, void *hRandCipher, void *hRandom);
-  [[deprecated]]
-  int getSizeCipher();
   int getSizeMainCipher();
   int getSizeRandCipher();
   int getSizeRandom();
@@ -120,24 +111,25 @@ public:
    * @param freeFnPreExpand: free hPreExpand after use because hPreExpand will
    *                         be cached
    * @param partyId: id of party
-   * @param hCipher: cipher associated with id of party
+   * @param hMainCipher: main cipher associated with id of party
+   * @param hRandCipher: rand cipher associated with id of party
    */
   std::vector<thesis::TrgswCipher *>
   expand(std::vector<void *> &hPreExpand,
          std::function<void(void *)> freeFnPreExpand, int partyId,
-         void *hCipher);
+         void *hMainCipher, void *hRandCipher);
   /**
    * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM)
    * @param freeFnPreExpand: free hPreExpand after use because hPreExpand will
    *                         be cached
    * @param partyId: id of party
-   * @param hCipher: cipher associated with id of party
+   * @param hMainCipher: main cipher associated with id of party
    * @param hRandom: plain random associated with cipher
    */
   std::vector<thesis::TrgswCipher *>
-  expand(std::vector<void *> &hPreExpand,
-         std::function<void(void *)> freeFnPreExpand, int partyId,
-         void *hCipher, void *hRandom);
+  expandWithPlainRandom(std::vector<void *> &hPreExpand,
+                        std::function<void(void *)> freeFnPreExpand,
+                        int partyId, void *hMainCipher, void *hRandom);
 
   // Decrypt
   /**
