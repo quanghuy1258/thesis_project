@@ -34,9 +34,9 @@ MpcApplication::MpcApplication(int numParty, int partyId, int N, int m, int l,
   for (int i = 0; i < _m; i++)
     _pubkey[i] = new TrlweCipher(mem_pubkey + 2 * N * i, 2 * N, N, 1, sdFresh,
                                  sdFresh * sdFresh);
-  _stream.resize(2 * _l * _m + 1,
-                 nullptr); // TODO: Always check maximum size when use
-  for (int i = 0; i <= 2 * _l * _m; i++)
+  _stream.resize(2 * _l * _m + 2, // TODO: Always check maximum size when use
+                 nullptr);
+  for (int i = 0; i < 2 * _l * _m + 2; i++)
     _stream[i] = Stream::createS();
 }
 MpcApplication::~MpcApplication() {
@@ -44,7 +44,7 @@ MpcApplication::~MpcApplication() {
   MemoryManagement::freeMM(_pubkey[0]->_data);
   for (int i = 0; i < _m; i++)
     delete _pubkey[i];
-  for (int i = 0; i <= 2 * _l * _m; i++)
+  for (int i = 0; i < 2 * _l * _m + 2; i++)
     Stream::destroyS(_stream[i]);
 }
 void MpcApplication::createPrivkey() {
@@ -149,8 +149,87 @@ void MpcApplication::encrypt(bool msg, void *hCipher, void *hRandom) {
   for (int i = 0; i <= 2 * _l * _m; i++)
     delete cipher[i];
 }
+void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
+                             void *hRandom) {
+  if (!hMainCipher)
+    return;
+  // Create random
+  TorusInteger *random =
+      (TorusInteger *)MemoryManagement::mallocMM(getSizeRandom());
+  Random::setUniform(random, 2 * _l * _m * _N,
+                     [](TorusInteger x) -> TorusInteger { return x & 1; });
+  // Copy random from device to host (if possible)
+  if (hRandom)
+    MemoryManagement::memcpyMM_d2h(hRandom, random, getSizeRandom(),
+                                   _stream[1]);
+  // Create main cipher
+  //   sdError = m * N * sdFresh + sdFresh
+  //   varError = m * N * (sdFresh ^ 2) + (sdFresh ^ 2)
+  TrgswCipher mainCipher(_N, 1, _l, 1, _sdFresh * (_m * _N + 1),
+                         _sdFresh * _sdFresh * (_m * _N + 1));
+  mainCipher.clear_trgsw_data();
+  for (int i = 0; i < 2 * _l; i++)
+    Random::setNormalTorus(mainCipher.get_pol_data(i, 1), _N, _sdFresh);
+  // main cipher += random * pubkey
+  for (int i = 0; i < 2 * _l; i++) {
+    for (int j = 0; j < _m; j++)
+      _fft_pubkey.setInp(random + (i * _m + j) * _N, j);
+    for (int j = 0; j < _m; j++) {
+      _fft_pubkey.setMul(0, j);
+      _fft_pubkey.setMul(1, j);
+    }
+    _fft_pubkey.addAllOut(mainCipher.get_pol_data(i, 0), 0);
+    _fft_pubkey.addAllOut(mainCipher.get_pol_data(i, 1), 1);
+  }
+  _fft_pubkey.waitAllOut();
+  // main cipher += msg*G;
+  if (msg)
+    TrgswFunction::addMuGadget(1, &mainCipher, _stream[0]);
+  // Copy main cipher from device to host
+  MemoryManagement::memcpyMM_d2h(hMainCipher, mainCipher._data,
+                                 getSizeMainCipher(), _stream[0]);
+  // Create and copy random cipher (if posible)
+  std::vector<TrgswCipher *> randCipher(2 * _l * _m, nullptr);
+  if (hRandCipher) {
+    for (int i = 0; i < 2 * _l * _m; i++)
+      randCipher[i] =
+          new TrgswCipher(_N, 1, _l, 1, _sdFresh, _sdFresh * _sdFresh);
+    for (int i = 0; i < 2 * _l * _m; i++) {
+      for (int j = 0; j < _l; j++)
+        TrlweFunction::createSample(&_fft_privkey, (_l * i + j) & 1,
+                                    randCipher[i]->get_trlwe_data(_l + j), _N,
+                                    1, _sdFresh);
+    }
+    _fft_privkey.waitAllOut();
+    for (int i = 0; i < 2 * _l * _m; i++)
+      TrgswFunction::addMuGadget(random + _N * i, randCipher[i],
+                                 _stream[i + 2]);
+    TorusInteger *ptr = (TorusInteger *)hRandCipher;
+    for (int i = 0; i < 2 * _l * _m; i++)
+      MemoryManagement::memcpyMM_d2h(
+          ptr + 2 * _l * _N * i, randCipher[i]->get_trlwe_data(_l),
+          2 * _l * _N * sizeof(TorusInteger), _stream[i + 2]);
+  }
+  // Wait all streams
+  for (int i = 0; i < 2 * _l * _m + 2; i++)
+    Stream::synchronizeS(_stream[i]);
+  // Delete randCipher
+  if (hRandCipher) {
+    for (int i = 0; i < 2 * _l * _m; i++)
+      delete randCipher[i];
+  }
+}
 int MpcApplication::getSizeCipher() {
   return (2 * _l * _m * 2 + 4) * _l * _N * sizeof(TorusInteger);
+}
+int MpcApplication::getSizeMainCipher() {
+  return 4 * _l * _N * sizeof(TorusInteger);
+}
+int MpcApplication::getSizeRandCipher() {
+  // (2 * l) x 4 random ciphers
+  // --> each cipher: matrix 2 x l torus polynomials
+  // --> each polynomial: deg = N
+  return 4 * _l * _m * _l * _N * sizeof(TorusInteger);
 }
 int MpcApplication::getSizeRandom() {
   return 2 * _l * _m * _N * sizeof(TorusInteger);

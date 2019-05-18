@@ -93,8 +93,19 @@ public:
    * @param hCipher: ciphertext pointer in host memory (RAM)
    * @param hRandom: output random in hCipher if necessary
    */
+  [[deprecated]]
   void encrypt(bool msg, void *hCipher, void *hRandom = nullptr);
+  /**
+   * @param msg: one bit message
+   * @param hMainCipher: main ciphertext in RAM (Not NULL)
+   * @param hRandCipher: random ciphertext in RAM (NULL = not get)
+   * @param hRandom: random plaintext in RAM (NULL = not get)
+   */
+  void encrypt(bool msg, void *hMainCipher, void *hRandCipher, void *hRandom);
+  [[deprecated]]
   int getSizeCipher();
+  int getSizeMainCipher();
+  int getSizeRandCipher();
   int getSizeRandom();
 
   // Expand
@@ -139,8 +150,8 @@ public:
    * @param outError: pointer absolute value of error (null if not want to get
    *                  error)
    */
-  static bool finDec(thesis::TorusInteger partDecPlain[], size_t numParty,
-                     double *outError);
+  bool finDec(thesis::TorusInteger partDecPlain[], size_t numParty,
+              double *outError);
 };
 
 #endif

@@ -516,8 +516,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain =
-          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_0.finDec(partPlain.data(), partPlain.size(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -531,8 +530,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain =
-          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_0.finDec(partPlain.data(), partPlain.size(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -565,8 +563,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain =
-          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_1.finDec(partPlain.data(), partPlain.size(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -580,8 +577,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain =
-          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_1.finDec(partPlain.data(), partPlain.size(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -614,8 +610,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain =
-          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_2.finDec(partPlain.data(), partPlain.size(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -629,8 +624,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain =
-          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_2.finDec(partPlain.data(), partPlain.size(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
