@@ -26,17 +26,17 @@ bool genkey();
 bool test_pre_expand(void *priv_key, void *pub_key, void *pre_expand);
 bool pre_expand();
 
-bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *cipher,
-                  void *random);
+bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *mainCipher,
+                  void *randCipher, void *random);
 bool encrypt();
 
-bool expand_partDec();
+//bool expand_partDec();
 
 TEST(Mpc, Full) {
   ASSERT_TRUE(genkey());
   ASSERT_TRUE(pre_expand());
   ASSERT_TRUE(encrypt());
-  ASSERT_TRUE(expand_partDec());
+  //ASSERT_TRUE(expand_partDec());
 }
 
 bool is_file_exist(const char *fileName) {
@@ -280,8 +280,8 @@ bool pre_expand() {
   }
   return true;
 }
-bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *cipher,
-                  void *random) {
+bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *mainCipher,
+                  void *randCipher, void *random) {
   // Private key
   TorusInteger *priv =
       (TorusInteger *)MemoryManagement::mallocMM(N * sizeof(TorusInteger));
@@ -291,23 +291,19 @@ bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *cipher,
       m * N * 2 * sizeof(TorusInteger));
   MemoryManagement::memcpyMM_h2d(pub, pub_key,
                                  m * N * 2 * sizeof(TorusInteger));
-  // Cipher
-  TorusInteger *dCipher = (TorusInteger *)MemoryManagement::mallocMM(
-      (l * m + 1) * 4 * l * N * sizeof(TorusInteger));
-  MemoryManagement::memcpyMM_h2d(
-      dCipher, cipher, (l * m + 1) * 4 * l * N * sizeof(TorusInteger));
-  TorusInteger *hCipher = (TorusInteger *)cipher;
   // Random
   TorusInteger *dRandom = (TorusInteger *)MemoryManagement::mallocMM(
       2 * l * m * N * sizeof(TorusInteger));
   MemoryManagement::memcpyMM_h2d(dRandom, random,
                                  2 * l * m * N * sizeof(TorusInteger));
   TorusInteger *hRandom = (TorusInteger *)random;
-  // Test cipher
+  // Test main cipher
   bool chk = true;
   double avgErr = 0;
-  TrgswCipher trgsw(dCipher + l * m * 4 * l * N, 4 * l * N, N, 1, l, 1, sdFresh,
-                    sdFresh * sdFresh);
+  TrgswCipher trgsw(N, 1, l, 1, sdFresh * (m * N + 1),
+                    sdFresh * sdFresh * (m * N + 1));
+  MemoryManagement::memcpyMM_h2d(trgsw._data, mainCipher,
+                                 4 * l * N * sizeof(TorusInteger));
   if (msg)
     TrgswFunction::addMuGadget(-1, &trgsw);
   {
@@ -328,26 +324,34 @@ bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *cipher,
     }
     fft.waitAllOut();
   }
+  // Test random cipher
+  TorusInteger *dRandCipher = (TorusInteger *)MemoryManagement::mallocMM(
+      l * m * 4 * l * N * sizeof(TorusInteger));
+  MemoryManagement::memcpyMM_h2d(dRandCipher, randCipher,
+                                 l * m * 4 * l * N * sizeof(TorusInteger));
+  TorusInteger *hRandCipher = (TorusInteger *)randCipher;
   {
     BatchedFFT fft(N, 2, 1);
     fft.setInp(priv, 0);
     for (int i = 0; i < 2 * l * m * l; i++) {
-      fft.setInp(dCipher + 2 * i * N, i & 1, 0);
+      fft.setInp(dRandCipher + 2 * i * N, i & 1, 0);
       fft.setMul(i & 1, 0);
-      fft.subAllOut(dCipher + (2 * i + 1) * N, i & 1);
+      fft.subAllOut(dRandCipher + (2 * i + 1) * N, i & 1);
     }
     fft.waitAllOut();
   }
   // Get error
-  MemoryManagement::memcpyMM_d2h(
-      cipher, dCipher, (l * m + 1) * 4 * l * N * sizeof(TorusInteger));
+  MemoryManagement::memcpyMM_d2h(mainCipher, trgsw._data,
+                                 4 * l * N * sizeof(TorusInteger));
   for (int i = 0; i < 4 * l * N; i++) {
-    double e = std::abs(hCipher[l * m * 4 * l * N + i] /
-                        std::pow(2, 8 * sizeof(TorusInteger)));
+    TorusInteger *ptr = (TorusInteger *)mainCipher;
+    double e = std::abs(ptr[i] / std::pow(2, 8 * sizeof(TorusInteger)));
     if (e > 0.125)
       chk = false;
     avgErr += e;
   }
+  MemoryManagement::memcpyMM_d2h(randCipher, dRandCipher,
+                                 l * m * 4 * l * N * sizeof(TorusInteger));
   for (int i = 0; i < l; i++) {
     TorusInteger H = 1;
     H <<= 8 * sizeof(TorusInteger) - (i + 1);
@@ -355,7 +359,7 @@ bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *cipher,
       for (int k = 0; k < m; k++) {
         for (int h = 0; h < N; h++) {
           TorusInteger temp =
-              hCipher[((j * m + k) * 2 * l + 2 * i + 1) * N + h];
+              hRandCipher[((j * m + k) * 2 * l + 2 * i + 1) * N + h];
           temp -= hRandom[(j * m + k) * N + h] * H;
           double e = std::abs(temp / std::pow(2, 8 * sizeof(TorusInteger)));
           if (e > 0.125)
@@ -369,8 +373,8 @@ bool test_encrypt(bool msg, void *priv_key, void *pub_key, void *cipher,
   // Free all
   MemoryManagement::freeMM(priv);
   MemoryManagement::freeMM(pub);
-  MemoryManagement::freeMM(dCipher);
   MemoryManagement::freeMM(dRandom);
+  MemoryManagement::freeMM(dRandCipher);
   return chk;
 }
 bool encrypt() {
@@ -391,7 +395,8 @@ bool encrypt() {
     bool chk = true;
     void *privKey = std::malloc(party_0.getSizePrivkey());
     void *pubKey = std::malloc(party_0.getSizePubkey());
-    void *cipher = std::malloc(party_0.getSizeCipher());
+    void *mainCipher = std::malloc(party_0.getSizeMainCipher());
+    void *randCipher = std::malloc(party_0.getSizeRandCipher());
     void *random = std::malloc(party_0.getSizeRandom());
     // >>> Import keys
     load_data("PrivKey_0_3", privKey, party_0.getSizePrivkey());
@@ -399,13 +404,17 @@ bool encrypt() {
     load_data("PubKey_0_3", pubKey, party_0.getSizePubkey());
     party_0.importPubkey(pubKey);
     // <<<
-    party_0.encrypt(plain_0, cipher, random);
-    save_data("Cipher_0", cipher, party_0.getSizeCipher());
+    party_0.encrypt(plain_0, mainCipher, randCipher, random);
+    save_data("MainCipher_0", mainCipher, party_0.getSizeMainCipher());
+    save_data("RandCipher_0", randCipher, party_0.getSizeRandCipher());
     save_data("Random_0", random, party_0.getSizeRandom());
-    chk = test_encrypt(plain_0, privKey, pubKey, cipher, random) && chk;
+    chk = test_encrypt(plain_0, privKey, pubKey, mainCipher, randCipher,
+                       random) &&
+          chk;
     std::free(privKey);
     std::free(pubKey);
-    std::free(cipher);
+    std::free(mainCipher);
+    std::free(randCipher);
     std::free(random);
     if (!chk)
       return false;
@@ -414,7 +423,8 @@ bool encrypt() {
     bool chk = true;
     void *privKey = std::malloc(party_1.getSizePrivkey());
     void *pubKey = std::malloc(party_1.getSizePubkey());
-    void *cipher = std::malloc(party_1.getSizeCipher());
+    void *mainCipher = std::malloc(party_1.getSizeMainCipher());
+    void *randCipher = std::malloc(party_1.getSizeRandCipher());
     void *random = std::malloc(party_1.getSizeRandom());
     // >>> Import keys
     load_data("PrivKey_1_3", privKey, party_1.getSizePrivkey());
@@ -422,13 +432,17 @@ bool encrypt() {
     load_data("PubKey_1_3", pubKey, party_1.getSizePubkey());
     party_1.importPubkey(pubKey);
     // <<<
-    party_1.encrypt(plain_1, cipher, random);
-    save_data("Cipher_1", cipher, party_1.getSizeCipher());
+    party_1.encrypt(plain_1, mainCipher, randCipher, random);
+    save_data("MainCipher_1", mainCipher, party_1.getSizeMainCipher());
+    save_data("RandCipher_1", randCipher, party_1.getSizeRandCipher());
     save_data("Random_1", random, party_1.getSizeRandom());
-    chk = test_encrypt(plain_1, privKey, pubKey, cipher, random) && chk;
+    chk = test_encrypt(plain_1, privKey, pubKey, mainCipher, randCipher,
+                       random) &&
+          chk;
     std::free(privKey);
     std::free(pubKey);
-    std::free(cipher);
+    std::free(mainCipher);
+    std::free(randCipher);
     std::free(random);
     if (!chk)
       return false;
@@ -437,7 +451,8 @@ bool encrypt() {
     bool chk = true;
     void *privKey = std::malloc(party_2.getSizePrivkey());
     void *pubKey = std::malloc(party_2.getSizePubkey());
-    void *cipher = std::malloc(party_2.getSizeCipher());
+    void *mainCipher = std::malloc(party_2.getSizeMainCipher());
+    void *randCipher = std::malloc(party_2.getSizeRandCipher());
     void *random = std::malloc(party_2.getSizeRandom());
     // >>> Import keys
     load_data("PrivKey_2_3", privKey, party_2.getSizePrivkey());
@@ -445,19 +460,24 @@ bool encrypt() {
     load_data("PubKey_2_3", pubKey, party_2.getSizePubkey());
     party_2.importPubkey(pubKey);
     // <<<
-    party_2.encrypt(plain_2, cipher, random);
-    save_data("Cipher_2", cipher, party_2.getSizeCipher());
+    party_2.encrypt(plain_2, mainCipher, randCipher, random);
+    save_data("MainCipher_2", mainCipher, party_2.getSizeMainCipher());
+    save_data("RandCipher_2", randCipher, party_2.getSizeRandCipher());
     save_data("Random_2", random, party_2.getSizeRandom());
-    chk = test_encrypt(plain_2, privKey, pubKey, cipher, random) && chk;
+    chk = test_encrypt(plain_2, privKey, pubKey, mainCipher, randCipher,
+                       random) &&
+          chk;
     std::free(privKey);
     std::free(pubKey);
-    std::free(cipher);
+    std::free(mainCipher);
+    std::free(randCipher);
     std::free(random);
     if (!chk)
       return false;
   }
   return true;
 }
+/*
 bool expand_partDec() {
   // Create parties
   MpcApplication party_0(numParty, 0, N, m, l, sdFresh);
@@ -643,3 +663,4 @@ bool expand_partDec() {
   }
   return chk;
 }
+*/
