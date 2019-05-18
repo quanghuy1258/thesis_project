@@ -34,9 +34,11 @@ MpcApplication::MpcApplication(int numParty, int partyId, int N, int m, int l,
   for (int i = 0; i < _m; i++)
     _pubkey[i] = new TrlweCipher(mem_pubkey + 2 * N * i, 2 * N, N, 1, sdFresh,
                                  sdFresh * sdFresh);
-  _stream.resize(2 * _l * _m + 2, // TODO: Always check maximum size when use
-                 nullptr);
-  for (int i = 0; i < 2 * _l * _m + 2; i++)
+  int numStream = 0; // TODO: Always check maximum size when use
+  numStream = std::max(numStream, 2 * _l * _m + 2);
+  numStream = std::max(numStream, _numParty);
+  _stream.resize(numStream, nullptr);
+  for (int i = 0; i < numStream; i++)
     _stream[i] = Stream::createS();
 }
 MpcApplication::~MpcApplication() {
@@ -44,7 +46,10 @@ MpcApplication::~MpcApplication() {
   MemoryManagement::freeMM(_pubkey[0]->_data);
   for (int i = 0; i < _m; i++)
     delete _pubkey[i];
-  for (int i = 0; i < 2 * _l * _m + 2; i++)
+  int numStream = 0; // TODO: Always check maximum size when use
+  numStream = std::max(numStream, 2 * _l * _m + 2);
+  numStream = std::max(numStream, _numParty);
+  for (int i = 0; i < numStream; i++)
     Stream::destroyS(_stream[i]);
 }
 void MpcApplication::createPrivkey() {
@@ -101,6 +106,28 @@ void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
   if (hRandom)
     MemoryManagement::memcpyMM_d2h(hRandom, random, getSizeRandom(),
                                    _stream[1]);
+  // Create and copy random cipher (if posible)
+  std::vector<TrgswCipher *> randCipher(2 * _l * _m, nullptr);
+  if (hRandCipher) {
+    for (int i = 0; i < 2 * _l * _m; i++)
+      randCipher[i] =
+          new TrgswCipher(_N, 1, _l, 1, _sdFresh, _sdFresh * _sdFresh);
+    for (int i = 0; i < 2 * _l * _m; i++) {
+      for (int j = 0; j < _l; j++)
+        TrlweFunction::createSample(&_fft_privkey, (_l * i + j) & 1,
+                                    randCipher[i]->get_trlwe_data(_l + j), _N,
+                                    1, _sdFresh);
+    }
+    _fft_privkey.waitAllOut();
+    for (int i = 0; i < 2 * _l * _m; i++)
+      TrgswFunction::addMuGadget(random + _N * i, randCipher[i],
+                                 _stream[i + 2]);
+    TorusInteger *ptr = (TorusInteger *)hRandCipher;
+    for (int i = 0; i < 2 * _l * _m; i++)
+      MemoryManagement::memcpyMM_d2h(
+          ptr + 2 * _l * _N * i, randCipher[i]->get_trlwe_data(_l),
+          2 * _l * _N * sizeof(TorusInteger), _stream[i + 2]);
+  }
   // Create main cipher
   //   sdError = m * N * sdFresh + sdFresh
   //   varError = m * N * (sdFresh ^ 2) + (sdFresh ^ 2)
@@ -127,28 +154,6 @@ void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
   // Copy main cipher from device to host
   MemoryManagement::memcpyMM_d2h(hMainCipher, mainCipher._data,
                                  getSizeMainCipher(), _stream[0]);
-  // Create and copy random cipher (if posible)
-  std::vector<TrgswCipher *> randCipher(2 * _l * _m, nullptr);
-  if (hRandCipher) {
-    for (int i = 0; i < 2 * _l * _m; i++)
-      randCipher[i] =
-          new TrgswCipher(_N, 1, _l, 1, _sdFresh, _sdFresh * _sdFresh);
-    for (int i = 0; i < 2 * _l * _m; i++) {
-      for (int j = 0; j < _l; j++)
-        TrlweFunction::createSample(&_fft_privkey, (_l * i + j) & 1,
-                                    randCipher[i]->get_trlwe_data(_l + j), _N,
-                                    1, _sdFresh);
-    }
-    _fft_privkey.waitAllOut();
-    for (int i = 0; i < 2 * _l * _m; i++)
-      TrgswFunction::addMuGadget(random + _N * i, randCipher[i],
-                                 _stream[i + 2]);
-    TorusInteger *ptr = (TorusInteger *)hRandCipher;
-    for (int i = 0; i < 2 * _l * _m; i++)
-      MemoryManagement::memcpyMM_d2h(
-          ptr + 2 * _l * _N * i, randCipher[i]->get_trlwe_data(_l),
-          2 * _l * _N * sizeof(TorusInteger), _stream[i + 2]);
-  }
   // Wait all streams
   for (int i = 0; i < 2 * _l * _m + 2; i++)
     Stream::synchronizeS(_stream[i]);
@@ -310,8 +315,6 @@ MpcApplication::expand(std::vector<void *> &hPreExpand,
   if (partyId < 0 || partyId >= _numParty || !hMainCipher || !hRandCipher)
     return out;
   // Copy cipher from host to device
-  void *mainCipher = MemoryManagement::mallocMM(getSizeMainCipher());
-  MemoryManagement::memcpyMM_h2d(mainCipher, hMainCipher, getSizeMainCipher());
   TorusInteger *randCipher =
       (TorusInteger *)MemoryManagement::mallocMM(getSizeRandCipher());
   MemoryManagement::memcpyMM_h2d(randCipher, hRandCipher, getSizeRandCipher());
@@ -319,8 +322,8 @@ MpcApplication::expand(std::vector<void *> &hPreExpand,
   for (int i = 0; i < _numParty; i++) {
     out[i * _numParty + i] = new TrgswCipher(_N, 1, _l, 1, _m * _N * _sdFresh,
                                              _m * _N * _sdFresh * _sdFresh);
-    MemoryManagement::memcpyMM_d2d(out[i * _numParty + i]->_data, mainCipher,
-                                   getSizeMainCipher());
+    MemoryManagement::memcpyMM_h2d(out[i * _numParty + i]->_data, hMainCipher,
+                                   getSizeMainCipher(), _stream[i]);
   }
   // Create extend cipher
   int sizePreExpandVec = hPreExpand.size();
@@ -337,8 +340,10 @@ MpcApplication::expand(std::vector<void *> &hPreExpand,
     }
   }
   // Free all allocated memory
-  MemoryManagement::freeMM(mainCipher);
   MemoryManagement::freeMM(randCipher);
+  // Wait all streams
+  for (int i = 0; i < _numParty; i++)
+    Stream::synchronizeS(_stream[i]);
   return out;
 }
 std::vector<TrgswCipher *> MpcApplication::expandWithPlainRandom(
@@ -353,13 +358,11 @@ std::vector<TrgswCipher *> MpcApplication::expandWithPlainRandom(
       (TorusInteger *)MemoryManagement::mallocMM(getSizeRandom());
   MemoryManagement::memcpyMM_h2d(random, hRandom, getSizeRandom());
   // Copy main cipher
-  void *mainCipher = MemoryManagement::mallocMM(getSizeMainCipher());
-  MemoryManagement::memcpyMM_h2d(mainCipher, hMainCipher, getSizeMainCipher());
   for (int i = 0; i < _numParty; i++) {
     out[i * _numParty + i] = new TrgswCipher(_N, 1, _l, 1, _m * _N * _sdFresh,
                                              _m * _N * _sdFresh * _sdFresh);
-    MemoryManagement::memcpyMM_d2d(out[i * _numParty + i]->_data, mainCipher,
-                                   getSizeMainCipher());
+    MemoryManagement::memcpyMM_h2d(out[i * _numParty + i]->_data, hMainCipher,
+                                   getSizeMainCipher(), _stream[i]);
   }
   // Create extend cipher
   int sizePreExpandVec = hPreExpand.size();
@@ -378,7 +381,9 @@ std::vector<TrgswCipher *> MpcApplication::expandWithPlainRandom(
   }
   // Free all allocated memory
   MemoryManagement::freeMM(random);
-  MemoryManagement::freeMM(mainCipher);
+  // Wait all streams
+  for (int i = 0; i < _numParty; i++)
+    Stream::synchronizeS(_stream[i]);
   return out;
 }
 TorusInteger MpcApplication::partDec(std::vector<TrgswCipher *> &cipher) {
