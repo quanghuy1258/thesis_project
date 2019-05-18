@@ -183,16 +183,19 @@ void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
 int MpcApplication::getSizePreExpand() {
   return _m * _N * sizeof(TorusInteger);
 }
-TorusInteger *MpcApplication::_decompPreExpand(void *hPreExpand, int id,
-                                               TrgswCipher *param) {
-  // preExpandCipher for only decomposition -> choosing any value for sd and var
-  // is ok
+TorusInteger *MpcApplication::_decompPreExpand(void *hPreExpand, int id) {
+  // preExpandCipher for only decomposition
+  //   -> choosing any value for sd and var is ok
   TrlweCipher preExpandCipher(_N, _m, 1, 1);
+  // param for only decomposition
+  //   -> no need allocate memory and calculate value for sd and var
+  TrgswCipher param(preExpandCipher._data, _N * (_m + 1) * (_m + 1) * _l, _N,
+                    _m, _l, 1, 1, 1);
   MemoryManagement::memcpyMM_h2d(preExpandCipher._data, hPreExpand,
                                  getSizePreExpand());
   TorusInteger *decompPreExpand = (TorusInteger *)MemoryManagement::mallocMM(
       (_m + 1) * _N * sizeof(TorusInteger) * _l);
-  Decomposition::onlyDecomp(&preExpandCipher, param, decompPreExpand);
+  Decomposition::onlyDecomp(&preExpandCipher, &param, decompPreExpand);
   for (int i = 0; i < _m; i++) {
     for (int j = 0; j < _l; j++)
       _fft_preExpand.setInp(decompPreExpand + (i * _l + j) * _N, id * _m + i,
@@ -204,35 +207,43 @@ TrgswCipher *MpcApplication::_extend(void *hPreExpand, int partyId,
                                      TorusInteger *cipher) {
   // Create output trgsw cipher
   double e_dec = std::pow(2, -_l - 1);
+  // sdError = m * l * N * sdFresh + N * e_dec * m + m * N * sdFresh
+  // varError = m * l * N * (sdFresh ^ 2) + N * (e_dec ^ 2) * m +
+  //            m * N * (sdFresh ^ 2)
   TrgswCipher *out = new TrgswCipher(
-      _N, 1, _l, 1, _m * ((_l + 1) * _N * _sdFresh + _N * (1 + _N) * e_dec),
-      _m * ((_l + 1) * _N * _sdFresh * _sdFresh +
-            _N * (1 + _N) * e_dec * e_dec));
+      _N, 1, _l, 1, _m * _N * ((_l + 1) * _sdFresh + e_dec),
+      _m * _N * ((_l + 1) * _sdFresh * _sdFresh + e_dec * e_dec));
   // Determine the position of partyId in _fft_with_preExpand
   int id = (partyId < _partyId) ? partyId : (partyId - 1);
   // Do decomposition if hPreExpand is not null
   TorusInteger *decompPreExpand = nullptr;
   if (hPreExpand)
-    decompPreExpand = _decompPreExpand(hPreExpand, id, out);
+    decompPreExpand = _decompPreExpand(hPreExpand, id);
   // Clear data of out
   out->clear_trgsw_data();
   // Calculate extend cipher
-  for (int i = 0; i < 2 * _l; i++) {
-    for (int j = 0; j < _m; j++) {
+  for (int j = 0; j < _m; j++) {
+    for (int i = 0; i < 2 * _l; i++) {
+      // First column
       for (int k = 0; k < _l; k++)
         _fft_preExpand.setInp(cipher + ((i * _m + j) * 2 * _l + 2 * k) * _N, k);
       for (int k = 0; k < _l; k++)
         _fft_preExpand.setMul(id * _m + j, k);
+      if (j > 0)
+        _fft_preExpand.waitOut(id * _m + j - 1);
       _fft_preExpand.addAllOut(out->get_pol_data(i, 0), id * _m + j);
+      // Second column
       for (int k = 0; k < _l; k++)
         _fft_preExpand.setInp(cipher + ((i * _m + j) * 2 * _l + 2 * k + 1) * _N,
                               k);
       for (int k = 0; k < _l; k++)
         _fft_preExpand.setMul(id * _m + j, k);
+      if (j > 0)
+        _fft_preExpand.waitOut(id * _m + j - 1);
       _fft_preExpand.addAllOut(out->get_pol_data(i, 1), id * _m + j);
     }
   }
-  _fft_preExpand.waitAllOut();
+  _fft_preExpand.waitOut(id * _m + _m - 1);
   // Free all allocated memory
   if (hPreExpand)
     MemoryManagement::freeMM(decompPreExpand);
@@ -303,7 +314,7 @@ MpcApplication::expand(std::vector<void *> &hPreExpand,
     void *hPreExpandPtr = nullptr;
     if (i < sizePreExpandVec)
       hPreExpandPtr = hPreExpand[i];
-    out[i * _numParty + partyId] = _extend(hPreExpandPtr, partyId, cipher);
+    out[i * _numParty + partyId] = _extend(hPreExpandPtr, i, cipher);
     if (hPreExpandPtr != nullptr && freeFnPreExpand != nullptr) {
       freeFnPreExpand(hPreExpand[i]);
       hPreExpand[i] = nullptr;
@@ -344,7 +355,7 @@ MpcApplication::expand(std::vector<void *> &hPreExpand,
     if (i < sizePreExpandVec)
       hPreExpandPtr = hPreExpand[i];
     out[i * _numParty + partyId] =
-        _extendWithPlainRandom(hPreExpandPtr, partyId, random);
+        _extendWithPlainRandom(hPreExpandPtr, i, random);
     if (hPreExpandPtr != nullptr && freeFnPreExpand != nullptr) {
       freeFnPreExpand(hPreExpand[i]);
       hPreExpand[i] = nullptr;
@@ -357,16 +368,17 @@ MpcApplication::expand(std::vector<void *> &hPreExpand,
 }
 TorusInteger MpcApplication::partDec(std::vector<TrgswCipher *> &cipher) {
   int sizeCipher = cipher.size();
-  TorusInteger out;
+  TorusInteger out = 0;
   if (sizeCipher != _numParty * _numParty ||
       !cipher[_numParty * (_numParty - 1) + _partyId])
-    return 0;
+    return out;
   // Decrypt: get raw plain + error
   TorusInteger *plainWithError =
       (TorusInteger *)MemoryManagement::mallocMM(_N * sizeof(TorusInteger));
-  TrlweFunction::getPlain(&_fft_privkey, 0,
-                          cipher[_numParty * (_numParty - 1) + _partyId]->_data,
-                          _N, 1, plainWithError);
+  TrlweFunction::getPlain(
+      &_fft_privkey, 0,
+      cipher[_numParty * (_numParty - 1) + _partyId]->get_trlwe_data(_l), _N, 1,
+      plainWithError);
   _fft_privkey.waitOut(0);
   // Move raw plain + error from device to host
   MemoryManagement::memcpyMM_d2h(&out, plainWithError, sizeof(TorusInteger));
@@ -374,11 +386,11 @@ TorusInteger MpcApplication::partDec(std::vector<TrgswCipher *> &cipher) {
   MemoryManagement::freeMM(plainWithError);
   return out;
 }
-bool MpcApplication::finDec(std::vector<TorusInteger> &partDecPlain,
+bool MpcApplication::finDec(TorusInteger partDecPlain[], size_t numParty,
                             double *outError) {
   TorusInteger x = 0;
-  for (auto p : partDecPlain)
-    x += p;
+  for (size_t i = 0; i < numParty; i++)
+    x += partDecPlain[i];
   double y = std::abs(x / std::pow(2, 8 * sizeof(TorusInteger)));
   if (outError)
     *outError = (y < 0.25) ? y : (0.5 - y);

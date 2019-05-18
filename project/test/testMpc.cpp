@@ -13,7 +13,7 @@ using namespace thesis;
 const int numParty = 3;
 const int N = 1024;
 const int m = 6;
-const int l = 20;
+const int l = 40;
 const double sdFresh = 1e-15;
 
 bool is_file_exist(const char *fileName);
@@ -501,29 +501,149 @@ bool expand_partDec() {
   bool plain, oriPlain;
   double error;
   {
-    preExpand[0] = nullptr;
-    preExpand[1] = std::malloc(party_1.getSizePreExpand());
-    load_data("PreExpand_1_0_3", preExpand[1], party_1.getSizePreExpand());
-    preExpand[2] = std::malloc(party_2.getSizePreExpand());
-    load_data("PreExpand_2_0_3", preExpand[2], party_2.getSizePreExpand());
     void *cipher = std::malloc(party_0.getSizeCipher());
     void *random = std::malloc(party_0.getSizeRandom());
     load_data("Cipher_0", cipher, party_0.getSizeCipher());
     load_data("Random_0", random, party_0.getSizeRandom());
-    auto expandCipher = party_0.expand(
-        preExpand, [](void *ptr) { std::free(ptr); }, 0, cipher, random);
-    partPlain[0] = party_0.partDec(expandCipher);
-    partPlain[1] = party_1.partDec(expandCipher);
-    partPlain[2] = party_2.partDec(expandCipher);
-    plain = MpcApplication::finDec(partPlain, &error);
     load_data("Plain_0", &oriPlain, sizeof(bool));
-    chk = (plain == oriPlain) && chk;
-    chk = (error < 0.125) && chk;
-    std::cout << plain << " " << oriPlain << " " << error << std::endl;
-    for (auto &it : expandCipher) {
-      delete it;
-      it = nullptr;
+    preExpand[0] = nullptr;
+    preExpand[1] = std::malloc(party_0.getSizePreExpand());
+    load_data("PreExpand_1_0_3", preExpand[1], party_0.getSizePreExpand());
+    preExpand[2] = std::malloc(party_0.getSizePreExpand());
+    load_data("PreExpand_2_0_3", preExpand[2], party_0.getSizePreExpand());
+    {
+      auto expandCipher = party_0.expand(preExpand, nullptr, 0, cipher, random);
+      partPlain[0] = party_0.partDec(expandCipher);
+      partPlain[1] = party_1.partDec(expandCipher);
+      partPlain[2] = party_2.partDec(expandCipher);
+      plain =
+          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      chk = (plain == oriPlain) && chk;
+      chk = (error < 0.125) && chk;
+      std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      for (auto &it : expandCipher) {
+        delete it;
+        it = nullptr;
+      }
     }
+    {
+      auto expandCipher = party_0.expand(preExpand, nullptr, 0, cipher);
+      partPlain[0] = party_0.partDec(expandCipher);
+      partPlain[1] = party_1.partDec(expandCipher);
+      partPlain[2] = party_2.partDec(expandCipher);
+      plain =
+          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      chk = (plain == oriPlain) && chk;
+      chk = (error < 0.125) && chk;
+      std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      for (auto &it : expandCipher) {
+        delete it;
+        it = nullptr;
+      }
+    }
+    preExpand[0] = nullptr;
+    std::free(preExpand[1]);
+    preExpand[1] = nullptr;
+    std::free(preExpand[2]);
+    preExpand[2] = nullptr;
+    std::free(cipher);
+    std::free(random);
+  }
+  {
+    void *cipher = std::malloc(party_1.getSizeCipher());
+    void *random = std::malloc(party_1.getSizeRandom());
+    load_data("Cipher_1", cipher, party_1.getSizeCipher());
+    load_data("Random_1", random, party_1.getSizeRandom());
+    load_data("Plain_1", &oriPlain, sizeof(bool));
+    preExpand[0] = std::malloc(party_1.getSizePreExpand());
+    load_data("PreExpand_0_1_3", preExpand[0], party_1.getSizePreExpand());
+    preExpand[1] = nullptr;
+    preExpand[2] = std::malloc(party_1.getSizePreExpand());
+    load_data("PreExpand_2_1_3", preExpand[2], party_1.getSizePreExpand());
+    {
+      auto expandCipher = party_1.expand(preExpand, nullptr, 1, cipher, random);
+      partPlain[0] = party_0.partDec(expandCipher);
+      partPlain[1] = party_1.partDec(expandCipher);
+      partPlain[2] = party_2.partDec(expandCipher);
+      plain =
+          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      chk = (plain == oriPlain) && chk;
+      chk = (error < 0.125) && chk;
+      std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      for (auto &it : expandCipher) {
+        delete it;
+        it = nullptr;
+      }
+    }
+    {
+      auto expandCipher = party_1.expand(preExpand, nullptr, 1, cipher);
+      partPlain[0] = party_0.partDec(expandCipher);
+      partPlain[1] = party_1.partDec(expandCipher);
+      partPlain[2] = party_2.partDec(expandCipher);
+      plain =
+          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      chk = (plain == oriPlain) && chk;
+      chk = (error < 0.125) && chk;
+      std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      for (auto &it : expandCipher) {
+        delete it;
+        it = nullptr;
+      }
+    }
+    std::free(preExpand[0]);
+    preExpand[0] = nullptr;
+    preExpand[1] = nullptr;
+    std::free(preExpand[2]);
+    preExpand[2] = nullptr;
+    std::free(cipher);
+    std::free(random);
+  }
+  {
+    void *cipher = std::malloc(party_2.getSizeCipher());
+    void *random = std::malloc(party_2.getSizeRandom());
+    load_data("Cipher_2", cipher, party_2.getSizeCipher());
+    load_data("Random_2", random, party_2.getSizeRandom());
+    load_data("Plain_2", &oriPlain, sizeof(bool));
+    preExpand[0] = std::malloc(party_2.getSizePreExpand());
+    load_data("PreExpand_0_2_3", preExpand[0], party_2.getSizePreExpand());
+    preExpand[1] = std::malloc(party_2.getSizePreExpand());
+    load_data("PreExpand_1_2_3", preExpand[1], party_2.getSizePreExpand());
+    preExpand[2] = nullptr;
+    {
+      auto expandCipher = party_2.expand(preExpand, nullptr, 2, cipher, random);
+      partPlain[0] = party_0.partDec(expandCipher);
+      partPlain[1] = party_1.partDec(expandCipher);
+      partPlain[2] = party_2.partDec(expandCipher);
+      plain =
+          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      chk = (plain == oriPlain) && chk;
+      chk = (error < 0.125) && chk;
+      std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      for (auto &it : expandCipher) {
+        delete it;
+        it = nullptr;
+      }
+    }
+    {
+      auto expandCipher = party_2.expand(preExpand, nullptr, 2, cipher);
+      partPlain[0] = party_0.partDec(expandCipher);
+      partPlain[1] = party_1.partDec(expandCipher);
+      partPlain[2] = party_2.partDec(expandCipher);
+      plain =
+          MpcApplication::finDec(partPlain.data(), partPlain.size(), &error);
+      chk = (plain == oriPlain) && chk;
+      chk = (error < 0.125) && chk;
+      std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      for (auto &it : expandCipher) {
+        delete it;
+        it = nullptr;
+      }
+    }
+    std::free(preExpand[0]);
+    preExpand[0] = nullptr;
+    std::free(preExpand[1]);
+    preExpand[1] = nullptr;
+    preExpand[2] = nullptr;
     std::free(cipher);
     std::free(random);
   }

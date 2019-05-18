@@ -32,8 +32,7 @@ private:
   std::vector<void *> _stream;
 
   // Extend
-  thesis::TorusInteger *_decompPreExpand(void *hPreExpand, int id,
-                                         thesis::TrgswCipher *param);
+  thesis::TorusInteger *_decompPreExpand(void *hPreExpand, int id);
   /**
    * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM),
    *                    reuse it if null
@@ -135,11 +134,12 @@ public:
    */
   thesis::TorusInteger partDec(std::vector<thesis::TrgswCipher *> &cipher);
   /**
-   * @param partDecPlain: list of outputs of partDec
+   * @param partDecPlain: array of outputs of partDec
+   * @param numParty: number of parties
    * @param outError: pointer absolute value of error (null if not want to get
    *                  error)
    */
-  static bool finDec(std::vector<thesis::TorusInteger> &partDecPlain,
+  static bool finDec(thesis::TorusInteger partDecPlain[], size_t numParty,
                      double *outError);
 };
 
