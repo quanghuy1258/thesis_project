@@ -114,7 +114,7 @@ public:
    * @param hMainCipher: main cipher associated with id of party
    * @param hRandCipher: rand cipher associated with id of party
    */
-  std::vector<thesis::TrgswCipher *>
+  [[deprecated]] std::vector<thesis::TrgswCipher *>
   expand(std::vector<void *> &hPreExpand,
          std::function<void(void *)> freeFnPreExpand, int partyId,
          void *hMainCipher, void *hRandCipher);
@@ -126,7 +126,7 @@ public:
    * @param hMainCipher: main cipher associated with id of party
    * @param hRandom: plain random associated with cipher
    */
-  std::vector<thesis::TrgswCipher *>
+  [[deprecated]] std::vector<thesis::TrgswCipher *>
   expandWithPlainRandom(std::vector<void *> &hPreExpand,
                         std::function<void(void *)> freeFnPreExpand,
                         int partyId, void *hMainCipher, void *hRandom);
@@ -135,7 +135,9 @@ public:
   /**
    * @param cipher: expanded cipher
    */
-  thesis::TorusInteger partDec(std::vector<thesis::TrgswCipher *> &cipher);
+  [[deprecated]] thesis::TorusInteger
+  partDec(std::vector<thesis::TrgswCipher *> &cipher);
+  thesis::TorusInteger partDec(thesis::TrgswCipher *cipher);
   /**
    * @param partDecPlain: array of outputs of partDec
    * @param numParty: number of parties

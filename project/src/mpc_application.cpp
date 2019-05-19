@@ -406,6 +406,27 @@ TorusInteger MpcApplication::partDec(std::vector<TrgswCipher *> &cipher) {
   MemoryManagement::freeMM(plainWithError);
   return out;
 }
+TorusInteger MpcApplication::partDec(TrgswCipher *cipher) {
+  // int sizeCipher = cipher.size();
+  TorusInteger out = 0;
+  if (!cipher || cipher->_N != _N || cipher->_k != 2 * _numParty - 1 ||
+      cipher->_l != _l || cipher->_Bgbit != 1 || cipher->_sdError < 0 ||
+      cipher->_varError < 0)
+    return out;
+  // Decrypt: get raw plain + error
+  TorusInteger *plainWithError =
+      (TorusInteger *)MemoryManagement::mallocMM(_N * sizeof(TorusInteger));
+  TrlweFunction::getPlain(
+      &_fft_privkey, 0,
+      cipher->get_pol_data((2 * _numParty - 1) * _l, 2 * _partyId), _N, 1,
+      plainWithError);
+  _fft_privkey.waitOut(0);
+  // Move raw plain + error from device to host
+  MemoryManagement::memcpyMM_d2h(&out, plainWithError, sizeof(TorusInteger));
+  // Free all allocated memory
+  MemoryManagement::freeMM(plainWithError);
+  return out;
+}
 bool MpcApplication::finDec(TorusInteger partDecPlain[], size_t numParty,
                             double *outError) {
   TorusInteger x = 0;
