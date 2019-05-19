@@ -542,10 +542,7 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
-      for (auto &it : expandCipher) {
-        delete it;
-        it = nullptr;
-      }
+      delete expandCipher;
     }
     {
       auto expandCipher =
@@ -557,10 +554,7 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
-      for (auto &it : expandCipher) {
-        delete it;
-        it = nullptr;
-      }
+      delete expandCipher;
     }
     preExpand[0] = nullptr;
     std::free(preExpand[1]);
@@ -594,10 +588,7 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
-      for (auto &it : expandCipher) {
-        delete it;
-        it = nullptr;
-      }
+      delete expandCipher;
     }
     {
       auto expandCipher =
@@ -609,10 +600,7 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
-      for (auto &it : expandCipher) {
-        delete it;
-        it = nullptr;
-      }
+      delete expandCipher;
     }
     std::free(preExpand[0]);
     preExpand[0] = nullptr;
@@ -646,10 +634,7 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
-      for (auto &it : expandCipher) {
-        delete it;
-        it = nullptr;
-      }
+      delete expandCipher;
     }
     {
       auto expandCipher =
@@ -661,10 +646,7 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
-      for (auto &it : expandCipher) {
-        delete it;
-        it = nullptr;
-      }
+      delete expandCipher;
     }
     std::free(preExpand[0]);
     preExpand[0] = nullptr;

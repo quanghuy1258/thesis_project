@@ -38,17 +38,22 @@ private:
    *                    reuse it if null
    * @param partyId: id of party
    * @param cipher: cipher associated with id of party in device memory (VRAM)
+   * @param mainPartyId: id of party associated with main cipher
+   * @param out: expanded cipher
    */
-  thesis::TrgswCipher *_extend(void *hPreExpand, int partyId,
-                               thesis::TorusInteger *cipher);
+  void _extend(void *hPreExpand, int partyId, thesis::TorusInteger *cipher,
+               int mainPartyId, thesis::TrgswCipher *out);
   /**
    * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM),
    *                    reuse it if null
    * @param partyId: id of party
    * @param random: random associated with id of party in device memory (VRAM)
+   * @param mainPartyId: id of party associated with main cipher
+   * @param out: expanded cipher
    */
-  thesis::TrgswCipher *_extendWithPlainRandom(void *hPreExpand, int partyId,
-                                              thesis::TorusInteger *random);
+  void _extendWithPlainRandom(void *hPreExpand, int partyId,
+                              thesis::TorusInteger *random, int mainPartyId,
+                              thesis::TrgswCipher *out);
 
 public:
   MpcApplication() = delete;
@@ -114,10 +119,10 @@ public:
    * @param hMainCipher: main cipher associated with id of party
    * @param hRandCipher: rand cipher associated with id of party
    */
-  [[deprecated]] std::vector<thesis::TrgswCipher *>
-  expand(std::vector<void *> &hPreExpand,
-         std::function<void(void *)> freeFnPreExpand, int partyId,
-         void *hMainCipher, void *hRandCipher);
+  thesis::TrgswCipher *expand(std::vector<void *> &hPreExpand,
+                              std::function<void(void *)> freeFnPreExpand,
+                              int partyId, void *hMainCipher,
+                              void *hRandCipher);
   /**
    * @param hPreExpand: pointer to pre expand ciphertext in host memory (RAM)
    * @param freeFnPreExpand: free hPreExpand after use because hPreExpand will
@@ -126,7 +131,7 @@ public:
    * @param hMainCipher: main cipher associated with id of party
    * @param hRandom: plain random associated with cipher
    */
-  [[deprecated]] std::vector<thesis::TrgswCipher *>
+  thesis::TrgswCipher *
   expandWithPlainRandom(std::vector<void *> &hPreExpand,
                         std::function<void(void *)> freeFnPreExpand,
                         int partyId, void *hMainCipher, void *hRandom);
@@ -135,8 +140,6 @@ public:
   /**
    * @param cipher: expanded cipher
    */
-  [[deprecated]] thesis::TorusInteger
-  partDec(std::vector<thesis::TrgswCipher *> &cipher);
   thesis::TorusInteger partDec(thesis::TrgswCipher *cipher);
   /**
    * @param partDecPlain: array of outputs of partDec
