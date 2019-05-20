@@ -10,3 +10,5 @@
   + cudaMemcpyAsync
   + cufftSetStream
   + cudaStreamSynchronize/cudaDeviceSynchronize
+
+- Add 32 bit build mode in CMakeLists
