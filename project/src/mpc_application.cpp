@@ -10,6 +10,8 @@
 
 #include "mpc_application.h"
 
+#define WARNING_CERR(msg) std::cerr << "WARNING: " msg << std::endl
+
 using namespace thesis;
 
 MpcApplication::MpcApplication(int numParty, int partyId, int N, int m, int l,
@@ -57,14 +59,18 @@ void MpcApplication::createPrivkey() {
   TrlweFunction::keyToFFT(_privkey, _N, 1, &_fft_privkey);
 }
 void MpcApplication::importPrivkey(void *hPrivkey) {
-  if (!hPrivkey)
+  if (!hPrivkey) {
+    WARNING_CERR("hPrivkey is not NULL");
     return;
+  }
   MemoryManagement::memcpyMM_h2d(_privkey, hPrivkey, getSizePrivkey());
   TrlweFunction::keyToFFT(_privkey, _N, 1, &_fft_privkey);
 }
 void MpcApplication::exportPrivkey(void *hPrivkey) {
-  if (!hPrivkey)
+  if (!hPrivkey) {
+    WARNING_CERR("hPrivkey is not NULL");
     return;
+  }
   MemoryManagement::memcpyMM_d2h(hPrivkey, _privkey, getSizePrivkey());
 }
 int MpcApplication::getSizePrivkey() { return _N * sizeof(TorusInteger); }
@@ -77,8 +83,10 @@ void MpcApplication::createPubkey() {
   }
 }
 void MpcApplication::importPubkey(void *hPubkey) {
-  if (!hPubkey)
+  if (!hPubkey) {
+    WARNING_CERR("hPubkey is not NULL");
     return;
+  }
   MemoryManagement::memcpyMM_h2d(_pubkey[0]->_data, hPubkey, getSizePubkey());
   for (int i = 0; i < _m; i++) {
     _fft_pubkey.setInp(_pubkey[i]->get_pol_data(0), 0, i);
@@ -86,8 +94,10 @@ void MpcApplication::importPubkey(void *hPubkey) {
   }
 }
 void MpcApplication::exportPubkey(void *hPubkey) {
-  if (!hPubkey)
+  if (!hPubkey) {
+    WARNING_CERR("hPubkey is not NULL");
     return;
+  }
   MemoryManagement::memcpyMM_d2h(hPubkey, _pubkey[0]->_data, getSizePubkey());
 }
 int MpcApplication::getSizePubkey() {
@@ -95,8 +105,10 @@ int MpcApplication::getSizePubkey() {
 }
 void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
                              void *hRandom) {
-  if (!hMainCipher)
+  if (!hMainCipher) {
+    WARNING_CERR("hMainCipher is not NULL");
     return;
+  }
   // Create random
   TorusInteger *random =
       (TorusInteger *)MemoryManagement::mallocMM(getSizeRandom());
@@ -176,8 +188,10 @@ int MpcApplication::getSizeRandom() {
   return 2 * _l * _m * _N * sizeof(TorusInteger);
 }
 void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
-  if (!hPubkey || !hPreExpand)
+  if (!hPubkey || !hPreExpand) {
+    WARNING_CERR("hPubkey and hPreExpand is not NULL");
     return;
+  }
   // Init pubkey and preExpand memory on VRAM
   TorusInteger *pubkey_ptr =
       (TorusInteger *)MemoryManagement::mallocMM(getSizePubkey());
@@ -302,8 +316,11 @@ TrgswCipher *MpcApplication::expand(std::vector<void *> &hPreExpand,
                                     std::function<void(void *)> freeFnPreExpand,
                                     int partyId, void *hMainCipher,
                                     void *hRandCipher) {
-  if (partyId < 0 || partyId >= _numParty || !hMainCipher || !hRandCipher)
+  if (partyId < 0 || partyId >= _numParty || !hMainCipher || !hRandCipher) {
+    WARNING_CERR(
+        "0 <= partyId < _numParty ; hMainCipher and hRandCipher is not NULL");
     return nullptr;
+  }
   // Copy cipher from host to device
   TorusInteger *randCipher =
       (TorusInteger *)MemoryManagement::mallocMM(getSizeRandCipher());
@@ -354,8 +371,11 @@ TrgswCipher *MpcApplication::expandWithPlainRandom(
     std::vector<void *> &hPreExpand,
     std::function<void(void *)> freeFnPreExpand, int partyId, void *hMainCipher,
     void *hRandom) {
-  if (partyId < 0 || partyId >= _numParty || !hMainCipher || !hRandom)
+  if (partyId < 0 || partyId >= _numParty || !hMainCipher || !hRandom) {
+    WARNING_CERR(
+        "0 <= partyId < _numParty ; hMainCipher and hRandCipher is not NULL");
     return nullptr;
+  }
   // Copy random from host to device
   TorusInteger *random =
       (TorusInteger *)MemoryManagement::mallocMM(getSizeRandom());
@@ -404,8 +424,10 @@ TorusInteger MpcApplication::partDec(TrgswCipher *cipher) {
   TorusInteger out = 0;
   if (!cipher || cipher->_N != _N || cipher->_k != 2 * _numParty - 1 ||
       cipher->_l != _l || cipher->_Bgbit != 1 || cipher->_sdError < 0 ||
-      cipher->_varError < 0)
+      cipher->_varError < 0) {
+    WARNING_CERR("Cannot part decrypt");
     return out;
+  }
   // Decrypt: get raw plain + error
   TorusInteger *plainWithError =
       (TorusInteger *)MemoryManagement::mallocMM(_N * sizeof(TorusInteger));
@@ -432,8 +454,10 @@ bool MpcApplication::finDec(TorusInteger partDecPlain[], size_t numParty,
 }
 TrgswCipher *MpcApplication::importExpandedCipher(void *inp) {
   double *ptr = (double *)inp;
-  if (ptr[0] < 0 || ptr[1] < 0)
+  if (ptr[0] < 0 || ptr[1] < 0) {
+    WARNING_CERR("sdError, varError >= 0");
     return nullptr;
+  }
   TrgswCipher *out = new TrgswCipher(_N, 1, _l, 1, ptr[0], ptr[1]);
   MemoryManagement::memcpyMM_h2d(out->_data, ptr + 2,
                                  _numParty * _numParty * getSizeMainCipher());
@@ -451,8 +475,10 @@ int MpcApplication::getSizeExpandedCipher() {
   return 2 * sizeof(double) + _numParty * _numParty * getSizeMainCipher();
 }
 TrgswCipher *MpcApplication::addOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
-  if (!inp_1 || !inp_2)
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
     return nullptr;
+  }
   TrgswCipher *out =
       new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
                       inp_1->_varError + inp_2->_varError);
@@ -464,8 +490,10 @@ TrgswCipher *MpcApplication::addOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
   return out;
 }
 TrgswCipher *MpcApplication::subOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
-  if (!inp_1 || !inp_2)
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
     return nullptr;
+  }
   TrgswCipher *out =
       new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
                       inp_1->_varError + inp_2->_varError);
@@ -477,8 +505,10 @@ TrgswCipher *MpcApplication::subOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
   return out;
 }
 TrgswCipher *MpcApplication::notOp(TrgswCipher *inp) {
-  if (!inp)
+  if (!inp) {
+    WARNING_CERR("inp is not NULL");
     return nullptr;
+  }
   TrgswCipher *out =
       new TrgswCipher(_N, 1, _l, 1, inp->_sdError, inp->_varError);
   out->clear_trgsw_data();
@@ -489,8 +519,10 @@ TrgswCipher *MpcApplication::notOp(TrgswCipher *inp) {
   return out;
 }
 TrgswCipher *MpcApplication::notXorOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
-  if (!inp_1 || !inp_2)
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
     return nullptr;
+  }
   TrgswCipher *out =
       new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
                       inp_1->_varError + inp_2->_varError);
