@@ -29,6 +29,7 @@ private:
   thesis::BatchedFFT *_fft_pubkey;
   thesis::BatchedFFT *_fft_preExpand;
   thesis::BatchedFFT *_fft_preExpandRandom;
+  thesis::BatchedFFT *_fft_mul;
   std::vector<void *> _stream;
 
   // Extend
@@ -161,6 +162,8 @@ public:
   thesis::TrgswCipher *notOp(thesis::TrgswCipher *inp);
   thesis::TrgswCipher *notXorOp(thesis::TrgswCipher *inp_1,
                                 thesis::TrgswCipher *inp_2);
+  thesis::TrgswCipher *mulOp(thesis::TrgswCipher *inp_1,
+                             thesis::TrgswCipher *inp_2);
 };
 
 #endif

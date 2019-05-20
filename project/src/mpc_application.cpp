@@ -30,6 +30,7 @@ MpcApplication::MpcApplication(int numParty, int partyId, int N, int m, int l,
   _fft_pubkey = nullptr;
   _fft_preExpand = nullptr;
   _fft_preExpandRandom = nullptr;
+  _fft_mul = nullptr;
   _privkey = (TorusInteger *)MemoryManagement::mallocMM(getSizePrivkey());
   _pubkey.resize(m, nullptr);
   TorusInteger *mem_pubkey =
@@ -62,6 +63,8 @@ MpcApplication::~MpcApplication() {
     delete _fft_preExpand;
   if (_fft_preExpandRandom)
     delete _fft_preExpandRandom;
+  if (_fft_mul)
+    delete _fft_mul;
 }
 void MpcApplication::createPrivkey() {
   if (!_fft_privkey)
@@ -494,7 +497,8 @@ TrgswCipher *MpcApplication::importExpandedCipher(void *inp) {
     WARNING_CERR("sdError, varError >= 0");
     return nullptr;
   }
-  TrgswCipher *out = new TrgswCipher(_N, 1, _l, 1, ptr[0], ptr[1]);
+  TrgswCipher *out =
+      new TrgswCipher(_N, 2 * _numParty - 1, _l, 1, ptr[0], ptr[1]);
   MemoryManagement::memcpyMM_h2d(out->_data, ptr + 2,
                                  _numParty * _numParty * getSizeMainCipher());
   return out;
@@ -515,9 +519,9 @@ TrgswCipher *MpcApplication::addOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
     WARNING_CERR("inp_1 and inp_2 is not NULL");
     return nullptr;
   }
-  TrgswCipher *out =
-      new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
-                      inp_1->_varError + inp_2->_varError);
+  TrgswCipher *out = new TrgswCipher(_N, 2 * _numParty - 1, _l, 1,
+                                     inp_1->_sdError + inp_2->_sdError,
+                                     inp_1->_varError + inp_2->_varError);
   MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
                                  _numParty * _numParty * getSizeMainCipher());
   TorusUtility::addVector((TorusInteger *)out->_data,
@@ -530,9 +534,9 @@ TrgswCipher *MpcApplication::subOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
     WARNING_CERR("inp_1 and inp_2 is not NULL");
     return nullptr;
   }
-  TrgswCipher *out =
-      new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
-                      inp_1->_varError + inp_2->_varError);
+  TrgswCipher *out = new TrgswCipher(_N, 2 * _numParty - 1, _l, 1,
+                                     inp_1->_sdError + inp_2->_sdError,
+                                     inp_1->_varError + inp_2->_varError);
   MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
                                  _numParty * _numParty * getSizeMainCipher());
   TorusUtility::subVector((TorusInteger *)out->_data,
@@ -545,8 +549,8 @@ TrgswCipher *MpcApplication::notOp(TrgswCipher *inp) {
     WARNING_CERR("inp is not NULL");
     return nullptr;
   }
-  TrgswCipher *out =
-      new TrgswCipher(_N, 1, _l, 1, inp->_sdError, inp->_varError);
+  TrgswCipher *out = new TrgswCipher(_N, 2 * _numParty - 1, _l, 1,
+                                     inp->_sdError, inp->_varError);
   out->clear_trgsw_data();
   TrgswFunction::addMuGadget(1, out);
   TorusUtility::subVector((TorusInteger *)out->_data,
@@ -559,9 +563,9 @@ TrgswCipher *MpcApplication::notXorOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
     WARNING_CERR("inp_1 and inp_2 is not NULL");
     return nullptr;
   }
-  TrgswCipher *out =
-      new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
-                      inp_1->_varError + inp_2->_varError);
+  TrgswCipher *out = new TrgswCipher(_N, 2 * _numParty - 1, _l, 1,
+                                     inp_1->_sdError + inp_2->_sdError,
+                                     inp_1->_varError + inp_2->_varError);
   out->clear_trgsw_data();
   TrgswFunction::addMuGadget(1, out);
   TorusUtility::subVector((TorusInteger *)out->_data,
@@ -570,5 +574,60 @@ TrgswCipher *MpcApplication::notXorOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
   TorusUtility::subVector((TorusInteger *)out->_data,
                           (TorusInteger *)inp_2->_data,
                           _numParty * _numParty * 4 * _l * _N);
+  return out;
+}
+TrgswCipher *MpcApplication::mulOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    return nullptr;
+  }
+  if (!_fft_mul)
+    _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
+  // Choose input which will be decomposed
+  TrgswCipher *inp_decomp = inp_1;
+  TrgswCipher *inp_ori = inp_2;
+  if (inp_1->_varError < inp_2->_varError) {
+    inp_decomp = inp_2;
+    inp_ori = inp_1;
+  }
+  // Prepare FFT for multiplication
+  for (int i = 0; i < 2 * _l * _numParty; i++) {
+    for (int j = 0; j < 2 * _numParty; j++)
+      _fft_mul->setInp(inp_ori->get_pol_data(i, j), j, i);
+  }
+  // Init output
+  double e_dec = std::pow(2, -_l - 1);
+  //   A: ori
+  //   B: decomp
+  //   sdError = 2 * l * numParty * N * sdA + numParty * (N + 1) * e_dec
+  //             + sdB
+  //   varError = 2 * l * numParty * N * varA + numParty * (N + 1) * (e_dec ^ 2)
+  //              + varB
+  TrgswCipher *out = new TrgswCipher(
+      _N, 2 * _numParty - 1, _l, 1,
+      2 * _l * _numParty * _N * inp_ori->_sdError +
+          _numParty * (_N + 1) * e_dec + inp_decomp->_sdError,
+      2 * _l * _numParty * _N * inp_ori->_varError +
+          _numParty * (_N + 1) * e_dec * e_dec + inp_decomp->_varError);
+  out->clear_trgsw_data();
+  // Decomposition and multiplication
+  TorusInteger *decomp_ptr = (TorusInteger *)MemoryManagement::mallocMM(
+      2 * _l * _numParty * _N * sizeof(TorusInteger));
+  for (int i = 0; i < 2 * _l * _numParty; i++) {
+    TrlweCipher row(inp_decomp->get_trlwe_data(i), 2 * _numParty * _N, _N,
+                    2 * _numParty - 1, inp_decomp->_sdError,
+                    inp_decomp->_varError);
+    Decomposition::onlyDecomp(&row, out, decomp_ptr);
+    for (int j = 0; j < 2 * _l * _numParty; j++)
+      _fft_mul->setInp(decomp_ptr + j * _N, j);
+    for (int j = 0; j < 2 * _numParty; j++) {
+      for (int k = 0; k < 2 * _l * _numParty; k++)
+        _fft_mul->setMul(j, k);
+    }
+    for (int j = 0; j < 2 * _numParty; j++)
+      _fft_mul->addAllOut(out->get_pol_data(i, j), j);
+  }
+  // Wait all
+  _fft_mul->waitAllOut();
   return out;
 }

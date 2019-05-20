@@ -32,11 +32,14 @@ bool encrypt();
 
 bool expand_partDec();
 
+bool test_operator();
+
 TEST(Mpc, Full) {
   ASSERT_TRUE(genkey());
   ASSERT_TRUE(pre_expand());
   ASSERT_TRUE(encrypt());
   ASSERT_TRUE(expand_partDec());
+  ASSERT_TRUE(test_operator());
 }
 
 bool is_file_exist(const char *fileName) {
@@ -542,6 +545,8 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      std::cout << expandCipher->_sdError << " "
+                << std::sqrt(expandCipher->_varError) << std::endl;
       delete expandCipher;
     }
     {
@@ -554,6 +559,8 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      std::cout << expandCipher->_sdError << " "
+                << std::sqrt(expandCipher->_varError) << std::endl;
       delete expandCipher;
     }
     preExpand[0] = nullptr;
@@ -588,6 +595,8 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      std::cout << expandCipher->_sdError << " "
+                << std::sqrt(expandCipher->_varError) << std::endl;
       delete expandCipher;
     }
     {
@@ -600,6 +609,8 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      std::cout << expandCipher->_sdError << " "
+                << std::sqrt(expandCipher->_varError) << std::endl;
       delete expandCipher;
     }
     std::free(preExpand[0]);
@@ -634,6 +645,8 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      std::cout << expandCipher->_sdError << " "
+                << std::sqrt(expandCipher->_varError) << std::endl;
       delete expandCipher;
     }
     {
@@ -646,6 +659,8 @@ bool expand_partDec() {
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
+      std::cout << expandCipher->_sdError << " "
+                << std::sqrt(expandCipher->_varError) << std::endl;
       delete expandCipher;
     }
     std::free(preExpand[0]);
@@ -657,5 +672,196 @@ bool expand_partDec() {
     std::free(randCipher);
     std::free(random);
   }
+  return chk;
+}
+bool test_operator() {
+  // Create parties
+  MpcApplication party_0(numParty, 0, N, m, l, sdFresh);
+  MpcApplication party_1(numParty, 1, N, m, l, sdFresh);
+  MpcApplication party_2(numParty, 2, N, m, l, sdFresh);
+  // Import keys
+  {
+    void *privKey = std::malloc(party_0.getSizePrivkey());
+    void *pubKey = std::malloc(party_0.getSizePubkey());
+    load_data("PrivKey_0_3", privKey, party_0.getSizePrivkey());
+    party_0.importPrivkey(privKey);
+    load_data("PubKey_0_3", pubKey, party_0.getSizePubkey());
+    party_0.importPubkey(pubKey);
+    std::free(privKey);
+    std::free(pubKey);
+  }
+  {
+    void *privKey = std::malloc(party_1.getSizePrivkey());
+    void *pubKey = std::malloc(party_1.getSizePubkey());
+    load_data("PrivKey_1_3", privKey, party_1.getSizePrivkey());
+    party_1.importPrivkey(privKey);
+    load_data("PubKey_1_3", pubKey, party_1.getSizePubkey());
+    party_1.importPubkey(pubKey);
+    std::free(privKey);
+    std::free(pubKey);
+  }
+  {
+    void *privKey = std::malloc(party_2.getSizePrivkey());
+    void *pubKey = std::malloc(party_2.getSizePubkey());
+    load_data("PrivKey_2_3", privKey, party_2.getSizePrivkey());
+    party_2.importPrivkey(privKey);
+    load_data("PubKey_2_3", pubKey, party_2.getSizePubkey());
+    party_2.importPubkey(pubKey);
+    std::free(privKey);
+    std::free(pubKey);
+  }
+  // Get expand ciphers
+  TrgswCipher *cipher_0, *cipher_1;
+  std::vector<void *> preExpand(3);
+  std::vector<TorusInteger> partPlain(3);
+  std::vector<bool> plain(3);
+  bool oriPlain;
+  {
+    void *mainCipher = std::malloc(party_0.getSizeMainCipher());
+    void *random = std::malloc(party_0.getSizeRandom());
+    load_data("MainCipher_0", mainCipher, party_0.getSizeMainCipher());
+    load_data("Random_0", random, party_0.getSizeRandom());
+    load_data("Plain_0", &oriPlain, sizeof(bool));
+    plain[0] = oriPlain;
+    preExpand[0] = nullptr;
+    preExpand[1] = std::malloc(party_0.getSizePreExpand());
+    load_data("PreExpand_1_0_3", preExpand[1], party_0.getSizePreExpand());
+    preExpand[2] = std::malloc(party_0.getSizePreExpand());
+    load_data("PreExpand_2_0_3", preExpand[2], party_0.getSizePreExpand());
+    cipher_0 = party_0.expandWithPlainRandom(
+        preExpand, [](void *ptr) { std::free(ptr); }, 0, mainCipher, random);
+    std::free(mainCipher);
+    std::free(random);
+  }
+  {
+    void *mainCipher = std::malloc(party_1.getSizeMainCipher());
+    void *random = std::malloc(party_1.getSizeRandom());
+    load_data("MainCipher_1", mainCipher, party_1.getSizeMainCipher());
+    load_data("Random_1", random, party_1.getSizeRandom());
+    load_data("Plain_1", &oriPlain, sizeof(bool));
+    plain[1] = oriPlain;
+    preExpand[0] = std::malloc(party_1.getSizePreExpand());
+    load_data("PreExpand_0_1_3", preExpand[0], party_1.getSizePreExpand());
+    preExpand[1] = nullptr;
+    preExpand[2] = std::malloc(party_1.getSizePreExpand());
+    load_data("PreExpand_2_1_3", preExpand[2], party_1.getSizePreExpand());
+    cipher_1 = party_1.expandWithPlainRandom(
+        preExpand, [](void *ptr) { std::free(ptr); }, 1, mainCipher, random);
+    std::free(mainCipher);
+    std::free(random);
+  }
+  // Test
+  bool chk = true;
+  double error = 0;
+  {
+    partPlain[0] = party_0.partDec(cipher_0);
+    partPlain[1] = party_1.partDec(cipher_0);
+    partPlain[2] = party_2.partDec(cipher_0);
+    chk = (party_0.finDec(partPlain.data(), partPlain.size(), &error) ==
+           plain[0]) &&
+          chk;
+    std::cout << error << " " << cipher_0->_sdError << " "
+              << std::sqrt(cipher_0->_varError) << std::endl;
+  }
+  {
+    partPlain[0] = party_0.partDec(cipher_1);
+    partPlain[1] = party_1.partDec(cipher_1);
+    partPlain[2] = party_2.partDec(cipher_1);
+    chk = (party_1.finDec(partPlain.data(), partPlain.size(), &error) ==
+           plain[1]) &&
+          chk;
+    std::cout << error << " " << cipher_1->_sdError << " "
+              << std::sqrt(cipher_1->_varError) << std::endl;
+  }
+  {
+    auto cipher = party_2.addOp(cipher_0, cipher_1);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    if ((plain[0] && plain[1]) || (!plain[0] && !plain[1]))
+      oriPlain = false;
+    else
+      oriPlain = true;
+    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
+           oriPlain) &&
+          chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
+  {
+    auto cipher = party_2.subOp(cipher_0, cipher_1);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    if ((plain[0] && plain[1]) || (!plain[0] && !plain[1]))
+      oriPlain = false;
+    else
+      oriPlain = true;
+    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
+           oriPlain) &&
+          chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
+  {
+    auto cipher = party_2.notOp(cipher_0);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) !=
+           plain[0]) &&
+          chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
+  {
+    auto cipher = party_2.notOp(cipher_1);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) !=
+           plain[1]) &&
+          chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
+  {
+    auto cipher = party_2.notXorOp(cipher_0, cipher_1);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    if ((plain[0] && plain[1]) || (!plain[0] && !plain[1]))
+      oriPlain = true;
+    else
+      oriPlain = false;
+    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
+           oriPlain) &&
+          chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
+  {
+    auto cipher = party_2.mulOp(cipher_0, cipher_1);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    if (plain[0] && plain[1])
+      oriPlain = true;
+    else
+      oriPlain = false;
+    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
+           oriPlain) &&
+          chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
+  delete cipher_0;
+  delete cipher_1;
   return chk;
 }
