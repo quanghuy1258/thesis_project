@@ -15,10 +15,7 @@
 using namespace thesis;
 
 MpcApplication::MpcApplication(int numParty, int partyId, int N, int m, int l,
-                               double sdFresh)
-    : _fft_privkey(N, 2, 1), _fft_pubkey(N, 2, m),
-      _fft_preExpand(N, m * (numParty - 1), l),
-      _fft_preExpandRandom(N, numParty - 1, m) {
+                               double sdFresh) {
   if (numParty < 2 || partyId < 0 || partyId >= numParty || N < 2 ||
       (N & (N - 1)) || m < 1 || l < 1 || sdFresh <= 0)
     throw std::invalid_argument("numParty > 1 ; 0 <= partyId < numParty ; N = "
@@ -29,6 +26,10 @@ MpcApplication::MpcApplication(int numParty, int partyId, int N, int m, int l,
   _m = m;
   _l = l;
   _sdFresh = sdFresh;
+  _fft_privkey = nullptr;
+  _fft_pubkey = nullptr;
+  _fft_preExpand = nullptr;
+  _fft_preExpandRandom = nullptr;
   _privkey = (TorusInteger *)MemoryManagement::mallocMM(getSizePrivkey());
   _pubkey.resize(m, nullptr);
   TorusInteger *mem_pubkey =
@@ -53,18 +54,30 @@ MpcApplication::~MpcApplication() {
   numStream = std::max(numStream, 2 * _l * _numParty + 1);
   for (int i = 0; i < numStream; i++)
     Stream::destroyS(_stream[i]);
+  if (_fft_privkey)
+    delete _fft_privkey;
+  if (_fft_pubkey)
+    delete _fft_pubkey;
+  if (_fft_preExpand)
+    delete _fft_preExpand;
+  if (_fft_preExpandRandom)
+    delete _fft_preExpandRandom;
 }
 void MpcApplication::createPrivkey() {
+  if (!_fft_privkey)
+    _fft_privkey = new BatchedFFT(_N, 2, 1);
   TrlweFunction::genkey(_privkey, _N, 1);
-  TrlweFunction::keyToFFT(_privkey, _N, 1, &_fft_privkey);
+  TrlweFunction::keyToFFT(_privkey, _N, 1, _fft_privkey);
 }
 void MpcApplication::importPrivkey(void *hPrivkey) {
   if (!hPrivkey) {
     WARNING_CERR("hPrivkey is not NULL");
     return;
   }
+  if (!_fft_privkey)
+    _fft_privkey = new BatchedFFT(_N, 2, 1);
   MemoryManagement::memcpyMM_h2d(_privkey, hPrivkey, getSizePrivkey());
-  TrlweFunction::keyToFFT(_privkey, _N, 1, &_fft_privkey);
+  TrlweFunction::keyToFFT(_privkey, _N, 1, _fft_privkey);
 }
 void MpcApplication::exportPrivkey(void *hPrivkey) {
   if (!hPrivkey) {
@@ -75,11 +88,15 @@ void MpcApplication::exportPrivkey(void *hPrivkey) {
 }
 int MpcApplication::getSizePrivkey() { return _N * sizeof(TorusInteger); }
 void MpcApplication::createPubkey() {
+  if (!_fft_privkey)
+    throw std::runtime_error("ERROR: Must create or import private key");
+  if (!_fft_pubkey)
+    _fft_pubkey = new BatchedFFT(_N, 2, _m);
   for (int i = 0; i < _m; i++) {
-    TrlweFunction::createSample(&_fft_privkey, i & 1, _pubkey[i]);
-    _fft_privkey.waitOut(i & 1);
-    _fft_pubkey.setInp(_pubkey[i]->get_pol_data(0), 0, i);
-    _fft_pubkey.setInp(_pubkey[i]->get_pol_data(1), 1, i);
+    TrlweFunction::createSample(_fft_privkey, i & 1, _pubkey[i]);
+    _fft_privkey->waitOut(i & 1);
+    _fft_pubkey->setInp(_pubkey[i]->get_pol_data(0), 0, i);
+    _fft_pubkey->setInp(_pubkey[i]->get_pol_data(1), 1, i);
   }
 }
 void MpcApplication::importPubkey(void *hPubkey) {
@@ -87,10 +104,12 @@ void MpcApplication::importPubkey(void *hPubkey) {
     WARNING_CERR("hPubkey is not NULL");
     return;
   }
+  if (!_fft_pubkey)
+    _fft_pubkey = new BatchedFFT(_N, 2, _m);
   MemoryManagement::memcpyMM_h2d(_pubkey[0]->_data, hPubkey, getSizePubkey());
   for (int i = 0; i < _m; i++) {
-    _fft_pubkey.setInp(_pubkey[i]->get_pol_data(0), 0, i);
-    _fft_pubkey.setInp(_pubkey[i]->get_pol_data(1), 1, i);
+    _fft_pubkey->setInp(_pubkey[i]->get_pol_data(0), 0, i);
+    _fft_pubkey->setInp(_pubkey[i]->get_pol_data(1), 1, i);
   }
 }
 void MpcApplication::exportPubkey(void *hPubkey) {
@@ -109,6 +128,8 @@ void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
     WARNING_CERR("hMainCipher is not NULL");
     return;
   }
+  if (!_fft_pubkey)
+    throw std::runtime_error("ERROR: Must create or import public key");
   // Create random
   TorusInteger *random =
       (TorusInteger *)MemoryManagement::mallocMM(getSizeRandom());
@@ -121,16 +142,18 @@ void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
   // Create and copy random cipher (if posible)
   std::vector<TrgswCipher *> randCipher(2 * _l * _m, nullptr);
   if (hRandCipher) {
+    if (!_fft_privkey)
+      throw std::runtime_error("ERROR: Must create or import private key");
     for (int i = 0; i < 2 * _l * _m; i++)
       randCipher[i] =
           new TrgswCipher(_N, 1, _l, 1, _sdFresh, _sdFresh * _sdFresh);
     for (int i = 0; i < 2 * _l * _m; i++) {
       for (int j = 0; j < _l; j++)
-        TrlweFunction::createSample(&_fft_privkey, (_l * i + j) & 1,
+        TrlweFunction::createSample(_fft_privkey, (_l * i + j) & 1,
                                     randCipher[i]->get_trlwe_data(_l + j), _N,
                                     1, _sdFresh);
     }
-    _fft_privkey.waitAllOut();
+    _fft_privkey->waitAllOut();
     for (int i = 0; i < 2 * _l * _m; i++)
       TrgswFunction::addMuGadget(random + _N * i, randCipher[i],
                                  _stream[i + 2]);
@@ -151,15 +174,15 @@ void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
   // main cipher += random * pubkey
   for (int i = 0; i < 2 * _l; i++) {
     for (int j = 0; j < _m; j++)
-      _fft_pubkey.setInp(random + (i * _m + j) * _N, j);
+      _fft_pubkey->setInp(random + (i * _m + j) * _N, j);
     for (int j = 0; j < _m; j++) {
-      _fft_pubkey.setMul(0, j);
-      _fft_pubkey.setMul(1, j);
+      _fft_pubkey->setMul(0, j);
+      _fft_pubkey->setMul(1, j);
     }
-    _fft_pubkey.addAllOut(mainCipher.get_pol_data(i, 0), 0);
-    _fft_pubkey.addAllOut(mainCipher.get_pol_data(i, 1), 1);
+    _fft_pubkey->addAllOut(mainCipher.get_pol_data(i, 0), 0);
+    _fft_pubkey->addAllOut(mainCipher.get_pol_data(i, 1), 1);
   }
-  _fft_pubkey.waitAllOut();
+  _fft_pubkey->waitAllOut();
   // main cipher += msg*G;
   if (msg)
     TrgswFunction::addMuGadget(1, &mainCipher, _stream[0]);
@@ -192,6 +215,8 @@ void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
     WARNING_CERR("hPubkey and hPreExpand is not NULL");
     return;
   }
+  if (!_fft_privkey)
+    throw std::runtime_error("ERROR: Must create or import private key");
   // Init pubkey and preExpand memory on VRAM
   TorusInteger *pubkey_ptr =
       (TorusInteger *)MemoryManagement::mallocMM(getSizePubkey());
@@ -201,13 +226,13 @@ void MpcApplication::preExpand(void *hPubkey, void *hPreExpand) {
   Random::setNormalTorus(preExpand_ptr, _m * _N, _sdFresh);
   // preExpand_ptr -= hPubkey * privkey
   for (int i = 0; i < _m; i++) {
-    _fft_privkey.setInp(pubkey_ptr + 2 * _N * i, i & 1, 0);
-    _fft_privkey.setMul(i & 1, 0);
+    _fft_privkey->setInp(pubkey_ptr + 2 * _N * i, i & 1, 0);
+    _fft_privkey->setMul(i & 1, 0);
     TorusUtility::subVector(preExpand_ptr + _N * i,
                             pubkey_ptr + (2 * i + 1) * _N, _N);
-    _fft_privkey.addAllOut(preExpand_ptr + _N * i, i & 1);
+    _fft_privkey->addAllOut(preExpand_ptr + _N * i, i & 1);
   }
-  _fft_privkey.waitAllOut();
+  _fft_privkey->waitAllOut();
   // Copy preExpand_ptr from device to host
   MemoryManagement::memcpyMM_d2h(hPreExpand, preExpand_ptr, getSizePreExpand());
   // Delete pubkey and preExpand
@@ -218,6 +243,8 @@ int MpcApplication::getSizePreExpand() {
   return _m * _N * sizeof(TorusInteger);
 }
 TorusInteger *MpcApplication::_decompPreExpand(void *hPreExpand, int id) {
+  if (!_fft_preExpand)
+    _fft_preExpand = new BatchedFFT(_N, _m * (_numParty - 1), _l);
   // preExpandCipher for only decomposition
   //   -> choosing any value for sd and var is ok
   TrlweCipher preExpandCipher(_N, _m, 1, 1);
@@ -232,14 +259,16 @@ TorusInteger *MpcApplication::_decompPreExpand(void *hPreExpand, int id) {
   Decomposition::onlyDecomp(&preExpandCipher, &param, decompPreExpand);
   for (int i = 0; i < _m; i++) {
     for (int j = 0; j < _l; j++)
-      _fft_preExpand.setInp(decompPreExpand + (i * _l + j) * _N, id * _m + i,
-                            j);
+      _fft_preExpand->setInp(decompPreExpand + (i * _l + j) * _N, id * _m + i,
+                             j);
   }
   return decompPreExpand;
 }
 void MpcApplication::_extend(void *hPreExpand, int partyId,
                              TorusInteger *cipher, int mainPartyId,
                              TrgswCipher *out) {
+  if (!_fft_preExpand)
+    _fft_preExpand = new BatchedFFT(_N, _m * (_numParty - 1), _l);
   // Determine the position of partyId in _fft_with_preExpand
   int id = (partyId < _partyId) ? partyId : (partyId - 1);
   // Do decomposition if hPreExpand is not null
@@ -251,28 +280,29 @@ void MpcApplication::_extend(void *hPreExpand, int partyId,
     for (int i = 0; i < 2 * _l; i++) {
       // First column
       for (int k = 0; k < _l; k++)
-        _fft_preExpand.setInp(cipher + ((i * _m + j) * 2 * _l + 2 * k) * _N, k);
+        _fft_preExpand->setInp(cipher + ((i * _m + j) * 2 * _l + 2 * k) * _N,
+                               k);
       for (int k = 0; k < _l; k++)
-        _fft_preExpand.setMul(id * _m + j, k);
+        _fft_preExpand->setMul(id * _m + j, k);
       if (j > 0)
-        _fft_preExpand.waitOut(id * _m + j - 1);
-      _fft_preExpand.addAllOut(
+        _fft_preExpand->waitOut(id * _m + j - 1);
+      _fft_preExpand->addAllOut(
           out->get_pol_data(partyId * 2 * _l + i, 2 * mainPartyId),
           id * _m + j);
       // Second column
       for (int k = 0; k < _l; k++)
-        _fft_preExpand.setInp(cipher + ((i * _m + j) * 2 * _l + 2 * k + 1) * _N,
-                              k);
+        _fft_preExpand->setInp(
+            cipher + ((i * _m + j) * 2 * _l + 2 * k + 1) * _N, k);
       for (int k = 0; k < _l; k++)
-        _fft_preExpand.setMul(id * _m + j, k);
+        _fft_preExpand->setMul(id * _m + j, k);
       if (j > 0)
-        _fft_preExpand.waitOut(id * _m + j - 1);
-      _fft_preExpand.addAllOut(
+        _fft_preExpand->waitOut(id * _m + j - 1);
+      _fft_preExpand->addAllOut(
           out->get_pol_data(partyId * 2 * _l + i, 2 * mainPartyId + 1),
           id * _m + j);
     }
   }
-  _fft_preExpand.waitOut(id * _m + _m - 1);
+  _fft_preExpand->waitOut(id * _m + _m - 1);
   // Free all allocated memory
   if (hPreExpand)
     MemoryManagement::freeMM(decompPreExpand);
@@ -280,6 +310,10 @@ void MpcApplication::_extend(void *hPreExpand, int partyId,
 void MpcApplication::_extendWithPlainRandom(void *hPreExpand, int partyId,
                                             TorusInteger *random,
                                             int mainPartyId, TrgswCipher *out) {
+  if (!_fft_privkey)
+    throw std::runtime_error("ERROR: Must create or import private key");
+  if (!_fft_preExpandRandom)
+    _fft_preExpandRandom = new BatchedFFT(_N, _numParty - 1, _m);
   // Determine the position of partyId in _fft_with_preExpand
   int id = (partyId < _partyId) ? partyId : (partyId - 1);
   // Move preExpand from host to device if possible
@@ -290,24 +324,24 @@ void MpcApplication::_extendWithPlainRandom(void *hPreExpand, int partyId,
     MemoryManagement::memcpyMM_h2d(preExpandCipher, hPreExpand,
                                    getSizePreExpand());
     for (int i = 0; i < _m; i++)
-      _fft_preExpandRandom.setInp(preExpandCipher + i * _N, id, i);
+      _fft_preExpandRandom->setInp(preExpandCipher + i * _N, id, i);
   }
   // Calculate extend cipher
   for (int i = 0; i < 2 * _l; i++)
     TrlweFunction::createSample(
-        &_fft_privkey, i & 1,
+        _fft_privkey, i & 1,
         out->get_pol_data(partyId * 2 * _l + i, 2 * mainPartyId), _N, 1,
         _sdFresh);
-  _fft_privkey.waitAllOut();
+  _fft_privkey->waitAllOut();
   for (int i = 0; i < 2 * _l; i++) {
     for (int j = 0; j < _m; j++)
-      _fft_preExpandRandom.setInp(random + (i * _m + j) * _N, j);
+      _fft_preExpandRandom->setInp(random + (i * _m + j) * _N, j);
     for (int j = 0; j < _m; j++)
-      _fft_preExpandRandom.setMul(id, j);
-    _fft_preExpandRandom.addAllOut(
+      _fft_preExpandRandom->setMul(id, j);
+    _fft_preExpandRandom->addAllOut(
         out->get_pol_data(partyId * 2 * _l + i, 2 * mainPartyId + 1), id);
   }
-  _fft_preExpandRandom.waitAllOut();
+  _fft_preExpandRandom->waitAllOut();
   // Free all allocated memory
   if (hPreExpand)
     MemoryManagement::freeMM(preExpandCipher);
@@ -420,6 +454,8 @@ TrgswCipher *MpcApplication::expandWithPlainRandom(
   return out;
 }
 TorusInteger MpcApplication::partDec(TrgswCipher *cipher) {
+  if (!_fft_privkey)
+    throw std::runtime_error("ERROR: Must create or import private key");
   // int sizeCipher = cipher.size();
   TorusInteger out = 0;
   if (!cipher || cipher->_N != _N || cipher->_k != 2 * _numParty - 1 ||
@@ -432,10 +468,10 @@ TorusInteger MpcApplication::partDec(TrgswCipher *cipher) {
   TorusInteger *plainWithError =
       (TorusInteger *)MemoryManagement::mallocMM(_N * sizeof(TorusInteger));
   TrlweFunction::getPlain(
-      &_fft_privkey, 0,
+      _fft_privkey, 0,
       cipher->get_pol_data((2 * _numParty - 1) * _l, 2 * _partyId), _N, 1,
       plainWithError);
-  _fft_privkey.waitOut(0);
+  _fft_privkey->waitOut(0);
   // Move raw plain + error from device to host
   MemoryManagement::memcpyMM_d2h(&out, plainWithError, sizeof(TorusInteger));
   // Free all allocated memory

@@ -25,10 +25,10 @@ private:
 
   thesis::TorusInteger *_privkey;
   std::vector<thesis::TrlweCipher *> _pubkey;
-  thesis::BatchedFFT _fft_privkey;
-  thesis::BatchedFFT _fft_pubkey;
-  thesis::BatchedFFT _fft_preExpand;
-  thesis::BatchedFFT _fft_preExpandRandom;
+  thesis::BatchedFFT *_fft_privkey;
+  thesis::BatchedFFT *_fft_pubkey;
+  thesis::BatchedFFT *_fft_preExpand;
+  thesis::BatchedFFT *_fft_preExpandRandom;
   std::vector<void *> _stream;
 
   // Extend
