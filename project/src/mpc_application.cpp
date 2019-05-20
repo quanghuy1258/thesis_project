@@ -430,3 +430,77 @@ bool MpcApplication::finDec(TorusInteger partDecPlain[], size_t numParty,
     *outError = (y < 0.25) ? y : (0.5 - y);
   return (y >= 0.25);
 }
+TrgswCipher *MpcApplication::importExpandedCipher(void *inp) {
+  double *ptr = (double *)inp;
+  if (ptr[0] < 0 || ptr[1] < 0)
+    return nullptr;
+  TrgswCipher *out = new TrgswCipher(_N, 1, _l, 1, ptr[0], ptr[1]);
+  MemoryManagement::memcpyMM_h2d(out->_data, ptr + 2,
+                                 _numParty * _numParty * getSizeMainCipher());
+  return out;
+}
+void MpcApplication::exportExpandedCipher(thesis::TrgswCipher *inp, void *out) {
+  double *ptr = (double *)out;
+  ptr[0] = inp->_sdError;
+  ptr[1] = inp->_varError;
+  MemoryManagement::memcpyMM_d2h(ptr + 2, inp->_data,
+                                 _numParty * _numParty * getSizeMainCipher());
+}
+int MpcApplication::getSizeExpandedCipher() {
+  // sdError | varError | data
+  return 2 * sizeof(double) + _numParty * _numParty * getSizeMainCipher();
+}
+TrgswCipher *MpcApplication::addOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
+  if (!inp_1 || !inp_2)
+    return nullptr;
+  TrgswCipher *out =
+      new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
+                      inp_1->_varError + inp_2->_varError);
+  MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
+                                 _numParty * _numParty * getSizeMainCipher());
+  TorusUtility::addVector((TorusInteger *)out->_data,
+                          (TorusInteger *)inp_2->_data,
+                          _numParty * _numParty * 4 * _l * _N);
+  return out;
+}
+TrgswCipher *MpcApplication::subOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
+  if (!inp_1 || !inp_2)
+    return nullptr;
+  TrgswCipher *out =
+      new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
+                      inp_1->_varError + inp_2->_varError);
+  MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
+                                 _numParty * _numParty * getSizeMainCipher());
+  TorusUtility::subVector((TorusInteger *)out->_data,
+                          (TorusInteger *)inp_2->_data,
+                          _numParty * _numParty * 4 * _l * _N);
+  return out;
+}
+TrgswCipher *MpcApplication::notOp(TrgswCipher *inp) {
+  if (!inp)
+    return nullptr;
+  TrgswCipher *out =
+      new TrgswCipher(_N, 1, _l, 1, inp->_sdError, inp->_varError);
+  out->clear_trgsw_data();
+  TrgswFunction::addMuGadget(1, out);
+  TorusUtility::subVector((TorusInteger *)out->_data,
+                          (TorusInteger *)inp->_data,
+                          _numParty * _numParty * 4 * _l * _N);
+  return out;
+}
+TrgswCipher *MpcApplication::notXorOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
+  if (!inp_1 || !inp_2)
+    return nullptr;
+  TrgswCipher *out =
+      new TrgswCipher(_N, 1, _l, 1, inp_1->_sdError + inp_2->_sdError,
+                      inp_1->_varError + inp_2->_varError);
+  out->clear_trgsw_data();
+  TrgswFunction::addMuGadget(1, out);
+  TorusUtility::subVector((TorusInteger *)out->_data,
+                          (TorusInteger *)inp_1->_data,
+                          _numParty * _numParty * 4 * _l * _N);
+  TorusUtility::subVector((TorusInteger *)out->_data,
+                          (TorusInteger *)inp_2->_data,
+                          _numParty * _numParty * 4 * _l * _N);
+  return out;
+}

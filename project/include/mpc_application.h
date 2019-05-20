@@ -149,6 +149,18 @@ public:
    */
   bool finDec(thesis::TorusInteger partDecPlain[], size_t numParty,
               double *outError);
+
+  // Evaluation
+  thesis::TrgswCipher *importExpandedCipher(void *inp);
+  void exportExpandedCipher(thesis::TrgswCipher *inp, void *out);
+  int getSizeExpandedCipher();
+  thesis::TrgswCipher *addOp(thesis::TrgswCipher *inp_1,
+                             thesis::TrgswCipher *inp_2);
+  thesis::TrgswCipher *subOp(thesis::TrgswCipher *inp_1,
+                             thesis::TrgswCipher *inp_2);
+  thesis::TrgswCipher *notOp(thesis::TrgswCipher *inp);
+  thesis::TrgswCipher *notXorOp(thesis::TrgswCipher *inp_1,
+                                thesis::TrgswCipher *inp_2);
 };
 
 #endif
