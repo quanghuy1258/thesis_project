@@ -195,7 +195,8 @@ void MpcApplication::encrypt(bool msg, void *hMainCipher, void *hRandCipher,
   // Wait all streams
   for (int i = 0; i < 2 * _l * _m + 2; i++)
     Stream::synchronizeS(_stream[i]);
-  // Delete randCipher
+  // Delete all
+  MemoryManagement::freeMM(random);
   if (hRandCipher) {
     for (int i = 0; i < 2 * _l * _m; i++)
       delete randCipher[i];
@@ -629,5 +630,7 @@ TrgswCipher *MpcApplication::mulOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
   }
   // Wait all
   _fft_mul->waitAllOut();
+  // Free all
+  MemoryManagement::freeMM(decomp_ptr);
   return out;
 }

@@ -234,6 +234,7 @@ bool pre_expand() {
     chk = test_pre_expand(privKey, pubKey, preExpand) && chk;
     std::free(pubKey);
     std::free(privKey);
+    std::free(preExpand);
     if (!chk)
       return false;
   }
@@ -256,6 +257,7 @@ bool pre_expand() {
     chk = test_pre_expand(privKey, pubKey, preExpand) && chk;
     std::free(pubKey);
     std::free(privKey);
+    std::free(preExpand);
     if (!chk)
       return false;
   }
@@ -278,6 +280,7 @@ bool pre_expand() {
     chk = test_pre_expand(privKey, pubKey, preExpand) && chk;
     std::free(pubKey);
     std::free(privKey);
+    std::free(preExpand);
     if (!chk)
       return false;
   }
