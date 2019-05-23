@@ -42,19 +42,35 @@ void TrlweFunction::createSample(BatchedFFT *fftWithS, int rowFFT,
     fftWithS->setMul(rowFFT, i);
   fftWithS->addAllOut(data + N * k, rowFFT);
 }
-void TrlweFunction::putPlain(TrlweCipher *sample, TorusInteger *plain,
+void TrlweFunction::putPlain(TrlweCipher *sample, TorusInteger plainScalar,
                              void *streamPtr) {
-  if (!sample || !plain)
+  if (!sample || !plainScalar)
     return;
 #ifdef USING_CUDA
-  cudaPutPlain(sample, plain, streamPtr);
+  cudaPutPlain(sample, plainScalar, streamPtr);
 #else
   Stream::scheduleS(
-      [sample, plain]() {
+      [sample, plainScalar]() {
+        TorusInteger bit = 1;
+        bit <<= 8 * sizeof(TorusInteger) - 1;
+        sample->_data[sample->_N * sample->_k] += plainScalar * bit;
+      },
+      streamPtr);
+#endif
+}
+void TrlweFunction::putPlain(TrlweCipher *sample, TorusInteger *plainPol,
+                             void *streamPtr) {
+  if (!sample || !plainPol)
+    return;
+#ifdef USING_CUDA
+  cudaPutPlain(sample, plainPol, streamPtr);
+#else
+  Stream::scheduleS(
+      [sample, plainPol]() {
         TorusInteger bit = 1;
         bit <<= 8 * sizeof(TorusInteger) - 1;
         for (int i = 0; i < sample->_N; i++)
-          sample->_data[sample->_N * sample->_k + i] += plain[i] * bit;
+          sample->_data[sample->_N * sample->_k + i] += plainPol[i] * bit;
       },
       streamPtr);
 #endif

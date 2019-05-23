@@ -5,13 +5,19 @@
 
 namespace thesis {
 
-__global__ void _cudaPutPlain(int N, TorusInteger *plain,
+__global__ void _cudaPutPlain(TorusInteger plainScalar, TorusInteger *cipher) {
+  TorusInteger bit = 1;
+  bit <<= 8 * sizeof(TorusInteger) - 1;
+  cipher[0] += plainScalar * bit;
+}
+
+__global__ void _cudaPutPlain(int N, TorusInteger *plainPol,
                               TorusInteger *cipher) {
   int _N = blockIdx.x * blockDim.x + threadIdx.x;
   if (_N < N) {
     TorusInteger bit = 1;
     bit <<= 8 * sizeof(TorusInteger) - 1;
-    cipher[_N] += plain[_N] * bit;
+    cipher[_N] += plainPol[_N] * bit;
   }
 }
 
@@ -25,7 +31,16 @@ __global__ void _cudaRoundPlain(TorusInteger *plain, double *abs_err, int N) {
   }
 }
 
-void TrlweFunction::cudaPutPlain(TrlweCipher *sample, TorusInteger *plain,
+void TrlweFunction::cudaPutPlain(TrlweCipher *sample, TorusInteger plainScalar,
+                                 void *streamPtr) {
+  if (streamPtr) {
+    cudaStream_t *s = (cudaStream_t *)streamPtr;
+    _cudaPutPlain<<<1, 1, 0, *s>>>(plainScalar,
+                                   sample->get_pol_data(sample->_k));
+  } else
+    _cudaPutPlain<<<1, 1>>>(plainScalar, sample->get_pol_data(sample->_k));
+}
+void TrlweFunction::cudaPutPlain(TrlweCipher *sample, TorusInteger *plainPol,
                                  void *streamPtr) {
   int threadsPerBlock = 512;
   // _N + 511 = _N + (512 - 1)
@@ -33,10 +48,10 @@ void TrlweFunction::cudaPutPlain(TrlweCipher *sample, TorusInteger *plain,
   if (streamPtr) {
     cudaStream_t *s = (cudaStream_t *)streamPtr;
     _cudaPutPlain<<<numBlocks, threadsPerBlock, 0, *s>>>(
-        sample->_N, plain, sample->get_pol_data(sample->_k));
+        sample->_N, plainPol, sample->get_pol_data(sample->_k));
   } else
     _cudaPutPlain<<<numBlocks, threadsPerBlock>>>(
-        sample->_N, plain, sample->get_pol_data(sample->_k));
+        sample->_N, plainPol, sample->get_pol_data(sample->_k));
 }
 void TrlweFunction::cudaRoundPlain(TorusInteger *plain, double *abs_err, int N,
                                    void *streamPtr) {

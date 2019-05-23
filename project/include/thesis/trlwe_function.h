@@ -9,7 +9,9 @@ namespace thesis {
 class TrlweFunction {
 private:
 #ifdef USING_CUDA
-  static void cudaPutPlain(TrlweCipher *sample, TorusInteger *plain,
+  static void cudaPutPlain(TrlweCipher *sample, TorusInteger plainScalar,
+                           void *streamPtr = nullptr);
+  static void cudaPutPlain(TrlweCipher *sample, TorusInteger *plainPol,
                            void *streamPtr = nullptr);
   static void cudaRoundPlain(TorusInteger *plain, double *abs_err, int N,
                              void *streamPtr = nullptr);
@@ -23,7 +25,9 @@ public:
                            TrlweCipher *cipher);
   static void createSample(BatchedFFT *fftWithS, int rowFFT, TorusInteger *data,
                            int N, int k, double sdError);
-  static void putPlain(TrlweCipher *sample, TorusInteger *plain,
+  static void putPlain(TrlweCipher *sample, TorusInteger plainScalar,
+                       void *streamPtr = nullptr);
+  static void putPlain(TrlweCipher *sample, TorusInteger *plainPol,
                        void *streamPtr = nullptr);
   // Decrypt
   static void getPlain(BatchedFFT *fftWithS, int rowFFT, TrlweCipher *cipher,
