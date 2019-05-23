@@ -3,9 +3,7 @@
 #include "thesis/random.h"
 #include "thesis/stream.h"
 #include "thesis/torus_utility.h"
-#include "thesis/trgsw_cipher.h"
 #include "thesis/trgsw_function.h"
-#include "thesis/trlwe_cipher.h"
 #include "thesis/trlwe_function.h"
 
 #include "mpc_application.h"
@@ -632,4 +630,59 @@ TrgswCipher *MpcApplication::mulOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
   // Free all
   MemoryManagement::freeMM(decomp_ptr);
   return out;
+}
+TrlweCipher *MpcApplication::reduce(TrgswCipher *inp) {
+  if (!inp) {
+    WARNING_CERR("inp is not NULL");
+    return nullptr;
+  }
+  TrlweCipher *out =
+      new TrlweCipher(_N, 2 * _numParty - 1, inp->_sdError, inp->_varError);
+  MemoryManagement::memcpyMM_d2d(out->_data,
+                                 inp->get_trlwe_data((2 * _numParty - 1) * _l),
+                                 getSizeReducedCipher() - 2 * sizeof(double));
+  return out;
+}
+TorusInteger MpcApplication::partDec(TrlweCipher *cipher) {
+  if (!_fft_privkey)
+    throw std::runtime_error("ERROR: Must create or import private key");
+  // Init out value
+  TorusInteger out = 0;
+  if (!cipher || cipher->_N != _N || cipher->_k != 2 * _numParty - 1 ||
+      cipher->_sdError < 0 || cipher->_varError < 0) {
+    WARNING_CERR("Cannot part decrypt");
+    return out;
+  }
+  // Decrypt: get raw plain + error
+  TorusInteger *plainWithError =
+      (TorusInteger *)MemoryManagement::mallocMM(_N * sizeof(TorusInteger));
+  TrlweFunction::getPlain(_fft_privkey, 0, cipher->get_pol_data(2 * _partyId),
+                          _N, 1, plainWithError);
+  _fft_privkey->waitOut(0);
+  // Move raw plain + error from device to host
+  MemoryManagement::memcpyMM_d2h(&out, plainWithError, sizeof(TorusInteger));
+  // Free all allocated memory
+  MemoryManagement::freeMM(plainWithError);
+  return out;
+}
+TrlweCipher *MpcApplication::importReducedCipher(void *inp) {
+  double *ptr = (double *)inp;
+  if (ptr[0] < 0 || ptr[1] < 0) {
+    WARNING_CERR("sdError, varError >= 0");
+    return nullptr;
+  }
+  TrlweCipher *out = new TrlweCipher(_N, 2 * _numParty - 1, ptr[0], ptr[1]);
+  MemoryManagement::memcpyMM_h2d(out->_data, ptr + 2,
+                                 getSizeReducedCipher() - 2 * sizeof(double));
+  return out;
+}
+void MpcApplication::exportReducedCipher(TrlweCipher *inp, void *out) {
+  double *ptr = (double *)out;
+  ptr[0] = inp->_sdError;
+  ptr[1] = inp->_varError;
+  MemoryManagement::memcpyMM_d2h(ptr + 2, inp->_data,
+                                 getSizeReducedCipher() - 2 * sizeof(double));
+}
+int MpcApplication::getSizeReducedCipher() {
+  return 2 * sizeof(double) + 2 * _numParty * _N * sizeof(TorusInteger);
 }

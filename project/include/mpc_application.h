@@ -4,6 +4,8 @@
 #include "thesis/batched_fft.h"
 #include "thesis/declarations.h"
 #include "thesis/load_lib.h"
+#include "thesis/trgsw_cipher.h"
+#include "thesis/trlwe_cipher.h"
 
 class MpcApplication {
 private:
@@ -162,6 +164,17 @@ public:
                                 thesis::TrgswCipher *inp_2);
   thesis::TrgswCipher *mulOp(thesis::TrgswCipher *inp_1,
                              thesis::TrgswCipher *inp_2);
+
+  // Reduction
+  //   Reduce
+  thesis::TrlweCipher *reduce(thesis::TrgswCipher *inp);
+  //  Decrypt
+  thesis::TorusInteger partDec(thesis::TrlweCipher *cipher);
+  //  Import & Export
+  thesis::TrlweCipher *importReducedCipher(void *inp);
+  void exportReducedCipher(thesis::TrlweCipher *inp, void *out);
+  int getSizeReducedCipher();
+  //  Evaluate
 };
 
 #endif
