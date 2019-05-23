@@ -686,3 +686,31 @@ void MpcApplication::exportReducedCipher(TrlweCipher *inp, void *out) {
 int MpcApplication::getSizeReducedCipher() {
   return 2 * sizeof(double) + 2 * _numParty * _N * sizeof(TorusInteger);
 }
+TrlweCipher *MpcApplication::addOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    return nullptr;
+  }
+  TrlweCipher *out =
+      new TrlweCipher(_N, 2 * _numParty - 1, inp_1->_sdError + inp_2->_sdError,
+                      inp_1->_varError + inp_2->_varError);
+  MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
+                                 getSizeReducedCipher() - 2 * sizeof(double));
+  TorusUtility::addVector((TorusInteger *)out->_data,
+                          (TorusInteger *)inp_2->_data, 2 * _numParty * _N);
+  return out;
+}
+TrlweCipher *MpcApplication::subOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    return nullptr;
+  }
+  TrlweCipher *out =
+      new TrlweCipher(_N, 2 * _numParty - 1, inp_1->_sdError + inp_2->_sdError,
+                      inp_1->_varError + inp_2->_varError);
+  MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
+                                 getSizeReducedCipher() - 2 * sizeof(double));
+  TorusUtility::subVector((TorusInteger *)out->_data,
+                          (TorusInteger *)inp_2->_data, 2 * _numParty * _N);
+  return out;
+}

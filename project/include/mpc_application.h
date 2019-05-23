@@ -175,6 +175,10 @@ public:
   void exportReducedCipher(thesis::TrlweCipher *inp, void *out);
   int getSizeReducedCipher();
   //  Evaluate
+  thesis::TrlweCipher *addOp(thesis::TrlweCipher *inp_1,
+                             thesis::TrlweCipher *inp_2);
+  thesis::TrlweCipher *subOp(thesis::TrlweCipher *inp_1,
+                             thesis::TrlweCipher *inp_2);
 };
 
 #endif
