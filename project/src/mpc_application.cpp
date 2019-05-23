@@ -460,7 +460,7 @@ TrgswCipher *MpcApplication::expandWithPlainRandom(
 TorusInteger MpcApplication::partDec(TrgswCipher *cipher) {
   if (!_fft_privkey)
     throw std::runtime_error("ERROR: Must create or import private key");
-  // int sizeCipher = cipher.size();
+  // Init out value
   TorusInteger out = 0;
   if (!cipher || cipher->_N != _N || cipher->_k != 2 * _numParty - 1 ||
       cipher->_l != _l || cipher->_Bgbit != 1 || cipher->_sdError < 0 ||
@@ -482,10 +482,9 @@ TorusInteger MpcApplication::partDec(TrgswCipher *cipher) {
   MemoryManagement::freeMM(plainWithError);
   return out;
 }
-bool MpcApplication::finDec(TorusInteger partDecPlain[], size_t numParty,
-                            double *outError) {
+bool MpcApplication::finDec(TorusInteger partDecPlain[], double *outError) {
   TorusInteger x = 0;
-  for (size_t i = 0; i < numParty; i++)
+  for (int i = 0; i < _numParty; i++)
     x += partDecPlain[i];
   double y = std::abs(x / std::pow(2, 8 * sizeof(TorusInteger)));
   if (outError)

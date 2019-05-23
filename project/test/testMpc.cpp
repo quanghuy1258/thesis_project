@@ -545,7 +545,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain = party_0.finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_0.finDec(partPlain.data(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -559,7 +559,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain = party_0.finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_0.finDec(partPlain.data(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -595,7 +595,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain = party_1.finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_1.finDec(partPlain.data(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -609,7 +609,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain = party_1.finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_1.finDec(partPlain.data(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -645,7 +645,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain = party_2.finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_2.finDec(partPlain.data(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -659,7 +659,7 @@ bool expand_partDec() {
       partPlain[0] = party_0.partDec(expandCipher);
       partPlain[1] = party_1.partDec(expandCipher);
       partPlain[2] = party_2.partDec(expandCipher);
-      plain = party_2.finDec(partPlain.data(), partPlain.size(), &error);
+      plain = party_2.finDec(partPlain.data(), &error);
       chk = (plain == oriPlain) && chk;
       chk = (error < 0.125) && chk;
       std::cout << plain << " " << oriPlain << " " << error << std::endl;
@@ -761,9 +761,7 @@ bool test_operator() {
     partPlain[0] = party_0.partDec(cipher_0);
     partPlain[1] = party_1.partDec(cipher_0);
     partPlain[2] = party_2.partDec(cipher_0);
-    chk = (party_0.finDec(partPlain.data(), partPlain.size(), &error) ==
-           plain[0]) &&
-          chk;
+    chk = (party_0.finDec(partPlain.data(), &error) == plain[0]) && chk;
     std::cout << error << " " << cipher_0->_sdError << " "
               << std::sqrt(cipher_0->_varError) << std::endl;
   }
@@ -771,9 +769,7 @@ bool test_operator() {
     partPlain[0] = party_0.partDec(cipher_1);
     partPlain[1] = party_1.partDec(cipher_1);
     partPlain[2] = party_2.partDec(cipher_1);
-    chk = (party_1.finDec(partPlain.data(), partPlain.size(), &error) ==
-           plain[1]) &&
-          chk;
+    chk = (party_1.finDec(partPlain.data(), &error) == plain[1]) && chk;
     std::cout << error << " " << cipher_1->_sdError << " "
               << std::sqrt(cipher_1->_varError) << std::endl;
   }
@@ -786,9 +782,7 @@ bool test_operator() {
       oriPlain = false;
     else
       oriPlain = true;
-    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
-           oriPlain) &&
-          chk;
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
     delete cipher;
@@ -802,9 +796,7 @@ bool test_operator() {
       oriPlain = false;
     else
       oriPlain = true;
-    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
-           oriPlain) &&
-          chk;
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
     delete cipher;
@@ -814,9 +806,7 @@ bool test_operator() {
     partPlain[0] = party_0.partDec(cipher);
     partPlain[1] = party_1.partDec(cipher);
     partPlain[2] = party_2.partDec(cipher);
-    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) !=
-           plain[0]) &&
-          chk;
+    chk = (party_2.finDec(partPlain.data(), &error) != plain[0]) && chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
     delete cipher;
@@ -826,9 +816,7 @@ bool test_operator() {
     partPlain[0] = party_0.partDec(cipher);
     partPlain[1] = party_1.partDec(cipher);
     partPlain[2] = party_2.partDec(cipher);
-    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) !=
-           plain[1]) &&
-          chk;
+    chk = (party_2.finDec(partPlain.data(), &error) != plain[1]) && chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
     delete cipher;
@@ -842,9 +830,7 @@ bool test_operator() {
       oriPlain = true;
     else
       oriPlain = false;
-    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
-           oriPlain) &&
-          chk;
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
     delete cipher;
@@ -861,9 +847,7 @@ bool test_operator() {
       oriPlain = true;
     else
       oriPlain = false;
-    chk = (party_2.finDec(partPlain.data(), partPlain.size(), &error) ==
-           oriPlain) &&
-          chk;
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
     PRINT_TIMING(Mul);

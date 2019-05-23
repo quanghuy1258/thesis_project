@@ -144,12 +144,10 @@ public:
   thesis::TorusInteger partDec(thesis::TrgswCipher *cipher);
   /**
    * @param partDecPlain: array of outputs of partDec
-   * @param numParty: number of parties
    * @param outError: pointer absolute value of error (null if not want to get
    *                  error)
    */
-  bool finDec(thesis::TorusInteger partDecPlain[], size_t numParty,
-              double *outError);
+  bool finDec(thesis::TorusInteger partDecPlain[], double *outError);
 
   // Evaluation
   thesis::TrgswCipher *importExpandedCipher(void *inp);
