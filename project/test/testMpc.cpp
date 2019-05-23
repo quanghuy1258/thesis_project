@@ -3,6 +3,7 @@
 #include "mpc_application.h"
 #include "thesis/batched_fft.h"
 #include "thesis/memory_management.h"
+#include "thesis/profiling_timer.h"
 #include "thesis/torus_utility.h"
 #include "thesis/trgsw_cipher.h"
 #include "thesis/trgsw_function.h"
@@ -13,8 +14,8 @@ using namespace thesis;
 const int numParty = 3;
 const int N = 1024;
 const int m = 6;
-const int l = 40;
-const double sdFresh = 1e-15;
+const int l = 30;
+const double sdFresh = 1e-9;
 
 bool is_file_exist(const char *fileName);
 void save_data(const char *fileName, void *buffer, int sz);
@@ -849,7 +850,10 @@ bool test_operator() {
     delete cipher;
   }
   {
+    DECLARE_TIMING(Mul);
+    START_TIMING(Mul);
     auto cipher = party_2.mulOp(cipher_0, cipher_1);
+    STOP_TIMING(Mul);
     partPlain[0] = party_0.partDec(cipher);
     partPlain[1] = party_1.partDec(cipher);
     partPlain[2] = party_2.partDec(cipher);
@@ -862,6 +866,7 @@ bool test_operator() {
           chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
+    PRINT_TIMING(Mul);
     delete cipher;
   }
   delete cipher_0;

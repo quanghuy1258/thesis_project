@@ -30,6 +30,14 @@ SET (CMAKE_CXX_STANDARD 14)
 SET (CMAKE_CXX_STANDARD_REQUIRED ON)
 SET (CMAKE_CXX_FLAGS "-O3 -Wall")
 
+# 32 bit mode
+if(NOT USING_32BIT)
+	MESSAGE (STATUS "USING_32BIT=OFF --> Enable 64-bit build mode")
+else()
+	MESSAGE (STATUS "USING_32BIT=ON --> Enable 32-bit build mode")
+	ADD_DEFINITIONS (-DUSING_32BIT)
+endif()
+
 # GPU support
 INCLUDE (CheckLanguage)
 if(NOT CPU_ONLY)
