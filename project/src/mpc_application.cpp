@@ -522,8 +522,7 @@ TrgswCipher *MpcApplication::addOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
                                      inp_1->_varError + inp_2->_varError);
   MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
                                  _numParty * _numParty * getSizeMainCipher());
-  TorusUtility::addVector((TorusInteger *)out->_data,
-                          (TorusInteger *)inp_2->_data,
+  TorusUtility::addVector(out->_data, inp_2->_data,
                           _numParty * _numParty * 4 * _l * _N);
   return out;
 }
@@ -537,8 +536,7 @@ TrgswCipher *MpcApplication::subOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
                                      inp_1->_varError + inp_2->_varError);
   MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
                                  _numParty * _numParty * getSizeMainCipher());
-  TorusUtility::subVector((TorusInteger *)out->_data,
-                          (TorusInteger *)inp_2->_data,
+  TorusUtility::subVector(out->_data, inp_2->_data,
                           _numParty * _numParty * 4 * _l * _N);
   return out;
 }
@@ -551,8 +549,7 @@ TrgswCipher *MpcApplication::notOp(TrgswCipher *inp) {
                                      inp->_sdError, inp->_varError);
   out->clear_trgsw_data();
   TrgswFunction::addMuGadget(1, out);
-  TorusUtility::subVector((TorusInteger *)out->_data,
-                          (TorusInteger *)inp->_data,
+  TorusUtility::subVector(out->_data, inp->_data,
                           _numParty * _numParty * 4 * _l * _N);
   return out;
 }
@@ -566,11 +563,9 @@ TrgswCipher *MpcApplication::notXorOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
                                      inp_1->_varError + inp_2->_varError);
   out->clear_trgsw_data();
   TrgswFunction::addMuGadget(1, out);
-  TorusUtility::subVector((TorusInteger *)out->_data,
-                          (TorusInteger *)inp_1->_data,
+  TorusUtility::subVector(out->_data, inp_1->_data,
                           _numParty * _numParty * 4 * _l * _N);
-  TorusUtility::subVector((TorusInteger *)out->_data,
-                          (TorusInteger *)inp_2->_data,
+  TorusUtility::subVector(out->_data, inp_2->_data,
                           _numParty * _numParty * 4 * _l * _N);
   return out;
 }
@@ -696,8 +691,7 @@ TrlweCipher *MpcApplication::addOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
                       inp_1->_varError + inp_2->_varError);
   MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
                                  getSizeReducedCipher() - 2 * sizeof(double));
-  TorusUtility::addVector((TorusInteger *)out->_data,
-                          (TorusInteger *)inp_2->_data, 2 * _numParty * _N);
+  TorusUtility::addVector(out->_data, inp_2->_data, 2 * _numParty * _N);
   return out;
 }
 TrlweCipher *MpcApplication::subOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
@@ -710,7 +704,32 @@ TrlweCipher *MpcApplication::subOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
                       inp_1->_varError + inp_2->_varError);
   MemoryManagement::memcpyMM_d2d(out->_data, inp_1->_data,
                                  getSizeReducedCipher() - 2 * sizeof(double));
-  TorusUtility::subVector((TorusInteger *)out->_data,
-                          (TorusInteger *)inp_2->_data, 2 * _numParty * _N);
+  TorusUtility::subVector(out->_data, inp_2->_data, 2 * _numParty * _N);
+  return out;
+}
+TrlweCipher *MpcApplication::notOp(TrlweCipher *inp) {
+  if (!inp) {
+    WARNING_CERR("inp is not NULL");
+    return nullptr;
+  }
+  TrlweCipher *out =
+      new TrlweCipher(_N, 2 * _numParty - 1, inp->_sdError, inp->_varError);
+  out->clear_trlwe_data();
+  TrlweFunction::putPlain(out, 1);
+  TorusUtility::subVector(out->_data, inp->_data, 2 * _numParty * _N);
+  return out;
+}
+TrlweCipher *MpcApplication::notXorOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    return nullptr;
+  }
+  TrlweCipher *out =
+      new TrlweCipher(_N, 2 * _numParty - 1, inp_1->_sdError + inp_2->_sdError,
+                      inp_1->_varError + inp_2->_varError);
+  out->clear_trlwe_data();
+  TrlweFunction::putPlain(out, 1);
+  TorusUtility::subVector(out->_data, inp_1->_data, 2 * _numParty * _N);
+  TorusUtility::subVector(out->_data, inp_2->_data, 2 * _numParty * _N);
   return out;
 }

@@ -179,6 +179,9 @@ public:
                              thesis::TrlweCipher *inp_2);
   thesis::TrlweCipher *subOp(thesis::TrlweCipher *inp_1,
                              thesis::TrlweCipher *inp_2);
+  thesis::TrlweCipher *notOp(thesis::TrlweCipher *inp);
+  thesis::TrlweCipher *notXorOp(thesis::TrlweCipher *inp_1,
+                                thesis::TrlweCipher *inp_2);
 };
 
 #endif

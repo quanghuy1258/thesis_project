@@ -994,6 +994,48 @@ bool reduce() {
     delete red_cipher_1;
     delete cipher;
   }
+  {
+    auto red_cipher_0 = party_0.reduce(cipher_0);
+    auto cipher = party_2.notOp(red_cipher_0);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    chk = (party_2.finDec(partPlain.data(), &error) != plain[0]) && chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete red_cipher_0;
+    delete cipher;
+  }
+  {
+    auto red_cipher_1 = party_1.reduce(cipher_1);
+    auto cipher = party_2.notOp(red_cipher_1);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    chk = (party_2.finDec(partPlain.data(), &error) != plain[1]) && chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete red_cipher_1;
+    delete cipher;
+  }
+  {
+    auto red_cipher_0 = party_0.reduce(cipher_0);
+    auto red_cipher_1 = party_1.reduce(cipher_1);
+    auto cipher = party_2.notXorOp(red_cipher_0, red_cipher_1);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    if ((plain[0] && plain[1]) || (!plain[0] && !plain[1]))
+      oriPlain = true;
+    else
+      oriPlain = false;
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete red_cipher_0;
+    delete red_cipher_1;
+    delete cipher;
+  }
   delete cipher_0;
   delete cipher_1;
   return chk;
