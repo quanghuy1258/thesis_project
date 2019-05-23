@@ -733,3 +733,46 @@ TrlweCipher *MpcApplication::notXorOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
   TorusUtility::subVector(out->_data, inp_2->_data, 2 * _numParty * _N);
   return out;
 }
+TrlweCipher *MpcApplication::mulOp(TrlweCipher *inp_1, TrgswCipher *inp_2) {
+  if (!inp_1 || !inp_2) {
+    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    return nullptr;
+  }
+  if (!_fft_mul)
+    _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
+  // Prepare FFT for multiplication
+  for (int i = 0; i < 2 * _l * _numParty; i++) {
+    for (int j = 0; j < 2 * _numParty; j++)
+      _fft_mul->setInp(inp_2->get_pol_data(i, j), j, i);
+  }
+  // Init output
+  double e_dec = std::pow(2, -_l - 1);
+  //   sdError = 2 * l * numParty * N * sd2 + numParty * (N + 1) * e_dec
+  //             + sd1
+  //   varError = 2 * l * numParty * N * var2 + numParty * (N + 1) * (e_dec ^ 2)
+  //              + var1
+  TrlweCipher *out = new TrlweCipher(
+      _N, 2 * _numParty - 1,
+      2 * _l * _numParty * _N * inp_2->_sdError + _numParty * (_N + 1) * e_dec +
+          inp_1->_sdError,
+      2 * _l * _numParty * _N * inp_2->_varError +
+          _numParty * (_N + 1) * e_dec * e_dec + inp_1->_varError);
+  out->clear_trlwe_data();
+  // Decomposition and multiplication
+  TorusInteger *decomp_ptr = (TorusInteger *)MemoryManagement::mallocMM(
+      2 * _l * _numParty * _N * sizeof(TorusInteger));
+  Decomposition::onlyDecomp(inp_1, inp_2, decomp_ptr);
+  for (int i = 0; i < 2 * _l * _numParty; i++)
+    _fft_mul->setInp(decomp_ptr + i * _N, i);
+  for (int i = 0; i < 2 * _numParty; i++) {
+    for (int j = 0; j < 2 * _l * _numParty; j++)
+      _fft_mul->setMul(i, j);
+  }
+  for (int i = 0; i < 2 * _numParty; i++)
+    _fft_mul->addAllOut(out->get_pol_data(i), i);
+  // Wait all
+  _fft_mul->waitAllOut();
+  // Free all
+  MemoryManagement::freeMM(decomp_ptr);
+  return out;
+}

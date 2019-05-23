@@ -182,6 +182,8 @@ public:
   thesis::TrlweCipher *notOp(thesis::TrlweCipher *inp);
   thesis::TrlweCipher *notXorOp(thesis::TrlweCipher *inp_1,
                                 thesis::TrlweCipher *inp_2);
+  thesis::TrlweCipher *mulOp(thesis::TrlweCipher *inp_1,
+                             thesis::TrgswCipher *inp_2);
 };
 
 #endif

@@ -1036,6 +1036,26 @@ bool reduce() {
     delete red_cipher_1;
     delete cipher;
   }
+  {
+    DECLARE_TIMING(Mul);
+    auto red_cipher_0 = party_0.reduce(cipher_0);
+    START_TIMING(Mul);
+    auto cipher = party_2.mulOp(red_cipher_0, cipher_1);
+    STOP_TIMING(Mul);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    if (plain[0] && plain[1])
+      oriPlain = true;
+    else
+      oriPlain = false;
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    PRINT_TIMING(Mul);
+    delete red_cipher_0;
+    delete cipher;
+  }
   delete cipher_0;
   delete cipher_1;
   return chk;
