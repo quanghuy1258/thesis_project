@@ -11,6 +11,21 @@ void load_data(const std::string &fileName, void *buffer, int sz) {
   f.close();
 }
 
+// Simple circuit for debugging
+void xorAll(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
+            std::vector<thesis::TrlweCipher *> &out, MpcApplication &party) {
+  for (size_t i = 0; i < out.size(); i++) {
+    out[i] = party.reduce(inp[0][i]);
+    for (size_t j = 1; j < inp.size(); j++) {
+      auto cipher_inp = party.reduce(inp[j][i]);
+      auto cipher_out = out[i];
+      out[i] = party.addOp(cipher_out, cipher_inp);
+      delete cipher_inp;
+      delete cipher_out;
+    }
+  }
+}
+
 // Demo
 int main(int argc, char *argv[]) {
 #ifdef USING_32BIT
@@ -126,7 +141,7 @@ int main(int argc, char *argv[]) {
   }
   // Free all pre_expand
   for (int i = 0; i < numParty; i++) {
-    if (i == idParty)
+    if (i == idParty || !pre_expand_list[i])
       continue;
     std::free(pre_expand_list[i]);
     pre_expand_list[i] = nullptr;
@@ -136,7 +151,7 @@ int main(int argc, char *argv[]) {
             << std::endl;
   std::cout << "INFO: Press ENTER to continue..." << std::endl;
   std::cin.get();
-  // Import all cipher
+  // Import all input cipher
   std::vector<std::vector<thesis::TrgswCipher *>> cipher_list(numParty);
   for (int i = 0; i < numParty; i++) {
     cipher_list[i].resize(8, nullptr);
@@ -151,7 +166,10 @@ int main(int argc, char *argv[]) {
       std::free(cipher_mem);
     }
   }
-  // Free all cipher
+  // Evaluation
+  std::vector<thesis::TrlweCipher *> out_cipher_list(8, nullptr);
+  xorAll(cipher_list, out_cipher_list, party);
+  // Free all input cipher
   for (int i = 0; i < numParty; i++) {
     for (int j = 0; j < 8; j++) {
       if (cipher_list[i][j]) {
@@ -160,5 +178,41 @@ int main(int argc, char *argv[]) {
       }
     }
   }
+  // Part decrypt and export result
+  for (int i = 0; i < 8; i++) {
+    thesis::TorusInteger out = party.partDec(out_cipher_list[i]);
+    std::string fileName;
+    fileName = "output_";
+    fileName += std::to_string(i) + "_";
+    fileName += argv[1];
+    save_data(fileName, &out, sizeof(out));
+  }
+  // Free output cipher
+  for (int i = 0; i < 8; i++) {
+    if (out_cipher_list[i]) {
+      delete out_cipher_list[i];
+      out_cipher_list[i] = nullptr;
+    }
+  }
+  // Wait for all parties to part decrypt
+  std::cout << "INFO: Wait for all parties to part decrypt" << std::endl;
+  std::cout << "INFO: Press ENTER to continue..." << std::endl;
+  std::cin.get();
+  // Final decrypt and print result
+  int res = 0;
+  for (int i = 7; i >= 0; i--) {
+    std::vector<thesis::TorusInteger> out_list(numParty);
+    std::string fileName;
+    fileName = "output_";
+    fileName += std::to_string(i) + "_";
+    for (int j = 0; j < numParty; j++)
+      load_data(fileName + std::to_string(j), &out_list[j],
+                sizeof(out_list[j]));
+    bool msg = party.finDec(out_list.data(), nullptr);
+    res <<= 1;
+    if (msg)
+      res += 1;
+  }
+  std::cout << "INFO: Result is " << res << std::endl;
   return 0;
 }
