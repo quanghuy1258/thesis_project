@@ -1,6 +1,8 @@
 #include "mpc_application.h"
 #include "thesis/profiling_timer.h"
 
+#define NUM_BIT 3
+
 #ifdef TEMPORARY_DEMO
 void save_data(const std::string &fileName, void *buffer, int sz) {
   std::ofstream f(fileName, std::ifstream::binary);
@@ -51,7 +53,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "ERROR: id_party must be an integer" << std::endl;
   }
   try {
-    plaintext = std::stoi(argv[2]) & 0xff;
+    plaintext = std::stoi(argv[2]) & ((1 << NUM_BIT) - 1);
   } catch (const std::invalid_argument &ia) {
     std::cerr << "Invalid argument: " << ia.what() << std::endl;
     std::cerr << "ERROR: plaintext must be an integer" << std::endl;
@@ -118,7 +120,7 @@ int main(int argc, char *argv[]) {
     load_data(fileName, pre_expand_list[i], party.getSizePubkey());
   }
   // Create ciphertexts and self-expand
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < NUM_BIT; i++) {
     bool msg = (plaintext >> i) & 1;
     void *main_cipher = std::malloc(party.getSizeMainCipher());
     void *random = std::malloc(party.getSizeRandom());
@@ -152,8 +154,8 @@ int main(int argc, char *argv[]) {
   // Import all input cipher
   std::vector<std::vector<thesis::TrgswCipher *>> cipher_list(numParty);
   for (int i = 0; i < numParty; i++) {
-    cipher_list[i].resize(8, nullptr);
-    for (int j = 0; j < 8; j++) {
+    cipher_list[i].resize(NUM_BIT, nullptr);
+    for (int j = 0; j < NUM_BIT; j++) {
       void *cipher_mem = std::malloc(party.getSizeExpandedCipher());
       std::string fileName;
       fileName = "cipher_";
@@ -165,11 +167,11 @@ int main(int argc, char *argv[]) {
     }
   }
   // Evaluation
-  std::vector<thesis::TrlweCipher *> out_cipher_list(8, nullptr);
+  std::vector<thesis::TrlweCipher *> out_cipher_list(NUM_BIT, nullptr);
   xorAll(cipher_list, out_cipher_list, party);
   // Free all input cipher
   for (int i = 0; i < numParty; i++) {
-    for (int j = 0; j < 8; j++) {
+    for (int j = 0; j < NUM_BIT; j++) {
       if (cipher_list[i][j]) {
         delete cipher_list[i][j];
         cipher_list[i][j] = nullptr;
@@ -177,7 +179,7 @@ int main(int argc, char *argv[]) {
     }
   }
   // Part decrypt and export result
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < NUM_BIT; i++) {
     thesis::TorusInteger out = party.partDec(out_cipher_list[i]);
     std::string fileName;
     fileName = "output_";
@@ -186,7 +188,7 @@ int main(int argc, char *argv[]) {
     save_data(fileName, &out, sizeof(out));
   }
   // Free output cipher
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < NUM_BIT; i++) {
     if (out_cipher_list[i]) {
       delete out_cipher_list[i];
       out_cipher_list[i] = nullptr;
@@ -198,7 +200,7 @@ int main(int argc, char *argv[]) {
   std::cin.get();
   // Final decrypt and print result
   int res = 0;
-  for (int i = 7; i >= 0; i--) {
+  for (int i = NUM_BIT - 1; i >= 0; i--) {
     std::vector<thesis::TorusInteger> out_list(numParty);
     std::string fileName;
     fileName = "output_";
@@ -233,8 +235,8 @@ void maxPairParty(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
   DECLARE_TIMING(Debug);
   START_TIMING(Debug);
   {
-    auto notA = party.notOp(inp[partyA][7]);
-    auto BAndNotA = party.mulOp(inp[partyB][7], notA);
+    auto notA = party.notOp(inp[partyA][NUM_BIT - 1]);
+    auto BAndNotA = party.mulOp(inp[partyB][NUM_BIT - 1], notA);
     auto notBOrA = party.notOp(BAndNotA);
     if (out[partyA]) {
       auto temp = out[partyA];
@@ -253,8 +255,8 @@ void maxPairParty(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
   PRINT_TIMING(Debug);
   START_TIMING(Debug);
   {
-    auto notB = party.notOp(inp[partyB][7]);
-    auto AAndNotB = party.mulOp(inp[partyA][7], notB);
+    auto notB = party.notOp(inp[partyB][NUM_BIT - 1]);
+    auto AAndNotB = party.mulOp(inp[partyA][NUM_BIT - 1], notB);
     auto notAOrB = party.notOp(AAndNotB);
     if (out[partyB]) {
       auto temp = out[partyB];
@@ -272,7 +274,7 @@ void maxPairParty(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
             << std::sqrt(out[partyB]->_varError) << std::endl;
   PRINT_TIMING(Debug);
   thesis::TrgswCipher *Z = nullptr;
-  for (int i = 7; i >= 1; i--) {
+  for (int i = NUM_BIT - 1; i >= 1; i--) {
     START_TIMING(Debug);
     auto notAxorB = party.notXorOp(inp[partyA][i], inp[partyB][i]);
     if (Z) {
@@ -373,7 +375,7 @@ int main(int argc, char *argv[]) {
     std::cerr << "ERROR: id_party must be an integer" << std::endl;
   }
   try {
-    plaintext = std::stoi(argv[2]) & 0xff;
+    plaintext = std::stoi(argv[2]) & ((1 << NUM_BIT) - 1);
   } catch (const std::invalid_argument &ia) {
     std::cerr << "Invalid argument: " << ia.what() << std::endl;
     std::cerr << "ERROR: plaintext must be an integer" << std::endl;
@@ -440,7 +442,7 @@ int main(int argc, char *argv[]) {
     load_data(fileName, pre_expand_list[i], party.getSizePubkey());
   }
   // Create ciphertexts and self-expand
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < NUM_BIT; i++) {
     bool msg = (plaintext >> i) & 1;
     void *main_cipher = std::malloc(party.getSizeMainCipher());
     void *random = std::malloc(party.getSizeRandom());
@@ -474,8 +476,8 @@ int main(int argc, char *argv[]) {
   // Import all input cipher
   std::vector<std::vector<thesis::TrgswCipher *>> cipher_list(numParty);
   for (int i = 0; i < numParty; i++) {
-    cipher_list[i].resize(8, nullptr);
-    for (int j = 0; j < 8; j++) {
+    cipher_list[i].resize(NUM_BIT, nullptr);
+    for (int j = 0; j < NUM_BIT; j++) {
       void *cipher_mem = std::malloc(party.getSizeExpandedCipher());
       std::string fileName;
       fileName = "cipher_";
@@ -491,7 +493,7 @@ int main(int argc, char *argv[]) {
   maxAll(cipher_list, out_cipher_list, party);
   // Free all input cipher
   for (int i = 0; i < numParty; i++) {
-    for (int j = 0; j < 8; j++) {
+    for (int j = 0; j < NUM_BIT; j++) {
       if (cipher_list[i][j]) {
         delete cipher_list[i][j];
         cipher_list[i][j] = nullptr;
