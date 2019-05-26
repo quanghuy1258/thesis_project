@@ -336,10 +336,14 @@ void maxPairParty(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
 }
 void maxAll(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
             std::vector<thesis::TrlweCipher *> &out, MpcApplication &party) {
+  DECLARE_TIMING(Full);
+  START_TIMING(Full);
   for (size_t i = 0; i < out.size(); i++) {
     for (size_t j = i + 1; j < out.size(); j++)
       maxPairParty(inp, out, party, i, j);
   }
+  STOP_TIMING(Full);
+  PRINT_TIMING(Full);
 }
 
 // Demo
