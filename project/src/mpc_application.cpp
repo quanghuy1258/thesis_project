@@ -847,3 +847,59 @@ TrlweCipher *MpcApplication::cMux(TrgswCipher *C, TrlweCipher *d_1,
   MemoryManagement::freeMM(decomp_ptr);
   return out;
 }
+TrlweCipher *MpcApplication::rotate(TrlweCipher *inp, int deg) {
+  if (!inp) {
+    WARNING_CERR("inp must be not NULL");
+    return nullptr;
+  }
+  TrlweCipher *out =
+      new TrlweCipher(inp->_N, inp->_k, inp->_sdError, inp->_varError);
+  TrlweFunction::rotate(out, inp, deg);
+  return out;
+}
+TrlweCipher *MpcApplication::blindRotate(TrlweCipher *inp, TrgswCipher *cond,
+                                         int deg) {
+  if (!inp || !cond) {
+    WARNING_CERR("inp and cond must be not NULL");
+    return nullptr;
+  }
+  if (!_fft_mul)
+    _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
+  // Prepare FFT for multiplication
+  for (int i = 0; i < 2 * _l * _numParty; i++) {
+    for (int j = 0; j < 2 * _numParty; j++)
+      _fft_mul->setInp(cond->get_pol_data(i, j), j, i);
+  }
+  // Init output
+  double e_dec = std::pow(2, -_l - 1);
+  //   sdError = 2 * l * numParty * N * sdCond
+  //             + numParty * (N + 1) * e_dec + sdInp
+  //   varError = 2 * l * numParty * N * varCond
+  //              + numParty * (N + 1) * (e_dec ^ 2) + varInp
+  TrlweCipher *out = new TrlweCipher(
+      _N, 2 * _numParty - 1,
+      2 * _l * _numParty * _N * cond->_sdError + _numParty * (_N + 1) * e_dec +
+          inp->_sdError,
+      2 * _l * _numParty * _N * cond->_varError +
+          _numParty * (_N + 1) * e_dec * e_dec + inp->_varError);
+  out->clear_trlwe_data();
+  // Decomposition for blind rotation and multiplication
+  TorusInteger *decomp_ptr = (TorusInteger *)MemoryManagement::mallocMM(
+      2 * _l * _numParty * _N * sizeof(TorusInteger));
+  Decomposition::forBlindRotate(inp, cond, deg, decomp_ptr);
+  for (int i = 0; i < 2 * _l * _numParty; i++)
+    _fft_mul->setInp(decomp_ptr + i * _N, i);
+  for (int i = 0; i < 2 * _numParty; i++) {
+    for (int j = 0; j < 2 * _l * _numParty; j++)
+      _fft_mul->setMul(i, j);
+  }
+  for (int i = 0; i < 2 * _numParty; i++)
+    _fft_mul->addAllOut(out->get_pol_data(i), i);
+  // Wait all
+  _fft_mul->waitAllOut();
+  // out += inp
+  TorusUtility::addVector(out->_data, inp->_data, 2 * _numParty * _N);
+  // Free all
+  MemoryManagement::freeMM(decomp_ptr);
+  return out;
+}

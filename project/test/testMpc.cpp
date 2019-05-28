@@ -1105,6 +1105,22 @@ bool reduce() {
     delete red_cipher_1;
     delete cipher;
   }
+  {
+    auto temp_cipher = party_2.pseudoCipher(true);
+    auto cipher = party_2.blindRotate(temp_cipher, cipher_0, 1);
+    delete temp_cipher;
+    temp_cipher = cipher;
+    cipher = party_2.blindRotate(temp_cipher, cipher_1, -1);
+    delete temp_cipher;
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    oriPlain = ((plain[0] && plain[1]) || (!plain[0] && !plain[1]));
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
   delete cipher_0;
   delete cipher_1;
   delete cipher_2;

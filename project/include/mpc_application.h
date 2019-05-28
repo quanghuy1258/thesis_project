@@ -188,8 +188,14 @@ public:
   // Packing
   thesis::TrlweCipher *pseudoCipher(bool msgScalar);
   thesis::TrlweCipher *pseudoCipher(bool msgPol[]);
+  //   output = (C) ? d_1 : d_0
   thesis::TrlweCipher *cMux(thesis::TrgswCipher *C, thesis::TrlweCipher *d_1,
                             thesis::TrlweCipher *d_0);
+  //   output = input * X^deg
+  thesis::TrlweCipher *rotate(thesis::TrlweCipher *inp, int deg);
+  //   output = (cond) ? (input * X^deg) : input
+  thesis::TrlweCipher *blindRotate(thesis::TrlweCipher *inp,
+                                   thesis::TrgswCipher *cond, int deg);
 };
 
 #endif
