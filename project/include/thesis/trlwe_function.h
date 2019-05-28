@@ -15,6 +15,8 @@ private:
                            void *streamPtr = nullptr);
   static void cudaRoundPlain(TorusInteger *plain, double *abs_err, int N,
                              void *streamPtr = nullptr);
+  static void cudaRotate(TorusInteger *out, TorusInteger *inp, int N, int k,
+                         int deg, void *streamPtr = nullptr);
 #endif
 
 public:
@@ -36,6 +38,13 @@ public:
                        int N, int k, TorusInteger *plainWithError);
   static void roundPlain(TorusInteger *plain, double *abs_err, int N,
                          void *streamPtr = nullptr);
+
+  // Rotation
+  //   out = inp * X^deg
+  static void rotate(TorusInteger *out, TorusInteger *inp, int N, int k,
+                     int deg, void *streamPtr = nullptr);
+  static void rotate(TrlweCipher *out, TrlweCipher *inp, int deg,
+                     void *streamPtr = nullptr);
 };
 
 } // namespace thesis

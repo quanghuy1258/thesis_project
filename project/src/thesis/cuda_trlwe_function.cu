@@ -31,6 +31,20 @@ __global__ void _cudaRoundPlain(TorusInteger *plain, double *abs_err, int N) {
   }
 }
 
+__global__ void _cudaRotate(TorusInteger *out, TorusInteger *inp, int N, int k,
+                            int deg) {
+  int _N = blockIdx.x * blockDim.x + threadIdx.x;
+  int _k = blockIdx.y * blockDim.y + threadIdx.y;
+  if (_N < N && _k <= k) {
+    if (_N >= deg)
+      out[_k * N + _N] = inp[_k * N + _N - deg];
+    else if (_N + N >= deg)
+      out[_k * N + _N] = -inp[_k * N + _N + N - deg];
+    else
+      out[_k * N + _N] = inp[_k * N + _N + N * 2 - deg];
+  }
+}
+
 void TrlweFunction::cudaPutPlain(TrlweCipher *sample, TorusInteger plainScalar,
                                  void *streamPtr) {
   if (streamPtr) {
@@ -63,6 +77,17 @@ void TrlweFunction::cudaRoundPlain(TorusInteger *plain, double *abs_err, int N,
     _cudaRoundPlain<<<numBlocks, threadsPerBlock, 0, *s>>>(plain, abs_err, N);
   } else
     _cudaRoundPlain<<<numBlocks, threadsPerBlock>>>(plain, abs_err, N);
+}
+void TrlweFunction::cudaRotate(TorusInteger *out, TorusInteger *inp, int N,
+                               int k, int deg, void *streamPtr) {
+  int threadsPerBlock = 512;
+  // N + 511 = _N + (512 - 1)
+  dim3 numBlocks((N + 511) / 512, k + 1);
+  if (streamPtr) {
+    cudaStream_t *s = (cudaStream_t *)streamPtr;
+    _cudaRotate<<<numBlocks, threadsPerBlock, 0, *s>>>(out, inp, N, k, deg);
+  } else
+    _cudaRotate<<<numBlocks, threadsPerBlock>>>(out, inp, N, k, deg);
 }
 
 } // namespace thesis

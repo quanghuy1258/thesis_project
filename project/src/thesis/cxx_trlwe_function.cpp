@@ -116,5 +116,34 @@ void TrlweFunction::roundPlain(TorusInteger *plain, double *abs_err, int N,
       streamPtr);
 #endif
 }
+void TrlweFunction::rotate(TorusInteger *out, TorusInteger *inp, int N, int k,
+                           int deg, void *streamPtr) {
+  if (!out || !inp || N < 2 || (N & (N - 1)) || k < 1)
+    return;
+  int Nx2 = N * 2;
+  deg = (deg % Nx2 + Nx2) % Nx2;
+#ifdef USING_CUDA
+  cudaRotate(out, inp, N, k, deg, streamPtr);
+#else
+  Stream::scheduleS(
+      [out, inp, N, deg](int parallelId, int parallel) {
+        for (int i = 0; i < N; i++) {
+          if (i >= deg)
+            out[N * parallelId + i] = inp[N * parallelId + i - deg];
+          else if (i + N >= deg)
+            out[N * parallelId + i] = -inp[N * parallelId + i + N - deg];
+          else
+            out[N * parallelId + i] = inp[N * parallelId + i + N * 2 - deg];
+        }
+      },
+      k + 1, streamPtr);
+#endif
+}
+void TrlweFunction::rotate(TrlweCipher *out, TrlweCipher *inp, int deg,
+                           void *streamPtr) {
+  if (!out || !inp || out->_N != inp->_N || out->_k != inp->_k)
+    return;
+  rotate(out->_data, inp->_data, inp->_N, inp->_k, deg, streamPtr);
+}
 
 } // namespace thesis
