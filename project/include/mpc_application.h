@@ -184,6 +184,12 @@ public:
                                 thesis::TrlweCipher *inp_2);
   thesis::TrlweCipher *mulOp(thesis::TrlweCipher *inp_1,
                              thesis::TrgswCipher *inp_2);
+
+  // Packing
+  thesis::TrlweCipher *pseudoCipher(bool msgScalar);
+  thesis::TrlweCipher *pseudoCipher(bool msgPol[]);
+  thesis::TrlweCipher *cMux(thesis::TrgswCipher *C, thesis::TrlweCipher *d_1,
+                            thesis::TrlweCipher *d_0);
 };
 
 #endif

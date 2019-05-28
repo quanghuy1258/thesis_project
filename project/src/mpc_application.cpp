@@ -628,7 +628,7 @@ TrgswCipher *MpcApplication::mulOp(TrgswCipher *inp_1, TrgswCipher *inp_2) {
 }
 TrlweCipher *MpcApplication::reduce(TrgswCipher *inp) {
   if (!inp) {
-    WARNING_CERR("inp is not NULL");
+    WARNING_CERR("inp must be not NULL");
     return nullptr;
   }
   TrlweCipher *out =
@@ -683,7 +683,7 @@ int MpcApplication::getSizeReducedCipher() {
 }
 TrlweCipher *MpcApplication::addOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
   if (!inp_1 || !inp_2) {
-    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    WARNING_CERR("inp_1 and inp_2 must be not NULL");
     return nullptr;
   }
   TrlweCipher *out =
@@ -696,7 +696,7 @@ TrlweCipher *MpcApplication::addOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
 }
 TrlweCipher *MpcApplication::subOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
   if (!inp_1 || !inp_2) {
-    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    WARNING_CERR("inp_1 and inp_2 must be not NULL");
     return nullptr;
   }
   TrlweCipher *out =
@@ -709,7 +709,7 @@ TrlweCipher *MpcApplication::subOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
 }
 TrlweCipher *MpcApplication::notOp(TrlweCipher *inp) {
   if (!inp) {
-    WARNING_CERR("inp is not NULL");
+    WARNING_CERR("inp must be not NULL");
     return nullptr;
   }
   TrlweCipher *out =
@@ -721,7 +721,7 @@ TrlweCipher *MpcApplication::notOp(TrlweCipher *inp) {
 }
 TrlweCipher *MpcApplication::notXorOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
   if (!inp_1 || !inp_2) {
-    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    WARNING_CERR("inp_1 and inp_2 must be not NULL");
     return nullptr;
   }
   TrlweCipher *out =
@@ -735,7 +735,7 @@ TrlweCipher *MpcApplication::notXorOp(TrlweCipher *inp_1, TrlweCipher *inp_2) {
 }
 TrlweCipher *MpcApplication::mulOp(TrlweCipher *inp_1, TrgswCipher *inp_2) {
   if (!inp_1 || !inp_2) {
-    WARNING_CERR("inp_1 and inp_2 is not NULL");
+    WARNING_CERR("inp_1 and inp_2 must be not NULL");
     return nullptr;
   }
   if (!_fft_mul)
@@ -772,6 +772,77 @@ TrlweCipher *MpcApplication::mulOp(TrlweCipher *inp_1, TrgswCipher *inp_2) {
     _fft_mul->addAllOut(out->get_pol_data(i), i);
   // Wait all
   _fft_mul->waitAllOut();
+  // Free all
+  MemoryManagement::freeMM(decomp_ptr);
+  return out;
+}
+TrlweCipher *MpcApplication::pseudoCipher(bool msgScalar) {
+  TrlweCipher *out = new TrlweCipher(_N, 2 * _numParty - 1, 0., 0.);
+  out->clear_trlwe_data();
+  if (msgScalar)
+    TrlweFunction::putPlain(out, 1);
+  return out;
+}
+TrlweCipher *MpcApplication::pseudoCipher(bool msgPol[]) {
+  TrlweCipher *out = new TrlweCipher(_N, 2 * _numParty - 1, 0., 0.);
+  TorusInteger *hPtr = (TorusInteger *)std::malloc(_N * sizeof(TorusInteger));
+  TorusInteger *dPtr =
+      (TorusInteger *)MemoryManagement::mallocMM(_N * sizeof(TorusInteger));
+  for (int i = 0; i < _N; i++)
+    hPtr[i] = (msgPol[i]) ? 1 : 0;
+  MemoryManagement::memcpyMM_h2d(dPtr, hPtr, _N * sizeof(TorusInteger));
+  out->clear_trlwe_data();
+  TrlweFunction::putPlain(out, dPtr);
+  std::free(hPtr);
+  MemoryManagement::freeMM(dPtr);
+  return out;
+}
+TrlweCipher *MpcApplication::cMux(TrgswCipher *C, TrlweCipher *d_1,
+                                  TrlweCipher *d_0) {
+  if (!C || !d_1 || !d_0) {
+    WARNING_CERR("C, d_1 and d_0 must be not NULL");
+    return nullptr;
+  }
+  if (!_fft_mul)
+    _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
+  // Prepare FFT for multiplication
+  for (int i = 0; i < 2 * _l * _numParty; i++) {
+    for (int j = 0; j < 2 * _numParty; j++)
+      _fft_mul->setInp(C->get_pol_data(i, j), j, i);
+  }
+  // Init output
+  //   out = d_1 - d_0
+  TrlweCipher *out = subOp(d_1, d_0);
+  // Decomposition and multiplication
+  //   out *= C
+  TorusInteger *decomp_ptr = (TorusInteger *)MemoryManagement::mallocMM(
+      2 * _l * _numParty * _N * sizeof(TorusInteger));
+  Decomposition::onlyDecomp(out, C, decomp_ptr);
+  out->clear_trlwe_data();
+  for (int i = 0; i < 2 * _l * _numParty; i++)
+    _fft_mul->setInp(decomp_ptr + i * _N, i);
+  for (int i = 0; i < 2 * _numParty; i++) {
+    for (int j = 0; j < 2 * _l * _numParty; j++)
+      _fft_mul->setMul(i, j);
+  }
+  for (int i = 0; i < 2 * _numParty; i++)
+    _fft_mul->addAllOut(out->get_pol_data(i), i);
+  // Wait all
+  _fft_mul->waitAllOut();
+  // out += d_0
+  TorusUtility::addVector(out->_data, d_0->_data, 2 * _numParty * _N);
+  // Calculate sdError and varEror of output
+  double e_dec = std::pow(2, -_l - 1);
+  double sdMax = std::max(d_1->_sdError, d_0->_sdError);
+  double varMax = std::max(d_1->_varError, d_0->_varError);
+  //   sdError = 2 * l * numParty * N * sdC + numParty * (N + 1) * e_dec
+  //             + sdMax
+  //   varError = 2 * l * numParty * N * varC + numParty * (N + 1) * (e_dec ^ 2)
+  //              + varMax
+  out->_sdError = 2 * _l * _numParty * _N * C->_sdError +
+                  _numParty * (_N + 1) * e_dec + sdMax;
+  out->_varError = 2 * _l * _numParty * _N * C->_varError +
+                   _numParty * (_N + 1) * e_dec * e_dec + varMax;
   // Free all
   MemoryManagement::freeMM(decomp_ptr);
   return out;

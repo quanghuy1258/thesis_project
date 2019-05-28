@@ -896,7 +896,7 @@ bool reduce() {
     std::free(pubKey);
   }
   // Get expand ciphers
-  TrgswCipher *cipher_0, *cipher_1;
+  TrgswCipher *cipher_0, *cipher_1, *cipher_2;
   std::vector<void *> preExpand(3);
   std::vector<TorusInteger> partPlain(3);
   std::vector<bool> plain(3);
@@ -935,6 +935,23 @@ bool reduce() {
     std::free(mainCipher);
     std::free(random);
   }
+  {
+    void *mainCipher = std::malloc(party_2.getSizeMainCipher());
+    void *random = std::malloc(party_2.getSizeRandom());
+    load_data("MainCipher_2", mainCipher, party_2.getSizeMainCipher());
+    load_data("Random_2", random, party_2.getSizeRandom());
+    load_data("Plain_2", &oriPlain, sizeof(bool));
+    plain[2] = oriPlain;
+    preExpand[0] = std::malloc(party_2.getSizePreExpand());
+    load_data("PreExpand_0_2_3", preExpand[0], party_2.getSizePreExpand());
+    preExpand[1] = std::malloc(party_2.getSizePreExpand());
+    load_data("PreExpand_1_2_3", preExpand[1], party_2.getSizePreExpand());
+    preExpand[2] = nullptr;
+    cipher_2 = party_2.expandWithPlainRandom(
+        preExpand, [](void *ptr) { std::free(ptr); }, 2, mainCipher, random);
+    std::free(mainCipher);
+    std::free(random);
+  }
   // Test
   bool chk = true;
   double error = 0;
@@ -954,6 +971,16 @@ bool reduce() {
     partPlain[1] = party_1.partDec(cipher);
     partPlain[2] = party_2.partDec(cipher);
     chk = (party_1.finDec(partPlain.data(), &error) == plain[1]) && chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    delete cipher;
+  }
+  {
+    auto cipher = party_2.reduce(cipher_2);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    chk = (party_2.finDec(partPlain.data(), &error) == plain[2]) && chk;
     std::cout << error << " " << cipher->_sdError << " "
               << std::sqrt(cipher->_varError) << std::endl;
     delete cipher;
@@ -1056,7 +1083,30 @@ bool reduce() {
     delete red_cipher_0;
     delete cipher;
   }
+  {
+    DECLARE_TIMING(Mul);
+    auto red_cipher_0 = party_0.reduce(cipher_0);
+    auto red_cipher_1 = party_1.reduce(cipher_1);
+    START_TIMING(Mul);
+    auto cipher = party_2.cMux(cipher_2, red_cipher_0, red_cipher_1);
+    STOP_TIMING(Mul);
+    partPlain[0] = party_0.partDec(cipher);
+    partPlain[1] = party_1.partDec(cipher);
+    partPlain[2] = party_2.partDec(cipher);
+    if (plain[2])
+      oriPlain = plain[0];
+    else
+      oriPlain = plain[1];
+    chk = (party_2.finDec(partPlain.data(), &error) == oriPlain) && chk;
+    std::cout << error << " " << cipher->_sdError << " "
+              << std::sqrt(cipher->_varError) << std::endl;
+    PRINT_TIMING(Mul);
+    delete red_cipher_0;
+    delete red_cipher_1;
+    delete cipher;
+  }
   delete cipher_0;
   delete cipher_1;
+  delete cipher_2;
   return chk;
 }
