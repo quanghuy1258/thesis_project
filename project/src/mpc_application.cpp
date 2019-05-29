@@ -798,17 +798,19 @@ TrlweCipher *MpcApplication::pseudoCipher(bool msgPol[]) {
   return out;
 }
 TrlweCipher *MpcApplication::cMux(TrgswCipher *C, TrlweCipher *d_1,
-                                  TrlweCipher *d_0) {
+                                  TrlweCipher *d_0, bool update__fft_mul) {
   if (!C || !d_1 || !d_0) {
     WARNING_CERR("C, d_1 and d_0 must be not NULL");
     return nullptr;
   }
-  if (!_fft_mul)
-    _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
-  // Prepare FFT for multiplication
-  for (int i = 0; i < 2 * _l * _numParty; i++) {
-    for (int j = 0; j < 2 * _numParty; j++)
-      _fft_mul->setInp(C->get_pol_data(i, j), j, i);
+  if (!_fft_mul || update__fft_mul) {
+    if (!_fft_mul)
+      _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
+    // Prepare FFT for multiplication
+    for (int i = 0; i < 2 * _l * _numParty; i++) {
+      for (int j = 0; j < 2 * _numParty; j++)
+        _fft_mul->setInp(C->get_pol_data(i, j), j, i);
+    }
   }
   // Init output
   //   out = d_1 - d_0
@@ -858,17 +860,19 @@ TrlweCipher *MpcApplication::rotate(TrlweCipher *inp, int deg) {
   return out;
 }
 TrlweCipher *MpcApplication::blindRotate(TrlweCipher *inp, TrgswCipher *cond,
-                                         int deg) {
+                                         int deg, bool update__fft_mul) {
   if (!inp || !cond) {
     WARNING_CERR("inp and cond must be not NULL");
     return nullptr;
   }
-  if (!_fft_mul)
-    _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
-  // Prepare FFT for multiplication
-  for (int i = 0; i < 2 * _l * _numParty; i++) {
-    for (int j = 0; j < 2 * _numParty; j++)
-      _fft_mul->setInp(cond->get_pol_data(i, j), j, i);
+  if (!_fft_mul || update__fft_mul) {
+    if (!_fft_mul)
+      _fft_mul = new BatchedFFT(_N, 2 * _numParty, 2 * _l * _numParty);
+    // Prepare FFT for multiplication
+    for (int i = 0; i < 2 * _l * _numParty; i++) {
+      for (int j = 0; j < 2 * _numParty; j++)
+        _fft_mul->setInp(cond->get_pol_data(i, j), j, i);
+    }
   }
   // Init output
   double e_dec = std::pow(2, -_l - 1);
