@@ -334,8 +334,8 @@ int main(int argc, char *argv[]) {
   int numParty = 3;
   int N = 1024;
   int m = 6;
-  int l = 40;
-  double sdFresh = 1e-16;
+  int l = 32;
+  double sdFresh = 1e-9;
   // Set id_party and plaintext
   int idParty = -1;
   int plaintext = 0;
