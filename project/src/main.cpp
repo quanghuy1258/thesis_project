@@ -321,10 +321,6 @@ void maxAllPacking(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
 
 // Demo
 int main(int argc, char *argv[]) {
-#ifdef USING_32BIT
-  std::cerr << "ERROR: Please run with 64-bit mode" << std::endl;
-  return 1;
-#endif
   if (argc != 3) {
     std::cerr << "Help: " << std::endl;
     std::cerr << "  " << argv[0] << " <id_party> <plaintext>" << std::endl;
