@@ -3,7 +3,7 @@
 
 #define NUM_BIT 3
 
-#ifdef TEMPORARY_DEMO
+#if defined(TEMPORARY_DEMO)
 void save_data(const std::string &fileName, void *buffer, int sz) {
   std::ofstream f(fileName, std::ifstream::binary);
   f.write((char *)buffer, sz);
@@ -216,6 +216,7 @@ int main(int argc, char *argv[]) {
   std::cout << "INFO: Result is " << res << std::endl;
   return 0;
 }
+#elif defined(PACKING_DEMO)
 #else
 void save_data(const std::string &fileName, void *buffer, int sz) {
   std::ofstream f(fileName, std::ifstream::binary);
