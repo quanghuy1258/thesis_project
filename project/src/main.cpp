@@ -3,8 +3,6 @@
 
 #define NUM_BIT 3
 
-#define PACKING_DEMO
-
 #if defined(TEMPORARY_DEMO)
 void save_data(const std::string &fileName, void *buffer, int sz) {
   std::ofstream f(fileName, std::ifstream::binary);
@@ -234,23 +232,32 @@ void load_data(const std::string &fileName, void *buffer, int sz) {
 thesis::TrlweCipher *
 maxPartyPacking(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
                 MpcApplication &party, size_t partyId, int N) {
+  DECLARE_TIMING(Debug);
   // Prepare params
+  START_TIMING(Debug);
   int N_bit = 0;
   while ((1 << (N_bit + 1)) <= N)
     N_bit++;
   int all_bit = inp.size() * NUM_BIT;
   int cipher_bit = (all_bit > N_bit) ? (all_bit - N_bit) : 0;
+  STOP_TIMING(Debug);
+  PRINT_TIMING(Debug);
   // Prepare list of pseudo ciphertexts
+  START_TIMING(Debug);
   std::vector<thesis::TrlweCipher *> pseudoCipher_list(1 << cipher_bit,
                                                        nullptr);
   bool *msgPol = new bool[N];
   std::memset(msgPol, 0, N * sizeof(bool));
   std::vector<int> num(inp.size());
   for (size_t i = 0; i < pseudoCipher_list.size(); i++) {
-    int num_all_party = i << N_bit;
     for (int j = 0; j < N; j++) {
+      int val = i * N + j;
+      if (val >= (1 << all_bit)) {
+        msgPol[j] = false;
+        continue;
+      }
       for (size_t k = 0; k < inp.size(); k++)
-        num[k] = ((num_all_party + j) >> (k * NUM_BIT)) & ((1 << NUM_BIT) - 1);
+        num[k] = (val >> (k * NUM_BIT)) & ((1 << NUM_BIT) - 1);
       msgPol[j] = true;
       for (size_t k = 0; k < inp.size(); k++) {
         if (k == partyId)
@@ -264,30 +271,41 @@ maxPartyPacking(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
     pseudoCipher_list[i] = party.pseudoCipher(msgPol);
   }
   delete[] msgPol;
+  STOP_TIMING(Debug);
+  PRINT_TIMING(Debug);
   // Calculate
+  START_TIMING(Debug);
   for (int i = 0; i < cipher_bit; i++) {
     size_t x = (i + N_bit) / NUM_BIT;
     size_t y = (i + N_bit) % NUM_BIT;
+    if (x >= inp.size())
+      break;
     for (size_t j = 0; j < pseudoCipher_list.size(); j += 2) {
       if (pseudoCipher_list[j + 1] == nullptr)
         break;
-      pseudoCipher_list[j / 2] = party.cMux(inp[x][y], pseudoCipher_list[j + 1],
-                                            pseudoCipher_list[j], j == 0);
+      auto res = party.cMux(inp[x][y], pseudoCipher_list[j + 1],
+                            pseudoCipher_list[j], j == 0);
       delete pseudoCipher_list[j];
       delete pseudoCipher_list[j + 1];
       pseudoCipher_list[j] = nullptr;
       pseudoCipher_list[j + 1] = nullptr;
+      pseudoCipher_list[j / 2] = res;
     }
   }
+  STOP_TIMING(Debug);
+  PRINT_TIMING(Debug);
+  START_TIMING(Debug);
   for (int i = 0; i < N_bit; i++) {
     size_t x = i / NUM_BIT;
     size_t y = i % NUM_BIT;
     if (x >= inp.size())
       break;
     auto temp = pseudoCipher_list[0];
-    pseudoCipher_list[0] = party.blindRotate(temp, inp[x][y], 1 << i);
+    pseudoCipher_list[0] = party.blindRotate(temp, inp[x][y], -(1 << i));
     delete temp;
   }
+  STOP_TIMING(Debug);
+  PRINT_TIMING(Debug);
   return pseudoCipher_list[0];
 }
 void maxAllPacking(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
