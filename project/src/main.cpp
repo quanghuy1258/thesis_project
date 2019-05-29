@@ -293,6 +293,8 @@ maxPartyPacking(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
     }
   }
   STOP_TIMING(Debug);
+  std::cerr << "Debug: " << pseudoCipher_list[0]->_sdError << " "
+            << std::sqrt(pseudoCipher_list[0]->_varError) << std::endl;
   PRINT_TIMING(Debug);
   START_TIMING(Debug);
   for (int i = 0; i < N_bit; i++) {
@@ -305,6 +307,8 @@ maxPartyPacking(std::vector<std::vector<thesis::TrgswCipher *>> &inp,
     delete temp;
   }
   STOP_TIMING(Debug);
+  std::cerr << "Debug: " << pseudoCipher_list[0]->_sdError << " "
+            << std::sqrt(pseudoCipher_list[0]->_varError) << std::endl;
   PRINT_TIMING(Debug);
   return pseudoCipher_list[0];
 }
