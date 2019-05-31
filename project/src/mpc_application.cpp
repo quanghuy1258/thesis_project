@@ -204,7 +204,7 @@ int MpcApplication::getSizeMainCipher() {
   return 4 * _l * _N * sizeof(TorusInteger);
 }
 int MpcApplication::getSizeRandCipher() {
-  // (2 * l) x 4 random ciphers
+  // (2 * l) x m random ciphers
   // --> each cipher: matrix 2 x l torus polynomials
   // --> each polynomial: deg = N
   return 4 * _l * _m * _l * _N * sizeof(TorusInteger);
@@ -272,7 +272,7 @@ void MpcApplication::_extend(void *hPreExpand, int partyId,
   if (!_fft_preExpand)
     _fft_preExpand = new BatchedFFT(_N, _m * (_numParty - 1), _l);
   // Determine the position of partyId in _fft_with_preExpand
-  int id = (partyId < _partyId) ? partyId : (partyId - 1);
+  int id = (partyId < mainPartyId) ? partyId : (partyId - 1);
   // Do decomposition if hPreExpand is not null
   TorusInteger *decompPreExpand = nullptr;
   if (hPreExpand)
@@ -317,7 +317,7 @@ void MpcApplication::_extendWithPlainRandom(void *hPreExpand, int partyId,
   if (!_fft_preExpandRandom)
     _fft_preExpandRandom = new BatchedFFT(_N, _numParty - 1, _m);
   // Determine the position of partyId in _fft_with_preExpand
-  int id = (partyId < _partyId) ? partyId : (partyId - 1);
+  int id = (partyId < mainPartyId) ? partyId : (partyId - 1);
   // Move preExpand from host to device if possible
   TorusInteger *preExpandCipher = nullptr;
   if (hPreExpand) {
