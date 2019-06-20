@@ -88,6 +88,16 @@ static void BM_ExternalProduct(benchmark::State &state) {
   MemoryManagement::freeMM(s);
   s = nullptr;
 }
-BENCHMARK(BM_ExternalProduct)->Arg(50)->Arg(100)->Arg(150)->Arg(200);
+BENCHMARK(BM_ExternalProduct)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
+    ->Arg(16)
+    ->Arg(32)
+    ->Arg(50)
+    ->Arg(100)
+    ->Arg(150)
+    ->Arg(200);
 
 #endif
