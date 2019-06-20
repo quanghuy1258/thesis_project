@@ -12,12 +12,9 @@ using namespace thesis;
 
 #define M_PI 3.14159265358979323846
 
+#ifdef USING_32BIT
+
 static void BM_ExternalProduct(benchmark::State &state) {
-#ifndef USING_32BIT
-  std::cerr << "ERROR: Benchmark to compare with TFHE" << std::endl;
-  std::cerr << "Only 32-bit mode is acceptable" << std::endl;
-  return;
-#endif
   // Prepare for benchmark
   //   Set parameters
   const int N = 1024;                              // see TFHE
@@ -92,3 +89,5 @@ static void BM_ExternalProduct(benchmark::State &state) {
   s = nullptr;
 }
 BENCHMARK(BM_ExternalProduct)->Arg(50)->Arg(100)->Arg(150)->Arg(200);
+
+#endif
