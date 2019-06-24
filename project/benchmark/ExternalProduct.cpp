@@ -14,7 +14,7 @@ using namespace thesis;
 
 #ifdef USING_32BIT
 
-static void BM_ExternalProduct(benchmark::State &state) {
+static void BM_ExternalProduct_TRLWEs(benchmark::State &state) {
   // Prepare for benchmark
   //   Set parameters
   const int N = 1024;                              // see TFHE
@@ -88,16 +88,97 @@ static void BM_ExternalProduct(benchmark::State &state) {
   MemoryManagement::freeMM(s);
   s = nullptr;
 }
-BENCHMARK(BM_ExternalProduct)
+BENCHMARK(BM_ExternalProduct_TRLWEs)
     ->Arg(1)
-    ->Arg(2)
     ->Arg(4)
-    ->Arg(8)
     ->Arg(16)
-    ->Arg(32)
     ->Arg(50)
     ->Arg(100)
-    ->Arg(150)
-    ->Arg(200);
+    ->Arg(150);
 
+static void BM_ExternalProduct_TRGSWs(benchmark::State &state) {
+  // Prepare for benchmark
+  //   Set parameters
+  const int N = 1024;                              // see TFHE
+  const int k = 1;                                 // see TFHE
+  const int l = 2;                                 // see TFHE
+  const int Bgbit = 10;                            // see TFHE
+  const double sd = (9e-9) / std::sqrt(2. / M_PI); // see TFHE
+  //   Set number of TRGSW
+  const int number_trgsw = state.range(0);
+  //   Generate key
+  BatchedFFT fft_key(N, 2, k);
+  TorusInteger *s =
+      (TorusInteger *)MemoryManagement::mallocMM(N * k * sizeof(TorusInteger));
+  TrlweFunction::genkey(s, N, k);
+  TrlweFunction::keyToFFT(s, N, k, &fft_key);
+  //   Generate TRGSW ciphers
+  std::vector<TrgswCipher *> trgsw_list(number_trgsw);
+  for (int i = 0; i < number_trgsw; i++) {
+    trgsw_list[i] = new TrgswCipher(N, k, l, Bgbit, sd, sd * sd);
+    for (int j = 0; j < trgsw_list[i]->_kpl; j++)
+      // For simplicity, trgsw_list[i] = TrgswCipher(msg = 0)
+      TrlweFunction::createSample(
+          &fft_key, j & 1, trgsw_list[i]->get_trlwe_data(j), trgsw_list[i]->_N,
+          trgsw_list[i]->_k, trgsw_list[i]->_sdError);
+  }
+  //   Generate 1 TRLWE cipher
+  TrlweCipher trlwe(N, k, sd, sd * sd);
+  //     For simplicity, trlwe = TrlweCipher(msg = 0)
+  TrlweFunction::createSample(&fft_key, 1, &trlwe);
+  //   Malloc decomposition vector
+  TorusInteger *decomp_vec = (TorusInteger *)MemoryManagement::mallocMM(
+      N * (k + 1) * l * sizeof(TorusInteger));
+  //   Prepare fft for decomposition
+  BatchedFFT fft_decomp(N, k + 1, (k + 1) * l);
+  //   Wait for all
+  fft_key.waitAllOut();
+  // Benchmark
+  for (auto _ : state) {
+    for (int it = 0; it < number_trgsw; it++) {
+      // Set input | trgsw
+      for (int i = 0; i <= k; i++) {
+        for (int j = 0; j < trgsw_list[it]->_kpl; j++)
+          fft_decomp.setInp(trgsw_list[it]->get_pol_data(j, i), i, j);
+      }
+      if (it == 0) {
+        // Decomposition
+        Decomposition::onlyDecomp(&trlwe, trgsw_list[0], decomp_vec);
+        // Set input | trlwe
+        for (int i = 0; i < trgsw_list[0]->_kpl; i++)
+          fft_decomp.setInp(decomp_vec + N * i, i);
+      }
+      // Multiplication
+      for (int i = 0; i <= k; i++) {
+        for (int j = 0; j < trgsw_list[it]->_kpl; j++)
+          fft_decomp.setMul(i, j);
+      }
+      // Get result
+      trlwe.clear_trlwe_data();
+      for (int i = 0; i <= k; i++)
+        fft_decomp.addAllOut(trlwe.get_pol_data(i), i);
+    }
+    // Wait for all
+    fft_decomp.waitAllOut();
+  }
+  // Clean for benchmark
+  //   Free decomposition vector
+  MemoryManagement::freeMM(decomp_vec);
+  decomp_vec = nullptr;
+  //   Free TRGSW ciphers
+  for (int i = 0; i < number_trgsw; i++) {
+    delete trgsw_list[i];
+    trgsw_list[i] = nullptr;
+  }
+  //   Free key
+  MemoryManagement::freeMM(s);
+  s = nullptr;
+}
+BENCHMARK(BM_ExternalProduct_TRGSWs)
+    ->Arg(1)
+    ->Arg(4)
+    ->Arg(16)
+    ->Arg(50)
+    ->Arg(100)
+    ->Arg(150);
 #endif
