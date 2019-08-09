@@ -1,12 +1,13 @@
 #include "mpc_application.h"
 #include "thesis/profiling_timer.h"
 
-#define NUM_BIT 3
-#define PARAM_L 40
+#define NUM_BIT 5
+#define PARAM_L 64
+#define ALPHA 1e-16
 
 //#define TEMPORARY
-//#define PACKING_SELF_EXPAND
-#define PACKING_EXPAND
+#define PACKING_SELF_EXPAND
+//#define PACKING_EXPAND
 //#define NON_PACKING_SELF_EXPAND
 //#define NON_PACKING_EXPAND
 
@@ -61,7 +62,7 @@ int main(int argc, char *argv[]) {
   int N = 1024;
   int m = 6;
   int l = PARAM_L;
-  double sdFresh = 1e-9;
+  double sdFresh = ALPHA;
   // Set id_party and plaintext
   int idParty = -1;
   int plaintext = -1;
@@ -525,7 +526,7 @@ int main(int argc, char *argv[]) {
   int N = 1024;
   int m = 6;
   int l = PARAM_L;
-  double sdFresh = 1e-9;
+  double sdFresh = ALPHA;
   // Set id_party and plaintext
   int idParty = -1;
   int plaintext = -1;
@@ -991,7 +992,7 @@ int main(int argc, char *argv[]) {
   int N = 1024;
   int m = 6;
   int l = PARAM_L;
-  double sdFresh = 1e-9;
+  double sdFresh = ALPHA;
   // Set id_party and plaintext
   int idParty = -1;
   int plaintext = -1;
@@ -1528,7 +1529,7 @@ int main(int argc, char *argv[]) {
   int N = 1024;
   int m = 6;
   int l = PARAM_L;
-  double sdFresh = 1e-16;
+  double sdFresh = ALPHA;
   // Set id_party and plaintext
   int idParty = -1;
   int plaintext = -1;
@@ -2023,7 +2024,7 @@ int main(int argc, char *argv[]) {
   int N = 1024;
   int m = 6;
   int l = PARAM_L;
-  double sdFresh = 1e-16;
+  double sdFresh = ALPHA;
   // Set id_party and plaintext
   int idParty = -1;
   int plaintext = -1;
